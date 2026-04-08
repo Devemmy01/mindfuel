@@ -1,0 +1,706 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/providers/AuthProvider";
+import { useToast } from "@/providers/ToastProvider";
+import {
+  ArrowLeft,
+  Share2,
+  Bookmark,
+  Heart,
+  MessageCircle,
+  Loader2,
+  MoreHorizontal,
+  Link as LinkIcon,
+  Twitter,
+  Trash2,
+  Edit,
+  X,
+  Eye,
+  Sparkles,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import CommentSection from "@/components/CommentSection";
+import { toPng } from "html-to-image";
+import { Download } from "lucide-react";
+import { PostType } from "@/types";
+
+const fmt = (n: number) => {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+  return n === 0 ? "" : String(n);
+};
+
+const backgroundOptions = [
+  { id: "obsidian",  name: "Obsidian",    type: "color",    value: "#0a0a0a",                                        text: "#ffffff" },
+  { id: "paper",     name: "Paper",       type: "color",    value: "#ffffff",                                        text: "#171717" },
+  { id: "mindfuel",  name: "MindFuel",    type: "gradient", value: "linear-gradient(135deg, #00bf63, #047857)",      text: "#ffffff" },
+  { id: "midnight",  name: "Midnight",    type: "gradient", value: "linear-gradient(135deg, #0f172a, #1e293b)",      text: "#ffffff" },
+  { id: "aurora",    name: "Aurora",      type: "gradient", value: "linear-gradient(135deg, #134e5e, #71b280)",      text: "#ffffff" },
+  { id: "sakura",    name: "Sakura",      type: "gradient", value: "linear-gradient(135deg, #fff1f2, #ffe4e6)",      text: "#171717" },
+  { id: "sand",      name: "Sand",        type: "color",    value: "#f5f5dc",                                        text: "#171717" },
+  { id: "serenity",  name: "Serenity",    type: "gradient", value: "linear-gradient(135deg, #a5b4fc, #818cf8)",      text: "#ffffff" },
+];
+
+export default function PostDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const [post, setPost] = useState<PostType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = React.useRef<HTMLDivElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [editBg, setEditBg] = useState(backgroundOptions[0]);
+  // Notes/Report state
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [privateNote, setPrivateNote] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        shareMenuRef.current &&
+        !shareMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowShareMenu(false);
+      }
+    };
+    if (showShareMenu)
+      document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showShareMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/posts/${id}`);
+        if (!res.ok) throw new Error("Not found");
+        const data = await res.json();
+        setPost(data.post);
+        setLikesCount(data.post?.likesCount || 0);
+        
+        // Init edit state
+        setEditText(data.post?.text || "");
+        setEditBg(
+          backgroundOptions.find(o => o.value === data.post?.backgroundStyle.value) || backgroundOptions[0]
+        );
+      } catch {
+        // handled in render
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  useEffect(() => {
+    if (user && post) {
+      fetch(`/api/posts/${post._id}/like?userId=${user.uid}`)
+        .then((r) => r.json())
+        .then((d) => setIsLiked(d.liked))
+        .catch(() => {});
+      fetch(`/api/saves?userId=${user.uid}`)
+        .then((r) => r.json())
+        .then((d) =>
+          setIsSaved(
+            !!d.saves?.some(
+              (s: { postId: { _id: string } }) => s.postId._id === post._id,
+            ),
+          ),
+        )
+        .catch(() => {});
+    }
+  }, [post, user]);
+
+  const handleLike = async () => {
+    if (!user || !post) return;
+    
+    const newIsLiked = !isLiked;
+    setIsLiked(newIsLiked);
+    setLikesCount((p) => newIsLiked ? p + 1 : p - 1);
+
+    try {
+      const res = await fetch(`/api/posts/${post._id}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+      if (res.ok) {
+        showToast(newIsLiked ? "Reflection liked" : "Reflection unliked", "success");
+      }
+    } catch {
+      // Revert
+      setIsLiked(!newIsLiked);
+      setLikesCount((p) => newIsLiked ? p - 1 : p + 1);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user || !post || user.uid !== post.userId.firebaseId) return;
+    if (!confirm("Delete this thought forever?")) return;
+
+    try {
+      const res = await fetch(`/api/posts/${post._id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+      if (res.ok) {
+        router.push("/");
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!user || !post || user.uid !== post.userId.firebaseId || !editText.trim() || isUpdating) return;
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/posts/${post._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.uid,
+          text: editText,
+          backgroundStyle: { type: editBg.type, value: editBg.value },
+        }),
+      });
+      if (res.ok) {
+        setIsEditing(false);
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Update failed", err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!user || !post || isSavingNote) return;
+    setIsSavingNote(true);
+    try {
+      const res = await fetch(`/api/saves/${post._id}/note`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid, note: privateNote }),
+      });
+      if (res.ok) {
+        setIsSaved(true);
+        setIsNoteModalOpen(false);
+        showToast("Private note saved", "success");
+      }
+    } catch (err) {
+      console.error("Failed to save note", err);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!post) return;
+    if (confirm("Report this reflection? It will be hidden from your feed and the admin will be notified.")) {
+      setIsHidden(true);
+      setShowMenu(false);
+      try {
+        await fetch("/api/reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: post._id, userId: user?.uid }),
+        });
+        showToast("Post reported to admin", "warning");
+      } catch (err) {
+        console.error("Report failed", err);
+      }
+      router.push("/");
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !post) return;
+    setIsSaved((p) => !p);
+    try {
+      const res = await fetch("/api/saves", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid, postId: post._id }),
+      });
+      if (res.ok) {
+        showToast(!isSaved ? "Saved to library" : "Removed from library", "success");
+      }
+    } catch {}
+  };
+
+  const handleShareClick = () => {
+    setShowShareMenu((p) => !p);
+  };
+
+  const copyLink = () => {
+    if (!post) return;
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post._id}`);
+    showToast("Link copied to clipboard", "success");
+    setShowShareMenu(false);
+  };
+
+  const shareToX = () => {
+    if (!post) return;
+    const url = `${window.location.origin}/post/${post._id}`;
+    const text = encodeURIComponent(
+      `Thought on MindFuel by ${post.userId.name}:\n\n"${post.text}"\n\n`,
+    );
+    window.open(
+      `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`,
+      "_blank",
+    );
+    setShowShareMenu(false);
+  };
+
+  const shareToWhatsApp = () => {
+    if (!post) return;
+    const url = `${window.location.origin}/post/${post._id}`;
+    const text = encodeURIComponent(
+      `Thought on MindFuel:\n"${post.text}"\n\n${url}`,
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+    setShowShareMenu(false);
+  };
+
+  const downloadCard = async () => {
+    if (!cardRef.current || !post) return;
+    try {
+      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 2 });
+      const link = document.createElement("a");
+      link.download = `mindfuel-thought-${post._id.slice(-6)}.png`;
+      link.href = dataUrl;
+      link.click();
+      showToast("Reflection downloaded as image", "success");
+      setShowShareMenu(false);
+      setShowMenu(false);
+    } catch (err) {
+      console.error("Download failed", err);
+    }
+  };
+
+  if (isHidden) return null;
+
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+      </div>
+    );
+
+  if (!post)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center space-y-4 px-6">
+        <h2 className="text-xl font-bold">Post not found</h2>
+        <button
+          onClick={() => router.back()}
+          className="text-brand-green font-semibold"
+        >
+          Go back
+        </button>
+      </div>
+    );
+
+  const bgStyle =
+    post.backgroundStyle.type === "gradient"
+      ? { backgroundImage: post.backgroundStyle.value }
+      : { backgroundColor: post.backgroundStyle.value };
+  const isLight =
+    post.backgroundStyle.value === "#ffffff" ||
+    post.backgroundStyle.value.toLowerCase() === "#f5f5dc";
+  const textColor = isLight ? "#171717" : "#ffffff";
+
+  return (
+    <div className="flex flex-col w-full min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-40 glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="font-bold text-[17px] tracking-tight leading-tight">
+              Thought
+            </h1>
+            <p className="text-[12px] text-muted-foreground">
+              by {post.userId.name}
+            </p>
+          </div>
+        </div>
+        <div className="relative" ref={menuRef}>
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 rounded-xl hover:bg-secondary/60 transition-colors text-muted-foreground"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 w-44 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+              {user?.uid === post.userId.firebaseId ? (
+                <>
+                  <button
+                    onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" /> Edit Thought
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors border-t border-border/50"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Thought
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { setIsNoteModalOpen(true); setShowMenu(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" /> Private Note
+                  </button>
+                  <button
+                    onClick={copyLink}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4" /> Copy Link
+                  </button>
+                  <button
+                    onClick={downloadCard}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                  >
+                    <Download className="w-4 h-4" /> Download
+                  </button>
+                  <button
+                    onClick={handleReport}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" /> Report
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Post content */}
+      <article className="flex flex-col border-b border-border">
+        {/* Author row */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <div className="flex items-center gap-3">
+            {post.userId.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={post.userId.image}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-brand-green/20"
+                alt=""
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-muted-foreground text-[15px]">
+                {post.userId.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-[15px] hover:underline cursor-pointer">
+                {post.userId.name}
+              </span>
+              <span className="text-[13px] text-muted-foreground">
+                @{post.userId.name.replace(/\s+/g, "").toLowerCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Thought card */}
+        <div className="px-4 py-2">
+          <div
+            ref={cardRef}
+            className="relative w-full rounded-2xl overflow-hidden shadow-card border border-black/5 dark:border-white/5"
+            style={{ ...bgStyle, color: textColor }}
+          >
+            <p className="px-6 py-6 text-[22px] sm:text-[26px] font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap">
+              {post.text}
+            </p>
+            {/* Watermark */}
+            <div className="absolute bottom-4 right-6 z-10 flex items-center gap-1.5 opacity-40 select-none">
+              <div className="w-3.5 h-3.5 bg-current rounded-full" style={{ clipPath: "polygon(50% 0%, 80% 30%, 100% 60%, 80% 100%, 20% 100%, 0% 60%, 20% 30%)" }} />
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-black tracking-[0.2em] uppercase">MindFuel</span>
+                <span className="text-[8px] font-bold opacity-70 tracking-widest uppercase">by Lumyn</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Timestamp + views */}
+        <div className="px-4 py-3 border-b border-border flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span>
+            {format(new Date(post.createdAt), "h:mm a · MMM d, yyyy")}
+          </span>
+          <span>·</span>
+          <span className="font-bold text-foreground">
+            {fmt(post.views || 0)}
+          </span>
+          <span>Views</span>
+        </div>
+
+        {/* Engagement counts */}
+        {likesCount > 0 && (
+          <div className="px-4 py-2.5 border-b border-border flex items-center gap-4 text-[13px]">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-foreground">
+                {fmt(likesCount)}
+              </span>
+              <span className="text-muted-foreground">Likes</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action bar */}
+        <div className="flex justify-around items-center py-1 border-b border-border px-2">
+          <button className="flex-1 flex justify-center p-3 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5 transition-colors rounded-xl group">
+            <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={handleLike}
+            className={`flex-1 flex justify-center p-3 transition-colors rounded-xl group ${
+              isLiked
+                ? "text-rose-500"
+                : "text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5"
+            }`}
+          >
+            <Heart
+              className={`w-5 h-5 group-hover:scale-110 transition-transform ${isLiked ? "fill-current" : ""}`}
+            />
+          </button>
+
+          <button
+            onClick={handleSave}
+            className={`flex-1 flex justify-center p-3 transition-colors rounded-xl group ${
+              isSaved
+                ? "text-brand-green"
+                : "text-muted-foreground hover:text-brand-green hover:bg-brand-green/5"
+            }`}
+          >
+            <Bookmark
+              className={`w-5 h-5 group-hover:scale-110 transition-transform ${isSaved ? "fill-current" : ""}`}
+            />
+          </button>
+          <div
+            className="flex-1 flex justify-center relative"
+            ref={shareMenuRef}
+          >
+            <button
+              onClick={handleShareClick}
+              className={`flex justify-center p-3 w-full transition-colors rounded-xl group ${
+                showShareMenu
+                  ? "text-blue-500 bg-blue-500/5"
+                  : "text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5"
+              }`}
+            >
+              <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            </button>
+
+            {/* Share Dropdown */}
+            {showShareMenu && (
+              <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+                <button
+                  onClick={copyLink}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy
+                  Link
+                </button>
+                <button
+                  onClick={shareToX}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
+                </button>
+                <button
+                  onClick={shareToWhatsApp}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                >
+                  <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share to
+                  WhatsApp
+                </button>
+                <button
+                  onClick={downloadCard}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  <Download className="w-4 h-4 text-brand-green" /> Download
+                  Image
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </article>
+
+      {/* Comments */}
+      <div className="flex-1 w-full pb-32">
+        <CommentSection postId={post._id} />
+      </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {isEditing && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
+                <h3 className="text-[17px] font-bold tracking-tight">Edit Thought</h3>
+                <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                {/* Preview Card */}
+                <div 
+                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[140px] mb-6 transition-all duration-300"
+                  style={{ 
+                    background: editBg.type === "gradient" ? editBg.value : editBg.value,
+                    color: editBg.text 
+                  }}
+                >
+                  <textarea 
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    placeholder="What's on your mind?"
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 py-5 text-[18px]"
+                    style={{ color: editBg.text }}
+                    rows={4}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Bg options */}
+                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-6">
+                  {backgroundOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setEditBg(option)}
+                      className={`w-9 h-9 rounded-full transition-all flex-shrink-0 ${
+                        editBg.id === option.id 
+                          ? "scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background" 
+                          : "opacity-75 hover:opacity-100"
+                      }`}
+                      style={{ background: option.value }}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleUpdate}
+                    disabled={isUpdating || !editText.trim()}
+                    className="flex-[2] py-3.5 bg-brand-green text-white font-bold rounded-2xl hover:bg-[#00a855] disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
+                  >
+                    {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Note Modal */}
+      <AnimatePresence>
+        {isNoteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
+                <h3 className="text-[17px] font-bold tracking-tight text-brand-green">Private Note</h3>
+                <button onClick={() => setIsNoteModalOpen(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-[13px] text-muted-foreground mb-4">
+                  Reflect on this thought. This note is only visible to you and will save the reflection to your library.
+                </p>
+                
+                <textarea 
+                  value={privateNote}
+                  onChange={(e) => setPrivateNote(e.target.value)}
+                  placeholder="Your personal reflection..."
+                  className="w-full bg-secondary/30 border border-border rounded-2xl resize-none focus:ring-1 focus:ring-brand-green outline-none p-4 text-[15px] mb-6"
+                  rows={4}
+                  autoFocus
+                />
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsNoteModalOpen(false)}
+                    className="flex-1 py-3 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveNote}
+                    disabled={isSavingNote || !privateNote.trim()}
+                    className="flex-[2] py-3 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/90 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
+                  >
+                    {isSavingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
+                    Save Note
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
