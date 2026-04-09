@@ -97,9 +97,9 @@ export default function Home() {
         {/* Mobile top bar */}
         <div className="flex md:hidden justify-between items-center px-4 py-2.5">
           <div className="w-8 h-8 rounded-full overflow-hidden">
-            <img src="/logoDarkbg.png" alt="MindFuel" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="MindFuel" className="w-10 h-10" />
           </div>
-          <span className="font-bold text-[17px] tracking-tight">MindFuel</span>
+          {/* <span className="font-bold text-[17px] tracking-tight">MindFuel</span> */}
           <button
             onClick={() => fetchPosts(true)}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"

@@ -35,6 +35,10 @@ const PostSchema = new Schema(
         default: "#ffffff",
       },
     },
+    fontFamily: {
+      type: String,
+      default: "inter",
+    },
   },
   { timestamps: true }
 );

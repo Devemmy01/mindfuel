@@ -6,6 +6,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { Send, Trash2, User as UserIcon, Heart, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface Comment {
   _id: string;
@@ -22,7 +23,7 @@ interface Comment {
 }
 
 const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { showToast } = useToast();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -153,28 +154,32 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
               >
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  {comment.userId.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={comment.userId.image}
-                      className="w-9 h-9 rounded-full object-cover"
-                      alt={comment.userId.name}
-                    />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-                      <UserIcon className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  )}
+                  <Link href={`/profile/${comment.userId.firebaseId}`} className="block outline-none press-scale">
+                    {comment.userId.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={comment.userId.image}
+                        className="w-9 h-9 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
+                        alt={comment.userId.name}
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
+                        <UserIcon className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </Link>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="flex items-baseline gap-1.5 min-w-0">
-                      <span className="font-bold text-[13px] truncate">{comment.userId.name}</span>
-                      <span className="text-muted-foreground text-[12px] truncate">
+                      <Link href={`/profile/${comment.userId.firebaseId}`} className="font-bold text-[13px] truncate hover:underline">
+                        {comment.userId.name}
+                      </Link>
+                      <Link href={`/profile/${comment.userId.firebaseId}`} className="text-muted-foreground text-[12px] truncate hover:text-foreground transition-colors">
                         @{comment.userId.name.replace(/\s+/g, "").toLowerCase()}
-                      </span>
+                      </Link>
                     </div>
                     <span className="text-muted-foreground text-[11px] flex-shrink-0 whitespace-nowrap">
                       {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: false })
@@ -230,9 +235,9 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
       {user ? (
         <div className="sticky bottom-0 border-t border-border glass-strong px-4 py-3 pb-safe">
           <form onSubmit={handleSubmit} className="flex items-end gap-3">
-            {user.photoURL ? (
+            {profile?.image || user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="Me" className="w-8 h-8 rounded-full object-cover flex-shrink-0 self-end mb-1" />
+              <img src={profile?.image || user.photoURL || ""} alt="Me" className="w-8 h-8 rounded-full object-cover flex-shrink-0 self-end mb-1" />
             ) : (
               <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 self-end mb-1">
                 <UserIcon className="w-4 h-4 text-muted-foreground" />

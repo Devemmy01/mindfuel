@@ -1,6 +1,7 @@
 import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -8,6 +9,19 @@ import SearchUsers from "@/components/SearchUsers";
 import MindfulSaves from "@/components/MindfulSaves";
 import MindfulTip from "@/components/MindfulTip";
 import { ToastProvider } from "@/providers/ToastProvider";
+import InstallPWA from "@/components/InstallPWA";
+
+// Google Fonts for card font picker
+const CARD_FONTS_URL =
+  "https://fonts.googleapis.com/css2?" +
+  "family=Playfair+Display:wght@400;600;700;900" +
+  "&family=Lora:wght@400;600;700" +
+  "&family=Raleway:wght@400;600;700;800" +
+  "&family=Montserrat:wght@400;600;700;800" +
+  "&family=Space+Grotesk:wght@400;600;700" +
+  "&family=DM+Serif+Display:ital@0;1" +
+  "&family=Cormorant+Garamond:wght@400;600;700" +
+  "&display=swap";
 
 
 const inter = Inter({
@@ -52,6 +66,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href={CARD_FONTS_URL} rel="stylesheet" />
+      </head>
       <body
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
@@ -89,16 +108,17 @@ export default function RootLayout({
                   <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
                     <div className="flex flex-wrap gap-x-5 gap-y-2">
                       {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-                        <button key={l} className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100">
+                        <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100">
                           {l}
-                        </button>
+                        </Link>
                       ))}
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-5 h-5 bg-foreground/5 rounded-md flex items-center justify-center">
-                         <img src="/logo.png" alt="" className="w-3 h-3" />
+                         {/* eslint-disable-next-line @next/next/no-img-element */}
+                         <img src="/logo.png" alt="" className="w-5 h-5" />
                       </div>
-                      <p className="text-[11px] font-bold text-muted-foreground opacity-50 tracking-wide uppercase">
+                      <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
                         MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.
                       </p>
                     </div>
@@ -107,6 +127,7 @@ export default function RootLayout({
 
               </div>
             </div>
+            <InstallPWA />
           </ToastProvider>
         </AuthProvider>
       </body>

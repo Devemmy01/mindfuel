@@ -383,7 +383,7 @@
    MOBILE CONTENT OFFSET
    =========================== */
 .mobile-content-offset {
-  padding-bottom: calc(60px + max(1rem, env(safe-area-inset-bottom)));
+  padding-bottom: calc(100px + max(1rem, env(safe-area-inset-bottom)));
 }
 @media (min-width: 768px) {
   .mobile-content-offset {

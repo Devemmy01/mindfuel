@@ -84,6 +84,7 @@ export default function SearchUsers() {
                   className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
                 >
                   {u.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={u.image} className="w-9 h-9 rounded-full object-cover" alt="" />
                   ) : (
                     <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">

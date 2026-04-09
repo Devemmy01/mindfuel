@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { text, userId: firebaseId, backgroundStyle, isSponsored } = await req.json();
+    const { text, userId: firebaseId, backgroundStyle, fontFamily, isSponsored } = await req.json();
 
     if (!text || !firebaseId) {
       return NextResponse.json(
@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
       text,
       userId: user._id,
       backgroundStyle,
+      fontFamily: fontFamily || "inter",
       isSponsored: isSponsored || false,
       views: 0,
       likesCount: 0,

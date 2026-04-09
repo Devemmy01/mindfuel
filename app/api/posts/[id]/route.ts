@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     await connectToDB();
     const { id } = await params;
-    const { userId: firebaseId, text, backgroundStyle } = await req.json();
+    const { userId: firebaseId, text, backgroundStyle, fontFamily } = await req.json();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -54,6 +54,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Update fields
     if (text) post.text = text;
     if (backgroundStyle) post.backgroundStyle = backgroundStyle;
+    if (fontFamily) post.fontFamily = fontFamily;
 
     await post.save();
 

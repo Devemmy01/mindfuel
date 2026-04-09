@@ -10,13 +10,16 @@ export default function MindfulSaves() {
   const { user } = useAuth();
   const [saves, setSaves] = useState<SaveType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalSaves, setTotalSaves] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     fetch(`/api/saves?userId=${user.uid}`)
       .then(res => res.json())
       .then(data => {
-        setSaves((data.saves || []).slice(0, 3));
+        const allSaves = data.saves || [];
+        setTotalSaves(allSaves.length);
+        setSaves(allSaves.slice(0, 3));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -31,9 +34,11 @@ export default function MindfulSaves() {
           <Bookmark className="w-4 h-4 text-brand-green/70" />
           <h3 className="font-bold text-[14px] tracking-tight">Saved Reflections</h3>
         </div>
-        <Link href="/collections" className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors uppercase tracking-widest">
-          View All
-        </Link>
+        {totalSaves > 3 && (
+          <Link href="/collections" className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors uppercase tracking-widest">
+            VIEW ALL
+          </Link>
+        )}
       </div>
 
       {loading ? (

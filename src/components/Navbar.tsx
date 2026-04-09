@@ -5,12 +5,15 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { Home, Plus, Bookmark, User, LogOut, MoreHorizontal } from "lucide-react";
+import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal } from "lucide-react";
 
 export default function Navbar() {
   const { user, profile, login, logout } = useAuth();
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const displayImage = profile?.image || user?.photoURL;
+  const displayName = profile?.name || user?.displayName;
 
   const navItems = [
     { href: "/",            icon: Home,     label: "Home"    },
@@ -111,10 +114,10 @@ export default function Navbar() {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-secondary/60 transition-colors w-full group outline-none"
                 >
-                  {profile?.image && !profile.image.startsWith("#") ? (
+                  {displayImage && !displayImage.startsWith("#") ? (
                     <img
-                      src={profile.image}
-                      alt={user?.displayName || "User"}
+                      src={displayImage}
+                      alt={displayName || "User"}
                       className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-brand-green/30"
                     />
                   ) : (
@@ -125,16 +128,16 @@ export default function Navbar() {
                       }}
                     >
                       <span className="text-[13px] font-bold text-white uppercase">
-                        {user?.displayName?.[0]}
+                        {displayName?.[0]}
                       </span>
                     </div>
                   )}
                   <div className="hidden xl:flex flex-col text-left flex-1 min-w-0">
                     <span className="font-bold text-[14px] leading-tight text-foreground truncate">
-                      {user?.displayName}
+                      {displayName}
                     </span>
                     <span className="text-muted-foreground text-[13px] truncate">
-                      @{user?.displayName?.replace(/\s+/g, "").toLowerCase()}
+                      @{displayName?.replace(/\s+/g, "").toLowerCase()}
                     </span>
                   </div>
                   <MoreHorizontal className="hidden xl:block w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -144,9 +147,9 @@ export default function Navbar() {
                 {showUserMenu && (
                   <div className="absolute bottom-full mb-2 left-0 xl:left-0 w-[220px] bg-popover border border-border rounded-2xl shadow-card py-1 z-50 animate-scale-in">
                     <div className="px-4 py-3 border-b border-border">
-                      <p className="font-bold text-[14px]">{user.displayName}</p>
+                      <p className="font-bold text-[14px]">{displayName}</p>
                       <p className="text-muted-foreground text-[12px]">
-                        @{user.displayName?.replace(/\s+/g, "").toLowerCase()}
+                        @{displayName?.replace(/\s+/g, "").toLowerCase()}
                       </p>
                     </div>
                     <button
@@ -165,35 +168,56 @@ export default function Navbar() {
       </header>
 
       {/* ── Mobile Bottom Navigation ────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 glass-strong border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-between h-[56px] px-2">
+      <div 
+        className={`md:hidden fixed bottom-0 left-0 w-full z-[100] px-4 pb-safe pointer-events-none transition-all duration-500 ${
+          pathname === '/create' 
+            ? 'translate-y-[150%] opacity-0' 
+            : 'translate-y-0 opacity-100'
+        }`}
+      >
+        <nav className="glass-strong bg-background/85 backdrop-blur-2xl border border-border/80 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full flex items-center justify-between h-[64px] px-2 mb-4 pointer-events-auto mx-auto max-w-[400px]">
 
           {/* Feed */}
           <Link
             href="/"
             target="_self"
-            className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative"
+            className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Home
-              className={`w-6 h-6 transition-colors ${
-                pathname === "/" ? "text-brand-green" : "text-muted-foreground"
+              className={`w-[22px] h-[22px] transition-all duration-300 ${
+                pathname === "/" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
               }`}
               strokeWidth={pathname === "/" ? 2.5 : 2}
             />
-            {pathname === "/" && (
-              <span className="mt-1 text-[9px] font-bold text-brand-green leading-none">Home</span>
-            )}
+            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+              Home
+            </span>
           </Link>
 
-
+          {/* Search */}
+          <Link
+            href="/search"
+            target="_self"
+            className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
+          >
+            <Search
+              className={`w-[22px] h-[22px] transition-all duration-300 ${
+                pathname === "/search" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
+              }`}
+              strokeWidth={pathname === "/search" ? 2.5 : 2}
+            />
+            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/search" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+              Search
+            </span>
+          </Link>
 
           {/* Create – Elevated center button */}
           <Link
             href="/create"
             target="_self"
-            className="flex-1 h-full flex items-center justify-center outline-none"
+            className="flex-1 h-full flex flex-col items-center justify-center outline-none"
           >
-            <div className="w-12 h-12 bg-brand-green rounded-2xl flex items-center justify-center shadow-brand-sm press-scale active:bg-[#009950] transition-colors -mt-3">
+            <div className="w-[46px] h-[46px] bg-[#00a855] rounded-full flex items-center justify-center shadow-brand-sm press-scale active:bg-[#009950] transition-transform hover:scale-105">
               <Plus className="w-6 h-6 text-white" strokeWidth={2.75} />
             </div>
           </Link>
@@ -202,17 +226,17 @@ export default function Navbar() {
           <Link
             href="/collections"
             target="_self"
-            className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative"
+            className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Bookmark
-              className={`w-6 h-6 transition-colors ${
-                pathname === "/collections" ? "text-brand-green" : "text-muted-foreground"
+              className={`w-[22px] h-[22px] transition-all duration-300 ${
+                pathname === "/collections" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
               }`}
               strokeWidth={pathname === "/collections" ? 2.5 : 2}
             />
-            {pathname === "/collections" && (
-              <span className="mt-1 text-[9px] font-bold text-brand-green leading-none">Saved</span>
-            )}
+            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/collections" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+              Saved
+            </span>
           </Link>
 
           {/* Profile / Login */}
@@ -220,50 +244,52 @@ export default function Navbar() {
             <Link
               href="/profile"
               target="_self"
-              className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none"
+              className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
-              {user.photoURL ? (
-                user.photoURL.startsWith("#") ? (
-                  <div 
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                      pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-1 ring-offset-background" : ""
-                    }`}
-                    style={{ backgroundColor: user.photoURL }}
-                  >
-                    <span className="text-[11px] font-bold text-white uppercase">{user.displayName?.[0]}</span>
-                  </div>
+              <div className={`transition-all duration-300 flex flex-col items-center justify-center ${pathname === "/profile" ? "translate-y-[-2px]" : ""}`}>
+                {displayImage ? (
+                  displayImage.startsWith("#") ? (
+                    <div 
+                      className={`w-[24px] h-[24px] rounded-full flex items-center justify-center transition-all duration-300 ${
+                        pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
+                      }`}
+                      style={{ backgroundColor: displayImage }}
+                    >
+                      <span className="text-[10px] font-bold text-white uppercase">{displayName?.[0]}</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={displayImage}
+                      alt="Profile"
+                      className={`w-[24px] h-[24px] rounded-full object-cover transition-all duration-300 ${
+                        pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
+                      }`}
+                    />
+                  )
                 ) : (
-                  <img
-                    src={user.photoURL}
-                    alt="Profile"
-                    className={`w-7 h-7 rounded-full object-cover transition-all ${
-                      pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-1 ring-offset-background" : ""
+                  <User
+                    className={`w-[22px] h-[22px] transition-all duration-300 ${
+                      pathname === "/profile" ? "text-brand-green" : "text-muted-foreground group-hover:text-foreground"
                     }`}
+                    strokeWidth={pathname === "/profile" ? 2.5 : 2}
                   />
-                )
-              ) : (
-                <User
-                  className={`w-6 h-6 transition-colors ${
-                    pathname === "/profile" ? "text-brand-green" : "text-muted-foreground"
-                  }`}
-                  strokeWidth={pathname === "/profile" ? 2.5 : 2}
-                />
-              )}
-              {pathname === "/profile" && (
-                <span className="mt-1 text-[9px] font-bold text-brand-green leading-none">Profile</span>
-              )}
+                )}
+              </div>
+              <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/profile" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+                Profile
+              </span>
             </Link>
           ) : (
             <button
               onClick={login}
-              className="flex-1 h-full flex items-center justify-center press-scale outline-none"
+              className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
-              <User className="w-6 h-6 text-muted-foreground" strokeWidth={2} />
+              <User className="w-[22px] h-[22px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} />
             </button>
           )}
 
-        </div>
-      </nav>
+        </nav>
+      </div>
     </>
   );
 }

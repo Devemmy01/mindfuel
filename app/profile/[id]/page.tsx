@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -6,7 +7,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import Link from "next/link";
 import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 
@@ -15,7 +16,7 @@ type ProfileTab = (typeof profileTabs)[number];
 
 export default function DynamicProfilePage() {
   const { id: profileId } = useParams() as { id: string };
-  const { user: currentUser, loading: authLoading } = useAuth();
+  const { user: currentUser, loading: authLoading, profile, logout } = useAuth();
   const router = useRouter();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
@@ -50,8 +51,8 @@ export default function DynamicProfilePage() {
               const fallbackUser: ProfileUser = {
                 _id: "fallback",
                 firebaseId: currentUser.uid,
-                name: currentUser.displayName || "Unknown",
-                image: currentUser.photoURL || "",
+                name: profile?.name || currentUser.displayName || "Unknown",
+                image: profile?.image || currentUser.photoURL || "",
                 createdAt: new Date().toISOString(),
                 bio: "",
               };
@@ -110,7 +111,7 @@ export default function DynamicProfilePage() {
     };
 
     if (profileId) fetchData();
-  }, [profileId, activeTab]);
+  }, [profileId, activeTab, currentUser, isOwnProfile, profile?.image, profile?.name]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,19 +234,30 @@ export default function DynamicProfilePage() {
         )}
       </AnimatePresence>
 
-      <header className="sticky top-0 z-40 glass-strong border-b border-border/60 flex items-center gap-4 px-4 py-3">
-        <button
-          onClick={() => router.back()}
-          className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="font-bold text-[17px] tracking-tight leading-tight">{profileUser.name}</h1>
-          <p className="text-[12px] text-muted-foreground mt-0.5">
-            {activeTab === "Posts" ? `${ownPostCount} thoughts` : `${posts.length} ${activeTab.toLowerCase()}`}
-          </p>
+      <header className="sticky top-0 z-40 glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="font-bold text-[17px] tracking-tight leading-tight">{profileUser.name}</h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              {activeTab === "Posts" ? `${ownPostCount} thoughts` : `${posts.length} ${activeTab.toLowerCase()}`}
+            </p>
+          </div>
         </div>
+        {isOwnProfile && (
+          <button
+            onClick={() => logout()}
+            className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 hover:text-destructive transition-colors press-scale"
+            title="Sign Out"
+          >
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+          </button>
+        )}
       </header>
 
       <div className="relative">
@@ -328,7 +340,7 @@ export default function DynamicProfilePage() {
           <p className="text-[15px] text-foreground/90 mt-4 leading-relaxed whitespace-pre-wrap">{profileUser.bio}</p>
         )}
 
-        <div className="flex items-center gap-5 mt-5">
+        <div className="flex flex-wrap items-center gap-4 md:gap-6 mt-5">
           <div className="flex items-baseline gap-1.5">
             <span className="font-bold text-[16px]">{ownPostCount}</span>
             <span className="text-muted-foreground text-[13px]">Thoughts</span>
@@ -337,25 +349,39 @@ export default function DynamicProfilePage() {
             <span className="font-bold text-[16px]">{ownLikesCount}</span>
             <span className="text-muted-foreground text-[13px]">Likes</span>
           </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground text-[13px] ml-auto">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-[13px]">
             <CalendarDays className="w-3.5 h-3.5" />
-            <span>Joined {joinedDate}</span>
+            <span className="pt-1">Joined {joinedDate}</span>
           </div>
+        </div>
+
+        {/* Mobile Footers */}
+        <div className="lg:hidden mt-6 pt-5 border-t border-border/40 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {["About", "Privacy", "Terms", "Cookies"].map((l) => (
+              <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11.5px] font-bold text-muted-foreground hover:text-brand-green transition-colors uppercase opacity-70">
+                {l}
+              </Link>
+            ))}
+          </div>
+          <p className="text-[10px] font-bold text-muted-foreground opacity-40 tracking-wider text-left uppercase">
+            MindFuel by Lumyn
+          </p>
         </div>
       </div>
 
-      <div className="sticky top-[57px] z-30 glass-strong border-b border-border/60">
-        <div className="flex">
+      <div className="sticky top-[57px] z-30 glass-strong border-b border-border/60 px-2 lg:px-4 flex justify-between items-center">
+        <div className="flex flex-1 max-w-md">
           {profileTabs.map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className="flex-1 flex justify-center py-4 relative outline-none hover:bg-secondary/30 transition-colors">
-              <span className={`text-[14px] font-semibold transition-colors ${activeTab === tab ? "text-foreground" : "text-muted-foreground"}`}>{tab}</span>
+              <span className={`text-[13px] md:text-[14px] font-semibold transition-colors ${activeTab === tab ? "text-foreground" : "text-muted-foreground"}`}>{tab}</span>
               {activeTab === tab && <span className="tab-active-indicator" />}
             </button>
           ))}
         </div>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-brand-green" : "text-muted-foreground"}`}><List className="w-4 h-4" /></button>
-          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-brand-green" : "text-muted-foreground"}`}><Grid3X3 className="w-4 h-4" /></button>
+        <div className="flex gap-1 ml-4 pl-3 border-l border-border/40">
+          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><List className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
+          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><Grid3X3 className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
         </div>
       </div>
 
@@ -391,7 +417,8 @@ export default function DynamicProfilePage() {
           </div>
         )}
       </div>
-      <div className="pb-20 md:pb-0" />
+
+      <div className="mobile-content-offset" />
     </div>
   );
 }

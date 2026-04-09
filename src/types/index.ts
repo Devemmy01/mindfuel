@@ -14,6 +14,7 @@ export interface PostType {
     type: "color" | "gradient" | string;
     value: string;
   };
+  fontFamily?: string;
   createdAt: string;
 }
 

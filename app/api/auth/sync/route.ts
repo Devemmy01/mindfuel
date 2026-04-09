@@ -14,12 +14,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upsert user
+    // Upsert user, but only set name and image if creating a new user
     const user = await User.findOneAndUpdate(
       { firebaseId },
       { 
-        $set: { 
-          email, 
+        $set: { email },
+        $setOnInsert: { 
           name, 
           image: image || "" 
         } 

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -14,6 +15,9 @@ import { formatDistanceToNow } from "date-fns";
 import { PostType } from "@/types";
 import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
+import { backgroundOptions } from "@/lib/backgrounds";
+import { getFontById, fontOptions } from "@/lib/fonts";
+import { CardWatermark } from "@/components/CardCreator";
 
 interface PostCardProps {
   post: PostType;
@@ -25,16 +29,7 @@ const fmt = (n: number) => {
   return n === 0 ? "" : String(n);
 };
 
-const backgroundOptions = [
-  { id: "obsidian",  name: "Obsidian",    type: "color",    value: "#0a0a0a",                                        text: "#ffffff" },
-  { id: "paper",     name: "Paper",       type: "color",    value: "#ffffff",                                        text: "#171717" },
-  { id: "mindfuel",  name: "MindFuel",    type: "gradient", value: "linear-gradient(135deg, #00bf63, #047857)",      text: "#ffffff" },
-  { id: "midnight",  name: "Midnight",    type: "gradient", value: "linear-gradient(135deg, #0f172a, #1e293b)",      text: "#ffffff" },
-  { id: "aurora",    name: "Aurora",      type: "gradient", value: "linear-gradient(135deg, #134e5e, #71b280)",      text: "#ffffff" },
-  { id: "sakura",    name: "Sakura",      type: "gradient", value: "linear-gradient(135deg, #fff1f2, #ffe4e6)",      text: "#171717" },
-  { id: "sand",      name: "Sand",        type: "color",    value: "#f5f5dc",                                        text: "#171717" },
-  { id: "serenity",  name: "Serenity",    type: "gradient", value: "linear-gradient(135deg, #a5b4fc, #818cf8)",      text: "#ffffff" },
-];
+// backgroundOptions imported from lib
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const { user } = useAuth();
@@ -50,6 +45,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [editBg, setEditBg] = useState(
     backgroundOptions.find(o => o.value === post.backgroundStyle.value) || backgroundOptions[0]
   );
+  const [editFont, setEditFont] = useState(getFontById(post.fontFamily ?? "inter"));
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -180,9 +176,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     e.preventDefault(); e.stopPropagation();
     if (!cardRef.current) return;
     try {
-      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 2 });
+      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3 });
       const link = document.createElement("a");
-      link.download = `mindfuel-thought-${post._id.slice(-6)}.png`;
+      link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
       showToast("Reflection downloaded as image", "success");
@@ -224,6 +220,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           userId: user.uid,
           text: editText,
           backgroundStyle: { type: editBg.type, value: editBg.value },
+          fontFamily: editFont.id,
         }),
       });
       if (res.ok) {
@@ -295,6 +292,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     .replace("less than a minute", "now");
 
   return (
+    <>
     <motion.article
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -414,17 +412,16 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           className="relative rounded-2xl overflow-hidden shadow-sm border border-black/5 dark:border-white/5 mb-2.5"
           style={{ ...bgStyle, color: textColor }}
         >
+          <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
           <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
-          <p className="relative z-10 px-5 py-5 text-[16px] sm:text-[18px] font-medium leading-[1.45] tracking-tight whitespace-pre-wrap break-words">
+          <p
+            className="relative z-10 px-3 md:px-5 pt-5 pb-14 text-[16px] sm:text-[18px] font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm"
+            style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
+          >
             {post.text}
           </p>
-          <div className="absolute bottom-3 right-4 z-10 flex items-center gap-1.5 opacity-40 select-none">
-            <div className="w-3 h-3 bg-current rounded-full" style={{ clipPath: "polygon(50% 0%, 80% 30%, 100% 60%, 80% 100%, 20% 100%, 0% 60%, 20% 30%)" }} />
-            <div className="flex flex-col leading-none">
-              <span className="text-[9px] font-black tracking-[0.2em] uppercase">MindFuel</span>
-              <span className="text-[7px] font-bold opacity-70 tracking-widest uppercase">by Lumyn</span>
-            </div>
-          </div>
+          <CardWatermark color={textColor} />
         </div>
 
         <div className="flex items-center justify-between text-muted-foreground pr-2">
@@ -499,15 +496,24 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           </div>
         </div>
       </div>
+    </motion.article>
 
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <motion.div 
+            key="edit-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(false); }}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-card border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
                 <h3 className="text-[17px] font-bold tracking-tight">Edit Thought</h3>
@@ -517,19 +523,21 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               </div>
               <div className="p-6">
                 <div 
-                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[140px] mb-6 transition-all duration-300"
+                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[140px] mb-4 transition-all duration-300"
                   style={{ background: editBg.type === "gradient" ? editBg.value : editBg.value, color: editBg.text }}
                 >
                   <textarea 
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 py-5 text-[18px]"
-                    style={{ color: editBg.text }}
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark"
+                    style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
                     autoFocus
                   />
+                  <CardWatermark color={editBg.text} />
                 </div>
-                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-6">
+                {/* Background swatches */}
+                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-3 mb-3">
                   {backgroundOptions.map((option) => (
                     <button
                       key={option.id}
@@ -539,27 +547,53 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     />
                   ))}
                 </div>
+                {/* Font selector */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-4">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Font</span>
+                  {fontOptions.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => setEditFont(font)}
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-all ${
+                        editFont.id === font.id
+                          ? "bg-brand-green text-white"
+                          : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+                      }`}
+                      style={{ fontFamily: font.family }}
+                    >
+                      {font.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex gap-3">
                   <button onClick={() => setIsEditing(false)} className="flex-1 py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale">Cancel</button>
-                  <button onClick={handleUpdate} disabled={isUpdating || !editText.trim()} className="flex-[2] py-3.5 bg-brand-green text-white font-bold rounded-2xl hover:bg-[#00a855] disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2">
+                  <button onClick={handleUpdate} disabled={isUpdating || !editText.trim()} className="flex-[2] py-3.5 bg-brand-green text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2">
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     Save Changes
                   </button>
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {isNoteModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <motion.div 
+            key="note-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsNoteModalOpen(false); }}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
                 <h3 className="text-[17px] font-bold tracking-tight text-brand-green">Private Note</h3>
@@ -579,17 +613,17 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 />
                 <div className="flex gap-3">
                   <button onClick={() => setIsNoteModalOpen(false)} className="flex-1 py-3 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale">Cancel</button>
-                  <button onClick={handleSaveNote} disabled={isSavingNote || !privateNote.trim()} className="flex-[2] py-3 bg-brand-green text-white font-bold rounded-2xl hover:bg-[#00a855] disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2">
+                  <button onClick={handleSaveNote} disabled={isSavingNote || !privateNote.trim()} className="flex-[2] py-3 bg-brand-green text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2">
                     {isSavingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
                     Save Note
                   </button>
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
-    </motion.article>
+    </>
   );
 };
 

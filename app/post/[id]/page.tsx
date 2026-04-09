@@ -22,10 +22,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
+import Link from "next/link";
 import CommentSection from "@/components/CommentSection";
 import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
 import { PostType } from "@/types";
+import { backgroundOptions } from "@/lib/backgrounds";
+import { getFontById } from "@/lib/fonts";
+import { CardWatermark } from "@/components/CardCreator";
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -33,19 +37,11 @@ const fmt = (n: number) => {
   return n === 0 ? "" : String(n);
 };
 
-const backgroundOptions = [
-  { id: "obsidian",  name: "Obsidian",    type: "color",    value: "#0a0a0a",                                        text: "#ffffff" },
-  { id: "paper",     name: "Paper",       type: "color",    value: "#ffffff",                                        text: "#171717" },
-  { id: "mindfuel",  name: "MindFuel",    type: "gradient", value: "linear-gradient(135deg, #00bf63, #047857)",      text: "#ffffff" },
-  { id: "midnight",  name: "Midnight",    type: "gradient", value: "linear-gradient(135deg, #0f172a, #1e293b)",      text: "#ffffff" },
-  { id: "aurora",    name: "Aurora",      type: "gradient", value: "linear-gradient(135deg, #134e5e, #71b280)",      text: "#ffffff" },
-  { id: "sakura",    name: "Sakura",      type: "gradient", value: "linear-gradient(135deg, #fff1f2, #ffe4e6)",      text: "#171717" },
-  { id: "sand",      name: "Sand",        type: "color",    value: "#f5f5dc",                                        text: "#171717" },
-  { id: "serenity",  name: "Serenity",    type: "gradient", value: "linear-gradient(135deg, #a5b4fc, #818cf8)",      text: "#ffffff" },
-];
+// backgroundOptions imported from lib
 
 export default function PostDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -58,12 +54,14 @@ export default function PostDetailPage() {
   const shareMenuRef = React.useRef<HTMLDivElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const cardRef = React.useRef<HTMLDivElement>(null);
+  const cardRef = React.useRef<HTMLButtonElement>(null);
   
   // Edit State
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [editBg, setEditBg] = useState(backgroundOptions[0]);
+  // Card full-screen view
+  const [isCardFullScreen, setIsCardFullScreen] = useState(false);
   // Notes/Report state
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [privateNote, setPrivateNote] = useState("");
@@ -293,9 +291,9 @@ export default function PostDetailPage() {
   const downloadCard = async () => {
     if (!cardRef.current || !post) return;
     try {
-      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 2 });
+      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3 });
       const link = document.createElement("a");
-      link.download = `mindfuel-thought-${post._id.slice(-6)}.png`;
+      link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
       showToast("Reflection downloaded as image", "success");
@@ -419,48 +417,51 @@ export default function PostDetailPage() {
         {/* Author row */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
-            {post.userId.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.userId.image}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-brand-green/20"
-                alt=""
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-muted-foreground text-[15px]">
-                {post.userId.name?.[0]?.toUpperCase()}
-              </div>
-            )}
-            <div className="flex flex-col leading-tight">
-              <span className="font-bold text-[15px] hover:underline cursor-pointer">
+            <Link href={`/profile/${post.userId.firebaseId}`} className="block outline-none press-scale shrink-0">
+              {post.userId.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={post.userId.image}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
+                  alt=""
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-muted-foreground text-[15px]">
+                  {post.userId.name?.[0]?.toUpperCase()}
+                </div>
+              )}
+            </Link>
+            <div className="flex flex-col leading-tight min-w-0">
+              <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold text-[15px] hover:underline truncate">
                 {post.userId.name}
-              </span>
-              <span className="text-[13px] text-muted-foreground">
+              </Link>
+              <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] text-muted-foreground truncate hover:text-foreground transition-colors">
                 @{post.userId.name.replace(/\s+/g, "").toLowerCase()}
-              </span>
+              </Link>
             </div>
           </div>
         </div>
 
         {/* Thought card */}
         <div className="px-4 py-2">
-          <div
+          <button
+            onClick={() => setIsCardFullScreen(true)}
             ref={cardRef}
-            className="relative w-full rounded-2xl overflow-hidden shadow-card border border-black/5 dark:border-white/5"
+            className="relative w-full rounded-2xl overflow-hidden shadow-card border border-black/5 dark:border-white/5 text-left hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-green/50"
             style={{ ...bgStyle, color: textColor }}
           >
-            <p className="px-6 py-6 text-[22px] sm:text-[26px] font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap">
+            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
+            
+            <p
+              className="relative z-10 px-6 pt-6 pb-16 text-[22px] sm:text-[26px] font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap drop-shadow-sm"
+              style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
+            >
               {post.text}
             </p>
             {/* Watermark */}
-            <div className="absolute bottom-4 right-6 z-10 flex items-center gap-1.5 opacity-40 select-none">
-              <div className="w-3.5 h-3.5 bg-current rounded-full" style={{ clipPath: "polygon(50% 0%, 80% 30%, 100% 60%, 80% 100%, 20% 100%, 0% 60%, 20% 30%)" }} />
-              <div className="flex flex-col leading-none">
-                <span className="text-[10px] font-black tracking-[0.2em] uppercase">MindFuel</span>
-                <span className="text-[8px] font-bold opacity-70 tracking-widest uppercase">by Lumyn</span>
-              </div>
-            </div>
-          </div>
+            <CardWatermark color={textColor} />
+          </button>
         </div>
 
         {/* Timestamp + views */}
@@ -577,12 +578,20 @@ export default function PostDetailPage() {
       {/* Edit Modal */}
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <motion.div 
+            key="edit-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setIsEditing(false)}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-card border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
                 <h3 className="text-[17px] font-bold tracking-tight">Edit Thought</h3>
@@ -604,7 +613,7 @@ export default function PostDetailPage() {
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 py-5 text-[18px]"
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 py-5 text-[18px] scrollbar-dark"
                     style={{ color: editBg.text }}
                     rows={4}
                     autoFocus
@@ -637,7 +646,7 @@ export default function PostDetailPage() {
                   <button 
                     onClick={handleUpdate}
                     disabled={isUpdating || !editText.trim()}
-                    className="flex-[2] py-3.5 bg-brand-green text-white font-bold rounded-2xl hover:bg-[#00a855] disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
+                    className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
                   >
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     Save Changes
@@ -645,19 +654,71 @@ export default function PostDetailPage() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Full-screen Card Viewer */}
+      <AnimatePresence>
+        {isCardFullScreen && post && (
+          <motion.div 
+            key="card-fullscreen"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+            onClick={() => setIsCardFullScreen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              className="relative w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setIsCardFullScreen(false)}
+                className="absolute top-4 right-4 z-20 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+
+              {/* Card content */}
+              <div
+                className="w-full h-full flex flex-col justify-between p-6 sm:p-8"
+                style={bgStyle}
+              >
+                <p
+                  className="text-2xl sm:text-3xl md:text-4xl font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap drop-shadow-md flex-1 flex items-center"
+                  style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family, color: textColor }}
+                >
+                  {post.text}
+                </p>
+                <CardWatermark color={textColor} />
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Note Modal */}
       <AnimatePresence>
         {isNoteModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+          <motion.div 
+            key="note-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setIsNoteModalOpen(false)}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
                 <h3 className="text-[17px] font-bold tracking-tight text-brand-green">Private Note</h3>
@@ -698,7 +759,7 @@ export default function PostDetailPage() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
