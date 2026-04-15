@@ -10,6 +10,9 @@ import MindfulSaves from "@/components/MindfulSaves";
 import MindfulTip from "@/components/MindfulTip";
 import { ToastProvider } from "@/providers/ToastProvider";
 import InstallPWA from "@/components/InstallPWA";
+import PushNotifications from "@/components/PushNotifications";
+import { Analytics } from "@vercel/analytics/react";
+
 
 // Google Fonts for card font picker
 const CARD_FONTS_URL =
@@ -21,8 +24,13 @@ const CARD_FONTS_URL =
   "&family=Space+Grotesk:wght@400;600;700" +
   "&family=DM+Serif+Display:ital@0;1" +
   "&family=Cormorant+Garamond:wght@400;600;700" +
+  "&family=Merriweather:wght@400;700;900" +
+  "&family=Poppins:wght@400;600;700;800" +
+  "&family=Crimson+Text:wght@400;600;700" +
+  "&family=Josefin+Sans:wght@400;600;700" +
+  "&family=Abril+Fatface" +
+  "&family=Dancing+Script:wght@400;600;700" +
   "&display=swap";
-
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,36 +38,140 @@ const inter = Inter({
   display: "swap",
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mindfuel.app";
+
 export const metadata: Metadata = {
-  title: "MindFuel - Fuel Your Mind Daily",
-  description: "A calm, intentional space to share your thoughts, curations, and ideas without the noise.",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "MindFuel | Thoughtful Social Platform",
+    template: "%s | MindFuel",
+  },
+  description:
+    "MindFuel is a calm, intentional social platform to share your thoughts, curations, and ideas without the noise. Daily inspiration to fuel your mind and soul. Join thousands of thinkers sharing meaningful reflections.",
+  keywords: [
+    "mindfuel",
+    "thoughts",
+    "reflections",
+    "social platform",
+    "inspiration",
+    "mindfulness",
+    "quotes",
+    "daily motivation",
+    "intentional living",
+    "thought sharing",
+    "curated thoughts",
+    "mental wellness",
+    "creative writing",
+    "personal growth",
+  ],
+  authors: [{ name: "Lumyn", url: "https://lumynhq.studio" }],
+  creator: "Lumyn",
+  publisher: "Lumyn",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "MindFuel",
+    startupImage: "/logo.png",
   },
   formatDetection: { telephone: false },
   icons: {
-    apple: "/logoWhitebg.png",
-    icon: "/logo.png",
+    apple: "/icon-192.png",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icon-192.png",
   },
   openGraph: {
-    title: "MindFuel - Fuel Your Mind Daily",
-    description: "A calm, intentional space to share your thoughts, curations, and ideas without the noise.",
     type: "website",
+    locale: "en_US",
+    url: baseUrl,
+    siteName: "MindFuel",
+    title: "MindFuel — Fuel Your Mind Daily",
+    description:
+      "A calm, intentional space to share your thoughts, curations, and ideas. Join MindFuel and share what fuels your mind.",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "MindFuel Logo",
+      },
+    ],
   },
+  twitter: {
+    card: "summary",
+    title: "MindFuel — Fuel Your Mind Daily",
+    description:
+      "A calm, intentional space to share your thoughts and ideas without the noise.",
+    images: ["/logo.png"],
+    creator: "@mindfuelapp",
+  },
+  alternates: {
+    canonical: baseUrl,
+  },
+  category: "social",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111827",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
+    { media: "(prefers-color-scheme: dark)", color: "#111827" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
+// JSON-LD structured data
+function JsonLd() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "MindFuel",
+    alternateName: "MindFuel by Lumyn",
+    url: baseUrl,
+    description:
+      "A calm, intentional social platform to share your thoughts, curations, and ideas without the noise.",
+    publisher: {
+      "@type": "Organization",
+      name: "Lumyn",
+      url: "https://lumynhq.studio",
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/logo.png`,
+      },
+    },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${baseUrl}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
 
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
 
 export default function RootLayout({
   children,
@@ -70,6 +182,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href={CARD_FONTS_URL} rel="stylesheet" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <JsonLd />
       </head>
       <body
         className={`${inter.variable} font-sans antialiased`}
@@ -128,6 +243,9 @@ export default function RootLayout({
               </div>
             </div>
             <InstallPWA />
+            <PushNotifications />
+            <Analytics />
+
           </ToastProvider>
         </AuthProvider>
       </body>

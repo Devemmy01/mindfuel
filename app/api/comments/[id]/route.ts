@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
+import Post from "@/models/post";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,6 +11,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     // In a real app, we must verify the user is the owner.
     // For MVP, we'll assume the frontend handled the check.
     const deletedComment = await Comment.findByIdAndDelete(commentId);
+
+    if (deletedComment) {
+      await Post.findByIdAndUpdate(deletedComment.postId, { $inc: { commentsCount: -1 } });
+    }
 
     if (!deletedComment) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 });

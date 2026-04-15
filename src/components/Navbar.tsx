@@ -34,9 +34,9 @@ export default function Navbar() {
             className="mb-2 p-3 w-max rounded-2xl transition-colors flex items-center justify-center hover:bg-secondary/70 outline-none group"
           >
             <img
-              src="/logo.png"
+              src="/logoDarkbg.png"
               alt="MindFuel"
-              className="w-12 h-12 mx-auto object-contain rounded-full flex-shrink-0"
+              className="w-40 h-12 mx-auto object-contain rounded-full flex-shrink-0"
             />
             
           </Link>

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
-import User from "@/models/user";
+import User, { IUser } from "@/models/user";
+import Post from "@/models/post";
 import CommentLike from "@/models/commentLike";
+import webpush from "@/lib/push";
+import { PushSubscription } from "web-push";
+
 import { CommentType } from "@/types";
+import { resend } from "@/lib/resend";
+import { CommentEmail } from "@/emails/CommentEmail";
 
 // GET /api/posts/[id]/comments - Fetch comments for a post
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -77,7 +83,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       content: filteredContent,
     });
 
+    // Increment commentsCount on the post
+    await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
+
     const populatedComment = await Comment.findById(comment._id).populate("userId", "name image firebaseId").lean();
+
+    // Notify post author
+    try {
+      const post = await Post.findById(postId);
+      if (post && post.userId && post.userId.toString() !== user._id.toString()) {
+        const author = await User.findById(post.userId) as IUser | null;
+
+        if (author) {
+          // 1. Email Notification
+          if (author.email && author.preferences?.notifications !== false) {
+            await resend.emails.send({
+              from: 'MindFuel <hello@mind-fuel.app>',
+              to: author.email,
+              subject: `${user.name} commented on your thought`,
+              react: (
+                <CommentEmail
+                  authorName={author.name}
+                  commenterName={user.name}
+                  commentContent={filteredContent}
+                  postText={post.text}
+                  postLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mind-fuel.app'}/post/${postId}`}
+                />
+              ),
+            });
+          }
+
+          // 2. Push Notification
+          if (author.pushSubscriptions && author.pushSubscriptions.length > 0 && author.preferences?.notifications !== false) {
+            const payload = JSON.stringify({
+              title: "New Comment on MindFuel",
+              body: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? '...' : ''}`,
+              icon: "/logo.png",
+              url: `/post/${postId}`,
+            });
+
+            author.pushSubscriptions.forEach((sub) => {
+              webpush.sendNotification(sub as unknown as PushSubscription, payload).catch(err => console.error("Push failed:", err));
+            });
+          }
+        }
+      }
+    } catch (notifyError) {
+      console.error("Notification failed:", notifyError);
+    }
 
     return NextResponse.json({ comment: populatedComment }, { status: 201 });
   } catch (error: unknown) {

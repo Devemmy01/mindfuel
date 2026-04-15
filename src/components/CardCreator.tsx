@@ -19,7 +19,8 @@ const fontSizes = [
 ];
 
 /** Beautiful MindFuel watermark used across all cards */
-export function CardWatermark({ color }: { color?: string }) {
+export function CardWatermark({ color, isVisible = false }: { color?: string; isVisible?: boolean }) {
+  if (!isVisible) return null;
   return (
     <div
       className="absolute bottom-0 right-0 flex items-end gap-0 select-none pointer-events-none z-20"
@@ -44,7 +45,7 @@ export function CardWatermark({ color }: { color?: string }) {
         <div
           style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}
         >
-          <span
+          {/* <span
             style={{
               fontSize: "9px",
               fontWeight: 900,
@@ -68,6 +69,18 @@ export function CardWatermark({ color }: { color?: string }) {
             }}
           >
             by Lumyn
+          </span> */}
+          <span
+            style={{
+              fontSize: "7px",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              color: "rgba(255,255,255,0.85)",
+              fontFamily: "Inter, sans-serif",
+              marginTop: "2px",
+            }}
+          >
+            www.mind-fuel.app
           </span>
         </div>
       </div>
@@ -148,12 +161,7 @@ const CardCreator: React.FC = () => {
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 3,
-        skipFonts: false,
-        // Embed fonts from Google
-        fontEmbedCSS:
-          document.head
-            .querySelector("link[href*='fonts.googleapis']")
-            ?.getAttribute("href") ?? undefined,
+        skipFonts: true,
       });
       const link = document.createElement("a");
       link.download = `mindfuel-${Date.now()}.png`;
@@ -288,11 +296,11 @@ const CardCreator: React.FC = () => {
         {/* Live card preview */}
         <div
           ref={cardRef}
-          className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300"
+          className={`relative w-full ${isExporting ? "" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
           style={{ ...bgStyle, color: bg.text }}
         >
           {/* Texture overlays */}
-          <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+          <div className={`absolute inset-0 ${isExporting ? "" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
 
           <textarea
@@ -308,7 +316,7 @@ const CardCreator: React.FC = () => {
           />
 
           {/* Always-visible watermark */}
-          <CardWatermark />
+          <CardWatermark isVisible={isExporting} />
         </div>
 
         {!user && (

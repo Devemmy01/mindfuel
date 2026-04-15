@@ -8,8 +8,6 @@ import { Sparkles, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { PostType } from "@/types";
 
-
-
 // Skeleton card
 function SkeletonCard() {
   return (
@@ -19,17 +17,16 @@ function SkeletonCard() {
         <div className="skeleton h-3 w-32 rounded-full" />
         <div className="skeleton h-24 rounded-2xl w-full" />
         <div className="flex gap-6 mt-2">
-          {[1,2,3,4].map(i => <div key={i} className="skeleton h-3 w-8 rounded-full" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton h-3 w-8 rounded-full" />
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-
-
 export default function Home() {
-
   const [posts, setPosts] = useState<PostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,7 +34,6 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const observerTarget = React.useRef<HTMLDivElement>(null);
-
 
   const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1) => {
     if (isRefresh) {
@@ -53,13 +49,13 @@ export default function Home() {
     try {
       const res = await fetch(`/api/posts?page=${pageNum}&limit=10`);
       const data = await res.json();
-      
+
       if (pageNum === 1) {
         setPosts(data.posts || []);
       } else {
-        setPosts(prev => [...prev, ...(data.posts || [])]);
+        setPosts((prev) => [...prev, ...(data.posts || [])]);
       }
-      
+
       setHasMore(data.hasMore);
     } catch (err) {
       console.error("Failed to fetch posts", err);
@@ -73,38 +69,45 @@ export default function Home() {
   useEffect(() => {
     const currentTarget = observerTarget.current;
     const observer = new IntersectionObserver(
-      entries => {
+      (entries) => {
         if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
           const next = ++currentPageRef.current;
           fetchPosts(false, next);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (currentTarget) observer.observe(currentTarget);
-    return () => { if (currentTarget) observer.unobserve(currentTarget); };
+    return () => {
+      if (currentTarget) observer.unobserve(currentTarget);
+    };
   }, [hasMore, loading, loadingMore, fetchPosts]);
 
-  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   return (
     <div className="flex flex-col w-full min-h-screen">
-
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
-
         {/* Mobile top bar */}
         <div className="flex md:hidden justify-between items-center px-4 py-2.5">
-          <div className="w-8 h-8 rounded-full overflow-hidden">
-            <img src="/logo.png" alt="MindFuel" className="w-10 h-10" />
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/logoDarkbg.png"
+              alt="MindFuel"
+              className="h-12 w-40 object-contain"
+            />
           </div>
-          {/* <span className="font-bold text-[17px] tracking-tight">MindFuel</span> */}
           <button
             onClick={() => fetchPosts(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
-            <RefreshCw className={`w-4 h-4 text-muted-foreground ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-4.5 h-4.5 text-muted-foreground ${refreshing ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
       </header>
@@ -112,11 +115,22 @@ export default function Home() {
       {/* ── Feed ── */}
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
           </motion.div>
         ) : posts.length > 0 ? (
-          <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <motion.div
+            key="feed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
             {posts.map((post, i) => (
               <motion.div
                 key={post._id}
@@ -130,7 +144,7 @@ export default function Home() {
 
             {/* End of Feed / Load More */}
             <div ref={observerTarget} className="h-4 w-full" />
-            
+
             {loadingMore && (
               <div className="flex justify-center py-8">
                 <RefreshCw className="w-5 h-5 animate-spin text-brand-green/40" />
@@ -147,7 +161,9 @@ export default function Home() {
                 <div className="inline-flex justify-center items-center w-14 h-14 rounded-full bg-brand-green/10 border border-brand-green/20 text-brand-green mb-2">
                   <Sparkles className="w-6 h-6" />
                 </div>
-                <h3 className="text-[17px] font-bold tracking-tight">You&apos;re all caught up</h3>
+                <h3 className="text-[17px] font-bold tracking-tight">
+                  You&apos;re all caught up
+                </h3>
                 <p className="text-muted-foreground text-[14px] max-w-[240px] mx-auto">
                   You&apos;ve seen all recorded thoughts. Time to add your own.
                 </p>

@@ -66,6 +66,48 @@ export const fontOptions: FontOption[] = [
     googleParam: "Cormorant+Garamond:wght@400;600;700",
     preview: "Aa",
   },
+  {
+    id: "merriweather",
+    label: "Merriweather",
+    family: "'Merriweather', serif",
+    googleParam: "Merriweather:wght@400;700;900",
+    preview: "Aa",
+  },
+  {
+    id: "poppins",
+    label: "Poppins",
+    family: "'Poppins', sans-serif",
+    googleParam: "Poppins:wght@400;600;700;800",
+    preview: "Aa",
+  },
+  {
+    id: "crimson",
+    label: "Crimson",
+    family: "'Crimson Text', serif",
+    googleParam: "Crimson+Text:wght@400;600;700",
+    preview: "Aa",
+  },
+  {
+    id: "josefin",
+    label: "Josefin",
+    family: "'Josefin Sans', sans-serif",
+    googleParam: "Josefin+Sans:wght@400;600;700",
+    preview: "Aa",
+  },
+  {
+    id: "abril",
+    label: "Abril",
+    family: "'Abril Fatface', serif",
+    googleParam: "Abril+Fatface",
+    preview: "Aa",
+  },
+  {
+    id: "dancing",
+    label: "Dancing",
+    family: "'Dancing Script', cursive",
+    googleParam: "Dancing+Script:wght@400;600;700",
+    preview: "Aa",
+  },
 ];
 
 export const defaultFont = fontOptions[0];

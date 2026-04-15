@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
-import { Send, Trash2, User as UserIcon, Heart, Loader2 } from "lucide-react";
+import { Send, Trash2, User as UserIcon, Heart, Loader2, Smile } from "lucide-react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -29,7 +30,10 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -46,6 +50,33 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
       }
     })();
   }, [postId, user]);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker]);
+
+  const onEmojiClick = (emojiData: { emoji: string }) => {
+    const cursor = inputRef.current?.selectionStart ?? newComment.length;
+    const updated = newComment.slice(0, cursor) + emojiData.emoji + newComment.slice(cursor);
+    setNewComment(updated);
+    setShowEmojiPicker(false);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const pos = cursor + emojiData.emoji.length;
+        inputRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,7 +208,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
                       <Link href={`/profile/${comment.userId.firebaseId}`} className="font-bold text-[13px] truncate hover:underline">
                         {comment.userId.name}
                       </Link>
-                      <Link href={`/profile/${comment.userId.firebaseId}`} className="text-muted-foreground text-[12px] truncate hover:text-foreground transition-colors">
+                      <Link href={`/profile/${comment.userId.firebaseId}`} className="text-muted-foreground text-[12px] truncate hover:text-foreground transition-colors hidden sm:inline">
                         @{comment.userId.name.replace(/\s+/g, "").toLowerCase()}
                       </Link>
                     </div>
@@ -214,7 +245,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
                         className="flex items-center gap-1 text-muted-foreground hover:text-rose-500 transition-colors press-scale"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span className="text-[11px] pt-1.5 font-medium">Delete</span>
+                        <span className="text-[11px] font-medium">Delete</span>
                       </button>
                     )}
                   </div>
@@ -234,6 +265,26 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
       {/* Sticky composer at bottom */}
       {user ? (
         <div className="sticky bottom-0 border-t border-border glass-strong px-4 py-3 pb-safe">
+          {/* Emoji picker */}
+          <div className="relative" ref={emojiPickerRef}>
+            <AnimatePresence>
+              {showEmojiPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  className="absolute bottom-full mb-2 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50"
+                >
+                  <EmojiPicker
+                    onEmojiClick={onEmojiClick}
+                    theme={Theme.AUTO}
+                    width={280}
+                    height={320}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <form onSubmit={handleSubmit} className="flex items-end gap-3">
             {profile?.image || user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -243,7 +294,16 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
                 <UserIcon className="w-4 h-4 text-muted-foreground" />
               </div>
             )}
-            <div className="flex-1 frosted-input flex items-center gap-2 px-3 py-2.5 min-h-[42px]">
+            <div className="flex-1 frosted-input flex items-center gap-1 px-3 py-2.5 min-h-[42px]">
+              {/* Emoji trigger */}
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((p) => !p)}
+                className={`flex-shrink-0 p-1 rounded-full transition-colors ${showEmojiPicker ? "text-brand-green" : "text-muted-foreground hover:text-foreground"}`}
+                title="Add emoji"
+              >
+                <Smile className="w-[18px] h-[18px]" strokeWidth={2} />
+              </button>
               <textarea
                 ref={inputRef}
                 value={newComment}

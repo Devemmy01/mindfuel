@@ -1,0 +1,8 @@
+# MindFuel Robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /create
+Disallow: /offline
+
+Sitemap: https://mindfuel.app/sitemap.xml

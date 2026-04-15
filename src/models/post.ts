@@ -1,4 +1,24 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document } from "mongoose";
+
+export interface IPost extends Document {
+  text: string;
+  userId: Schema.Types.ObjectId;
+  isSponsored?: boolean;
+  views?: number;
+  likesCount?: number;
+  commentsCount?: number;
+  backgroundStyle: {
+    id?: string;
+    type: "color" | "gradient";
+    value: string;
+    text?: string;
+  };
+  fontFamily: string;
+  viewedBy?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 
 const PostSchema = new Schema(
   {
@@ -24,7 +44,14 @@ const PostSchema = new Schema(
       type: Number,
       default: 0,
     },
+    commentsCount: {
+      type: Number,
+      default: 0,
+    },
     backgroundStyle: {
+      id: {
+        type: String,
+      },
       type: {
         type: String,
         enum: ["color", "gradient"],
@@ -34,15 +61,26 @@ const PostSchema = new Schema(
         type: String,
         default: "#ffffff",
       },
+      text: {
+        type: String,
+        default: "#ffffff",
+      },
     },
+
     fontFamily: {
       type: String,
       default: "inter",
+    },
+    viewedBy: {
+      type: [String],
+      default: [],
+      select: false,
     },
   },
   { timestamps: true }
 );
 
-const Post = models.Post || model("Post", PostSchema);
+const Post = models.Post || model<IPost>("Post", PostSchema);
 
 export default Post;
+

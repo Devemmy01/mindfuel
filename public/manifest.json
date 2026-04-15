@@ -1,21 +1,33 @@
 {
+  "id": "/",
   "name": "MindFuel",
   "short_name": "MindFuel",
-  "description": "Daily inspiration to fuel your mind and soul. Calm, intentional thinking.",
+  "description": "A calm, intentional space to share your thoughts, curations, and ideas. Daily inspiration to fuel your mind and soul.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#171717",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "orientation": "portrait-primary",
+  "categories": ["social", "lifestyle", "education"],
   "icons": [
     {
-      "src": "/logoWhitebg.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/logoWhitebg.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

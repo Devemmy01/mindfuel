@@ -7,9 +7,21 @@ export interface IUser extends Document {
   uploadedImage: string;
   firebaseId: string;
   bio?: string;
+  preferences: {
+    dailyEmail: boolean;
+    notifications: boolean;
+  };
+  pushSubscriptions: Array<{
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
+
 
 const UserSchema = new Schema(
   {
@@ -40,7 +52,30 @@ const UserSchema = new Schema(
       required: [true, "Firebase ID is required"],
       unique: true,
     },
+    preferences: {
+      dailyEmail: {
+        type: Boolean,
+        default: true,
+      },
+      notifications: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    pushSubscriptions: {
+      type: [
+        {
+          endpoint: String,
+          keys: {
+            p256dh: String,
+            auth: String,
+          },
+        },
+      ],
+      default: [],
+    },
   },
+
   { timestamps: true }
 );
 

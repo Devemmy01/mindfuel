@@ -9,6 +9,7 @@ export interface PostType {
   };
   views: number;
   likesCount: number;
+  commentsCount?: number;
   isSponsored?: boolean;
   backgroundStyle: {
     type: "color" | "gradient" | string;

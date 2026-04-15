@@ -420,3 +420,109 @@
     background: hsl(var(--background));
   }
 }
+
+/* ===========================
+   THOUGHT CARD ENHANCEMENTS
+   =========================== */
+@keyframes card-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.thought-card {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.thought-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 55%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+.thought-card:hover::before {
+  animation: card-shimmer 1.2s ease-in-out;
+  opacity: 1;
+}
+.thought-card:hover {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.1),
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.dark .thought-card:hover {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Decorative quote mark */
+.thought-card-quote {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  font-size: 64px;
+  line-height: 1;
+  font-family: 'Georgia', serif;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  opacity: 0.08;
+  font-weight: 900;
+}
+
+/* ===========================
+   SHADOW BRAND
+   =========================== */
+.shadow-brand-sm {
+  box-shadow: 0 2px 8px rgba(0, 168, 85, 0.25), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.shadow-card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* ===========================
+   MOBILE ENHANCEMENTS
+   =========================== */
+@media (max-width: 767px) {
+  /* Better mobile typography */
+  body {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* Larger touch targets */
+  button, a {
+    min-height: 36px;
+  }
+
+  /* Improved mobile card spacing */
+  .mobile-card-padding {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Better mobile header */
+  .mobile-header-logo {
+    width: 32px;
+    height: 32px;
+  }
+}

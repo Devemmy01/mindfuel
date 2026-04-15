@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
@@ -19,7 +19,9 @@ import {
   X,
   Eye,
   Sparkles,
+  Smile,
 } from "lucide-react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -28,7 +30,7 @@ import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
 import { PostType } from "@/types";
 import { backgroundOptions } from "@/lib/backgrounds";
-import { getFontById } from "@/lib/fonts";
+import { fontOptions, getFontById } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
 
 const fmt = (n: number) => {
@@ -60,8 +62,10 @@ export default function PostDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [editBg, setEditBg] = useState(backgroundOptions[0]);
+  const [editFont, setEditFont] = useState(fontOptions[0]);
   // Card full-screen view
   const [isCardFullScreen, setIsCardFullScreen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   // Notes/Report state
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [privateNote, setPrivateNote] = useState("");
@@ -69,22 +73,16 @@ export default function PostDetailPage() {
   const [isHidden, setIsHidden] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const editTextAreaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        shareMenuRef.current &&
-        !shareMenuRef.current.contains(e.target as Node)
-      ) {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
         setShowShareMenu(false);
       }
-    };
-    if (showShareMenu)
-      document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showShareMenu]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
@@ -107,6 +105,42 @@ export default function PostDetailPage() {
         setEditBg(
           backgroundOptions.find(o => o.value === data.post?.backgroundStyle.value) || backgroundOptions[0]
         );
+        setEditFont(getFontById(data.post?.fontFamily ?? "inter"));
+
+        // Dynamic SEO
+        if (data.post) {
+          const truncatedText = data.post.text.slice(0, 80) + (data.post.text.length > 80 ? "…" : "");
+          document.title = `${data.post.userId.name}: "${truncatedText}" | MindFuel`;
+          
+          // Update meta description
+          let metaDesc = document.querySelector('meta[name="description"]');
+          if (!metaDesc) {
+            metaDesc = document.createElement("meta");
+            metaDesc.setAttribute("name", "description");
+            document.head.appendChild(metaDesc);
+          }
+          metaDesc.setAttribute("content", `${data.post.userId.name} shared a thought on MindFuel: "${data.post.text.slice(0, 150)}"`);
+
+          // JSON-LD Article schema
+          const existingLd = document.querySelector('script[data-post-ld]');
+          if (existingLd) existingLd.remove();
+          const ldScript = document.createElement("script");
+          ldScript.type = "application/ld+json";
+          ldScript.setAttribute("data-post-ld", "true");
+          ldScript.textContent = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: truncatedText,
+            author: { "@type": "Person", name: data.post.userId.name },
+            datePublished: data.post.createdAt,
+            interactionStatistic: [
+              { "@type": "InteractionCounter", interactionType: "https://schema.org/LikeAction", userInteractionCount: data.post.likesCount },
+              { "@type": "InteractionCounter", interactionType: "https://schema.org/ViewAction", userInteractionCount: data.post.views },
+            ],
+            publisher: { "@type": "Organization", name: "MindFuel", url: window.location.origin },
+          });
+          document.head.appendChild(ldScript);
+        }
       } catch {
         // handled in render
       } finally {
@@ -186,6 +220,7 @@ export default function PostDetailPage() {
           userId: user.uid,
           text: editText,
           backgroundStyle: { type: editBg.type, value: editBg.value },
+          fontFamily: editFont.id,
         }),
       });
       if (res.ok) {
@@ -268,9 +303,7 @@ export default function PostDetailPage() {
   const shareToX = () => {
     if (!post) return;
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(
-      `Thought on MindFuel by ${post.userId.name}:\n\n"${post.text}"\n\n`,
-    );
+    const text = encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:`);
     window.open(
       `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`,
       "_blank",
@@ -281,17 +314,17 @@ export default function PostDetailPage() {
   const shareToWhatsApp = () => {
     if (!post) return;
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(
-      `Thought on MindFuel:\n"${post.text}"\n\n${url}`,
-    );
+    const text = encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:\n${url}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
     setShowShareMenu(false);
   };
 
   const downloadCard = async () => {
     if (!cardRef.current || !post) return;
+    setIsDownloading(true);
     try {
-      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3 });
+      await new Promise((r) => setTimeout(r, 150));
+      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3, skipFonts: true });
       const link = document.createElement("a");
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
@@ -301,6 +334,8 @@ export default function PostDetailPage() {
       setShowMenu(false);
     } catch (err) {
       console.error("Download failed", err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -334,6 +369,20 @@ export default function PostDetailPage() {
     post.backgroundStyle.value === "#ffffff" ||
     post.backgroundStyle.value.toLowerCase() === "#f5f5dc";
   const textColor = isLight ? "#171717" : "#ffffff";
+
+  const onEmojiClick = (emojiData: { emoji: string }) => {
+    const cursor = editTextAreaRef.current?.selectionStart ?? editText.length;
+    const updated = editText.slice(0, cursor) + emojiData.emoji + editText.slice(cursor);
+    setEditText(updated);
+    setShowEmojiPicker(false);
+    setTimeout(() => {
+      if (editTextAreaRef.current) {
+        editTextAreaRef.current.focus();
+        const pos = cursor + emojiData.emoji.length;
+        editTextAreaRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
 
   return (
     <div className="flex flex-col w-full min-h-screen">
@@ -447,20 +496,24 @@ export default function PostDetailPage() {
           <button
             onClick={() => setIsCardFullScreen(true)}
             ref={cardRef}
-            className="relative w-full rounded-2xl overflow-hidden shadow-card border border-black/5 dark:border-white/5 text-left hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-green/50"
+            className={`thought-card relative w-full ${isDownloading ? "" : "rounded-2xl"} overflow-hidden border border-black/5 dark:border-white/5 text-left transition-shadow focus:outline-none focus:ring-2 focus:ring-brand-green/50`}
             style={{ ...bgStyle, color: textColor }}
           >
-            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+            {/* Decorative quote */}
+            <span className="thought-card-quote" style={{ color: textColor }}>&ldquo;</span>
+            <div className={`absolute inset-0 ${isDownloading ? "" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
+            {/* Inner glow vignette */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
             
             <p
-              className="relative z-10 px-6 pt-6 pb-16 text-[22px] sm:text-[26px] font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap drop-shadow-sm"
+              className="relative z-10 px-6 pt-8 pb-16 text-[20px] sm:text-[24px] font-semibold leading-[1.5] tracking-tight whitespace-pre-wrap drop-shadow-sm"
               style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
             >
               {post.text}
             </p>
             {/* Watermark */}
-            <CardWatermark color={textColor} />
+            <CardWatermark color={textColor} isVisible={isDownloading} />
           </button>
         </div>
 
@@ -575,7 +628,7 @@ export default function PostDetailPage() {
         <CommentSection postId={post._id} />
       </div>
 
-      {/* Edit Modal */}
+  {/* Edit Modal */}
       <AnimatePresence>
         {isEditing && (
           <motion.div 
@@ -603,51 +656,92 @@ export default function PostDetailPage() {
               <div className="p-6">
                 {/* Preview Card */}
                 <div 
-                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[140px] mb-6 transition-all duration-300"
-                  style={{ 
-                    background: editBg.type === "gradient" ? editBg.value : editBg.value,
-                    color: editBg.text 
-                  }}
+                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[160px] mb-6 transition-all duration-300"
+                  style={{ background: editBg.type === "gradient" ? editBg.value : editBg.value, color: editBg.text }}
                 >
+                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
                   <textarea 
+                    ref={editTextAreaRef}
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 py-5 text-[18px] scrollbar-dark"
-                    style={{ color: editBg.text }}
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
+                    style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
                     autoFocus
                   />
+                  <CardWatermark color={editBg.text} />
                 </div>
 
-                {/* Bg options */}
-                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-6">
-                  {backgroundOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setEditBg(option)}
-                      className={`w-9 h-9 rounded-full transition-all flex-shrink-0 ${
-                        editBg.id === option.id 
-                          ? "scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background" 
-                          : "opacity-75 hover:opacity-100"
-                      }`}
-                      style={{ background: option.value }}
-                    />
-                  ))}
+                {/* Tools Toolbar */}
+                <div className="flex flex-col gap-4 mb-6">
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Emoji / Font */}
+                    <div className="flex items-center gap-3 relative" ref={emojiPickerRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker((p) => !p)}
+                        className={`p-2 rounded-xl transition-colors shrink-0 ${showEmojiPicker ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary"}`}
+                        title="Add emoji"
+                      >
+                        <Smile className="w-5 h-5" strokeWidth={2} />
+                      </button>
+
+                      <AnimatePresence>
+                        {showEmojiPicker && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50"
+                          >
+                            <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right pb-1">
+                        {fontOptions.map((font) => (
+                          <button
+                            key={font.id}
+                            onClick={() => setEditFont(font)}
+                            className={`shrink-0 px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-all ${
+                              editFont.id === font.id
+                                ? "bg-brand-green text-white"
+                                : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+                            }`}
+                            style={{ fontFamily: font.family }}
+                          >
+                            {font.label}
+                          </button>
+                        ))}
+                        <div className="w-6 shrink-0" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Themes / Backgrounds */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 pl-1">Theme</span>
+                    <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 mask-gradient-right">
+                      {backgroundOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => setEditBg(option)}
+                          className={`w-10 h-10 rounded-full transition-all flex-shrink-0 ${editBg.id === option.id ? "scale-110 ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-75 hover:opacity-100 hover:scale-105"}`}
+                          style={{ background: option.value }}
+                          title={option.name}
+                        />
+                      ))}
+                      <div className="w-6 shrink-0" />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsEditing(false)}
-                    className="flex-1 py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleUpdate}
-                    disabled={isUpdating || !editText.trim()}
-                    className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => setIsEditing(false)} className="flex-[1] py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale">Cancel</button>
+                  <button onClick={handleUpdate} disabled={isUpdating || !editText.trim()} className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full duration-1000 -translate-x-full transition-transform" />
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     Save Changes
                   </button>
