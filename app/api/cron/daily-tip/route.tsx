@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
+import React from "react";
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
         from: 'MindFuel <hello@mind-fuel.app>',
         to: user.email,
         subject: 'Your Daily Mindful Tip',
-        react: <DailyTipEmail name={user.name || 'Friend'} tip={tip} />,
+        react: (<DailyTipEmail name={user.name || 'Friend'} tip={tip} />) as React.ReactElement,
       }));
 
       try {

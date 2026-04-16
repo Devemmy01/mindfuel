@@ -1,6 +1,17 @@
 /* eslint-disable @next/next/no-img-element */
+import {
+  Body,
+  Container,
+  Head,
+  Heading,
+  Html,
+  Img,
+  Link,
+  Preview,
+  Section,
+  Text,
+} from '@react-email/components';
 import * as React from 'react';
-
 
 interface DailyTipEmailProps {
   name: string;
@@ -11,58 +22,149 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   name,
   tip,
 }) => (
-  <div style={{
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
-    backgroundColor: '#f9fafb',
-    color: '#171717',
-    padding: '60px 20px',
-  }}>
-    <div style={{ maxWidth: '480px', margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ marginBottom: '40px' }}>
-        <img src="https://mind-fuel.app/logo.png" alt="MindFuel" width="48" height="48" style={{ margin: '0 auto', borderRadius: '12px' }} />
-      </div>
-      
-      <p style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#00bf63', marginBottom: '24px' }}>
-        Good Morning, {name}
-      </p>
+  <Html>
+    <Head />
+    <Preview>Your Daily Mindful Tip, {name}</Preview>
+    <Body style={main}>
+      <Container style={container}>
+        <Section style={logoOuter}>
+          <Img
+            src="https://mind-fuel.app/icon-512.png"
+            width="48"
+            height="48"
+            alt="MindFuel"
+            style={logo}
+          />
+        </Section>
+        
+        <Text style={greeting}>
+          Good Morning, {name}
+        </Text>
 
-      <div style={{ 
-        backgroundColor: '#ffffff', 
-        borderRadius: '32px', 
-        padding: '48px 32px', 
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
-        marginBottom: '40px',
-        border: '1px solid #f1f5f9'
-      }}>
-        <span style={{ fontSize: '48px', color: '#00bf63', display: 'block', marginBottom: '16px', lineHeight: '1' }}>&ldquo;</span>
-        <h1 style={{ fontSize: '24px', fontWeight: '700', lineHeight: '1.5', margin: '0', color: '#171717', letterSpacing: '-0.02em' }}>
-          {tip}
-        </h1>
-        <span style={{ fontSize: '48px', color: '#00bf63', display: 'block', marginTop: '16px', lineHeight: '1', textAlign: 'right' }}>&rdquo;</span>
-      </div>
-      
-      <p style={{ fontSize: '16px', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-        Stay intentional today. Take a breath, fuel your mind, and share what inspires you.
-      </p>
+        <Section style={tipCard}>
+          <Text style={quoteMark}>&ldquo;</Text>
+          <Heading style={h1}>
+            {tip}
+          </Heading>
+          <Text style={quoteMarkRight}>&rdquo;</Text>
+        </Section>
+        
+        <Text style={subtext}>
+          Stay intentional today. Take a breath, fuel your mind, and share what inspires you.
+        </Text>
 
-      <a href="https://mind-fuel.app" style={{ 
-        display: 'inline-block', 
-        backgroundColor: '#171717', 
-        color: '#ffffff', 
-        padding: '14px 32px', 
-        borderRadius: '100px', 
-        fontSize: '14px', 
-        fontWeight: 'bold', 
-        textDecoration: 'none',
-        marginBottom: '40px'
-      }}>
-        Go to Feed
-      </a>
-      
-      <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-        You received this daily mindful tip from MindFuel.<br />
-        Don&apos;t want these? <a href="https://mind-fuel.app/settings" style={{ color: '#00bf63', textDecoration: 'none' }}>Unsubscribe</a>.
-      </p>
-    </div>
-  </div>
+        <Section style={center}>
+          <Link href="https://mind-fuel.app" style={button}>
+            Go to Feed
+          </Link>
+        </Section>
+        
+        <Text style={footer}>
+          You received this daily mindful tip from MindFuel.<br />
+          Don&apos;t want these? <Link href="https://mind-fuel.app/settings" style={footerLink}>Unsubscribe</Link>.
+        </Text>
+      </Container>
+    </Body>
+  </Html>
 );
+
+export default DailyTipEmail;
+
+const main = {
+  backgroundColor: '#f9fafb',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
+  padding: '60px 0',
+};
+
+const container = {
+  margin: '0 auto',
+  maxWidth: '480px',
+  textAlign: 'center' as const,
+};
+
+const logoOuter = {
+  marginBottom: '40px',
+};
+
+const logo = {
+  margin: '0 auto',
+  borderRadius: '12px',
+};
+
+const greeting = {
+  fontSize: '14px',
+  fontWeight: 'bold',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.2em',
+  color: '#00bf63',
+  marginBottom: '24px',
+};
+
+const tipCard = {
+  backgroundColor: '#ffffff',
+  borderRadius: '32px',
+  padding: '48px 32px',
+  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
+  marginBottom: '40px',
+  border: '1px solid #f1f5f9',
+};
+
+const quoteMark = {
+  fontSize: '48px',
+  color: '#00bf63',
+  marginBottom: '16px',
+  lineHeight: '1',
+  textAlign: 'left' as const,
+  margin: '0',
+};
+
+const quoteMarkRight = {
+  fontSize: '48px',
+  color: '#00bf63',
+  marginTop: '16px',
+  lineHeight: '1',
+  textAlign: 'right' as const,
+  margin: '0',
+};
+
+const h1 = {
+  fontSize: '24px',
+  fontWeight: '700',
+  lineHeight: '1.5',
+  margin: '0',
+  color: '#171717',
+  letterSpacing: '-0.02em',
+};
+
+const subtext = {
+  fontSize: '16px',
+  color: '#64748b',
+  marginBottom: '32px',
+  lineHeight: '1.6',
+};
+
+const center = {
+  textAlign: 'center' as const,
+};
+
+const button = {
+  backgroundColor: '#171717',
+  color: '#ffffff',
+  padding: '14px 32px',
+  borderRadius: '100px',
+  fontSize: '14px',
+  fontWeight: 'bold',
+  textDecoration: 'none',
+  display: 'inline-block',
+  marginBottom: '40px',
+};
+
+const footer = {
+  fontSize: '12px',
+  color: '#94a3b8',
+};
+
+const footerLink = {
+  color: '#00bf63',
+  textDecoration: 'none',
+};

@@ -77,6 +77,9 @@ export async function GET(req: NextRequest) {
         select: "name image firebaseId",
       });
 
+      // Filter out posts where userId is null (deleted users)
+      posts = posts.filter((p: any) => p.userId);
+
       total = await Post.countDocuments(query);
     } else {
       // Profile or Liked feed: Keep simple chronological sort
@@ -86,6 +89,9 @@ export async function GET(req: NextRequest) {
         .limit(limit)
         .populate("userId", "name image firebaseId")
         .lean();
+      
+      // Filter out posts where userId is null (deleted users)
+      posts = posts.filter((p: any) => p.userId);
       
       total = await Post.countDocuments(query);
     }

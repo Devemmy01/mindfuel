@@ -297,30 +297,35 @@ export default function DynamicProfilePage() {
         
         <AnimatePresence>
           {isProfilePicOpen && profileUser.image && !profileUser.image.startsWith("#") && (
-            <div 
-              className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] flex items-center justify-center p-0 bg-black/90 backdrop-blur-md"
               onClick={() => setIsProfilePicOpen(false)}
             >
+              <button
+                onClick={() => setIsProfilePicOpen(false)}
+                className="absolute top-6 right-6 z-[120] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10 shadow-xl press-scale"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="relative max-w-2xl max-h-[90vh]"
+                initial={{ opacity: 0, scale: 0.92, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 30 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="relative w-full h-full flex items-center justify-center p-4"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  onClick={() => setIsProfilePicOpen(false)}
-                  className="absolute -top-12 right-0 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
                 <img
                   src={profileUser.image}
                   alt={profileUser.name}
-                  className="rounded-2xl object-contain max-h-[90vh] max-w-2xl"
+                  className="rounded-2xl object-contain max-h-[85vh] w-auto max-w-full shadow-2xl ring-1 ring-white/10"
                 />
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
         {isOwnProfile && (

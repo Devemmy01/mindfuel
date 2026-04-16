@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { resend } from "@/lib/resend";
 import { WelcomeEmail } from "@/emails/WelcomeEmail";
+import React from "react";
 
 
 export async function POST(req: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
           from: 'MindFuel <hello@mind-fuel.app>',
           to: email,
           subject: 'Welcome to MindFuel',
-          react: <WelcomeEmail name={name || 'Explorer'} />,
+          react: (<WelcomeEmail name={name || 'Explorer'} />) as React.ReactElement,
         });
       } catch (emailError) {
         console.error("Failed to send welcome email:", emailError);

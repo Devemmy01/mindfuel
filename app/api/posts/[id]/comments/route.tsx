@@ -10,6 +10,7 @@ import { PushSubscription } from "web-push";
 import { CommentType } from "@/types";
 import { resend } from "@/lib/resend";
 import { CommentEmail } from "@/emails/CommentEmail";
+import React from "react";
 
 // GET /api/posts/[id]/comments - Fetch comments for a post
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,22 +28,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .populate("userId", "name image firebaseId")
       .lean()) as unknown as CommentType[];
 
+    // Filter out comments where userId is null (deleted users)
+    const validComments = comments.filter((c) => c.userId);
+
     // If user is logged in, check which comments they liked
     if (user) {
       const commentLikes = await CommentLike.find({
         userId: user._id,
-        commentId: { $in: comments.map((c) => c._id) },
+        commentId: { $in: validComments.map((c) => c._id) },
       });
       const likedCommentIds = new Set(commentLikes.map((l) => l.commentId.toString()));
 
-      const commentsWithLikeStatus = comments.map((c) => ({
+      const commentsWithLikeStatus = validComments.map((c) => ({
         ...c,
         isLiked: likedCommentIds.has(c._id.toString()),
       }));
       return NextResponse.json({ comments: commentsWithLikeStatus }, { status: 200 });
     }
 
-    return NextResponse.json({ comments }, { status: 200 });
+    return NextResponse.json({ comments: validComments }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
@@ -101,15 +105,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               from: 'MindFuel <hello@mind-fuel.app>',
               to: author.email,
               subject: `${user.name} commented on your thought`,
-              react: (
-                <CommentEmail
-                  authorName={author.name}
-                  commenterName={user.name}
-                  commentContent={filteredContent}
-                  postText={post.text}
-                  postLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mind-fuel.app'}/post/${postId}`}
-                />
-              ),
+              react: (<CommentEmail
+                authorName={author.name}
+                commenterName={user.name}
+                commentContent={filteredContent}
+                postText={post.text}
+                postLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://mind-fuel.app'}/post/${postId}`}
+              />) as React.ReactElement,
             });
           }
 

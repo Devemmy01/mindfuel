@@ -42,7 +42,9 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
           : `/api/posts/${postId}/comments`;
         const res = await fetch(url);
         const data = await res.json();
-        setComments(data.comments ?? []);
+        // Defensive filter for any orphaned comments
+        const validComments = (data.comments ?? []).filter((c: Comment) => c.userId);
+        setComments(validComments);
       } catch {
         // silent
       } finally {
