@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
 import Like from "@/models/like";
+import { PostType } from "@/types";
 
 // GET /api/posts - Fetch feed or user posts
 export async function GET(req: NextRequest) {
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
       });
 
       // Filter out posts where userId is null (deleted users)
-      posts = posts.filter((p: any) => p.userId);
+      posts = (posts as unknown as PostType[]).filter((p) => p.userId);
 
       total = await Post.countDocuments(query);
     } else {
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
         .lean();
       
       // Filter out posts where userId is null (deleted users)
-      posts = posts.filter((p: any) => p.userId);
+      posts = (posts as unknown as PostType[]).filter((p) => p.userId);
       
       total = await Post.countDocuments(query);
     }

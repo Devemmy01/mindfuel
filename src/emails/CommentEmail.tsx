@@ -1,9 +1,6 @@
-/* eslint-disable @next/next/no-img-element */
 import {
-  Body,
   Container,
   Head,
-  Heading,
   Html,
   Img,
   Link,
@@ -11,6 +8,7 @@ import {
   Section,
   Text,
   Hr,
+  Body,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -67,11 +65,6 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         </Link>
         
         <Hr style={hr} />
-        
-        <Text style={footer}>
-          You received this because someone commented on your MindFuel post.<br />
-          Manage your notifications in your <Link href="https://mind-fuel.app/settings" style={footerLink}>settings</Link>.
-        </Text>
       </Container>
     </Body>
   </Html>
@@ -170,15 +163,4 @@ const button = {
 const hr = {
   borderTop: '1px solid #f1f5f9',
   marginBottom: '24px',
-};
-
-const footer = {
-  fontSize: '12px',
-  color: '#94a3b8',
-  textAlign: 'center' as const,
-};
-
-const footerLink = {
-  color: '#00bf63',
-  textDecoration: 'none',
 };
