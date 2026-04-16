@@ -36,7 +36,13 @@ export default function Navbar() {
             <img
               src="/logoDarkbg.png"
               alt="MindFuel"
-              className="w-40 h-12 mx-auto object-contain rounded-full flex-shrink-0"
+              className="w-40 h-12 mx-auto object-contain rounded-full flex-shrink-0 md:hidden xl:block"
+            />
+
+            <img
+              src="/logo.png"
+              alt="MindFuel"
+              className="w-12 h-12 mx-auto object-contain rounded-full flex-shrink-0 md:block xl:hidden"
             />
             
           </Link>

@@ -464,7 +464,7 @@ export default function PostDetailPage() {
       {/* Post content */}
       <article className="flex flex-col border-b border-border">
         {/* Author row */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between px-4 pb-2">
           <div className="flex items-center gap-3">
             <Link href={`/profile/${post.userId.firebaseId}`} className="block outline-none press-scale shrink-0">
               {post.userId.image ? (
@@ -480,8 +480,8 @@ export default function PostDetailPage() {
                 </div>
               )}
             </Link>
-            <div className="flex flex-col leading-tight min-w-0">
-              <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold text-[15px] hover:underline truncate">
+            <div className="flex flex-col leading-tight min-w-0 pt-5">
+              <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold -mb-4 text-[15px] hover:underline truncate">
                 {post.userId.name}
               </Link>
               <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] text-muted-foreground truncate hover:text-foreground transition-colors">
