@@ -3,6 +3,8 @@ import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import Like from "@/models/like";
 import User from "@/models/user";
+import { createNotification } from "@/lib/notifications";
+import { Types } from "mongoose";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,7 +32,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } else {
       // Toggle like
       await Like.create({ userId: user._id, postId });
-      await Post.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } });
+      const post = await Post.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } });
+      
+      // Notify post author
+      if (post && post.userId && post.userId.toString() !== user._id.toString()) {
+        await createNotification({
+          recipientId: post.userId,
+          senderId: user._id,
+          type: "like",
+          postId: new Types.ObjectId(postId),
+          message: `${user.name} liked your reflection`,
+          url: `/post/${postId}`
+        });
+      }
+
       return NextResponse.json({ liked: true }, { status: 200 });
     }
   } catch (error: unknown) {

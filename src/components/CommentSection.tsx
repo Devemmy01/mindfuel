@@ -24,6 +24,27 @@ interface Comment {
   isLiked?: boolean;
 }
 
+function CommentAvatar({ user }: { user: Comment["userId"] }) {
+  const [imgError, setImgError] = React.useState(false);
+  
+  if (user.image && !user.image.startsWith("#") && !imgError) {
+    return (
+      <img
+        src={user.image}
+        className="w-9 h-9 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
+        alt={user.name}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  
+  return (
+    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center font-bold text-[12px] text-muted-foreground ring-1 ring-border">
+      {user.name?.[0]?.toUpperCase() || "U"}
+    </div>
+  );
+}
+
 const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
@@ -189,18 +210,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
                 {/* Avatar */}
                 <div className="flex-shrink-0">
                   <Link href={`/profile/${comment.userId.firebaseId}`} className="block outline-none press-scale">
-                    {comment.userId.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={comment.userId.image}
-                        className="w-9 h-9 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
-                        alt={comment.userId.name}
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
+                    <CommentAvatar user={comment.userId} />
                   </Link>
                 </div>
 
@@ -289,14 +299,12 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
             </AnimatePresence>
           </div>
           <form onSubmit={handleSubmit} className="flex items-end gap-3">
-            {profile?.image || user.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile?.image || user.photoURL || ""} alt="Me" className="w-8 h-8 rounded-full object-cover flex-shrink-0 self-end mb-1" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 self-end mb-1">
-                <UserIcon className="w-4 h-4 text-muted-foreground" />
-              </div>
-            )}
+            <CommentAvatar user={{ 
+              _id: "me", 
+              name: profile?.name || user.displayName || "Me", 
+              image: profile?.image || user.photoURL || "", 
+              firebaseId: user.uid 
+            }} />
             <div className="flex-1 frosted-input flex items-center gap-1 px-3 py-2.5 min-h-[42px]">
               {/* Emoji trigger */}
               <button

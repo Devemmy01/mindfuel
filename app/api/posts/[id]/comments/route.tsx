@@ -4,13 +4,13 @@ import Comment from "@/models/comment";
 import User, { IUser } from "@/models/user";
 import Post from "@/models/post";
 import CommentLike from "@/models/commentLike";
-import webpush from "@/lib/push";
-import { PushSubscription } from "web-push";
 
 import { CommentType } from "@/types";
 import { resend } from "@/lib/resend";
 import { CommentEmail } from "@/emails/CommentEmail";
 import React from "react";
+import { createNotification } from "@/lib/notifications";
+import { Types } from "mongoose";
 
 // GET /api/posts/[id]/comments - Fetch comments for a post
 export async function GET(
@@ -120,12 +120,27 @@ export async function POST(
         const author = (await User.findById(post.userId)) as IUser | null;
 
         if (author) {
-          // 1. Email Notification
+          // 1. In-App & Push Notification
+          await createNotification({
+            recipientId: post.userId,
+            senderId: user._id,
+            type: "comment",
+            postId: new Types.ObjectId(postId),
+            commentId: comment._id,
+            message: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}`,
+            url: `/post/${postId}`
+          });
+
+          // 2. Email Notification
           if (author.email && author.preferences?.notifications !== false) {
             await resend.emails.send({
               from: "MindFuel <noreply@mind-fuel.app>",
               to: author.email,
               subject: `${user.name} commented on your thought`,
+              headers: {
+                "X-Entity-Ref-ID": `${postId}-${comment._id}`,
+                "importance": "high"
+              },
               react: (
                 <CommentEmail
                   authorName={author.name}
@@ -135,26 +150,6 @@ export async function POST(
                   postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${postId}`}
                 />
               ) as React.ReactElement,
-            });
-          }
-
-          // 2. Push Notification
-          if (
-            author.pushSubscriptions &&
-            author.pushSubscriptions.length > 0 &&
-            author.preferences?.notifications !== false
-          ) {
-            const payload = JSON.stringify({
-              title: "New Comment on MindFuel",
-              body: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}`,
-              icon: "/logo.png",
-              url: `/post/${postId}`,
-            });
-
-            author.pushSubscriptions.forEach((sub) => {
-              webpush
-                .sendNotification(sub as unknown as PushSubscription, payload)
-                .catch((err) => console.error("Push failed:", err));
             });
           }
         }

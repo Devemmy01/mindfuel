@@ -34,6 +34,7 @@ export default function DynamicProfilePage() {
   const [editImage, setEditImage] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isProfilePicOpen, setIsProfilePicOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const isOwnProfile = currentUser?.uid === profileId;
 
@@ -308,10 +309,11 @@ export default function DynamicProfilePage() {
             onClick={() => setIsProfilePicOpen(true)}
             className="p-1 rounded-full bg-background shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
           >
-            {profileUser.image && !profileUser.image.startsWith("#") ? (
+            {profileUser.image && !profileUser.image.startsWith("#") && !imgError ? (
               <img
                 src={profileUser.image}
                 alt={profileUser.name}
+                onError={() => setImgError(true)}
                 className="w-18 h-18 rounded-full object-cover ring-4 ring-background"
               />
             ) : (

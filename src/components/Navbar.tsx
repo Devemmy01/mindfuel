@@ -1,23 +1,77 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal } from "lucide-react";
+import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal, Bell } from "lucide-react";
+import NotificationsList, { AppNotification } from "./NotificationsList";
 
 export default function Navbar() {
   const { user, profile, login, logout } = useAuth();
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/notifications?userId=${user.uid}`);
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotifications();
+    // Poll every 15 seconds for new notifications
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const markAllAsRead = async () => {
+    if (!user || unreadCount === 0) return;
+    try {
+      setUnreadCount(0);
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+      // Update local state isRead status
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error("Failed to mark notifications as read", err);
+    }
+  };
+
+  // Close menus on navigation
+  useEffect(() => {
+    setShowUserMenu(false);
+    setShowNotifications(false);
+  }, [pathname]);
 
   const displayImage = profile?.image || user?.photoURL;
   const displayName = profile?.name || user?.displayName;
 
   const navItems = [
     { href: "/",            icon: Home,     label: "Home"    },
+    { href: "/notifications", icon: Bell,     label: "Notifications", isNotification: true },
     { href: "/collections", icon: Bookmark, label: "Saved"   },
     { href: "/profile",     icon: User,     label: "Profile" },
   ];
@@ -25,7 +79,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop Sidebar ─────────────────────────────── */}
-      <header className="hidden md:flex flex-col w-[72px] xl:w-[260px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-4 max-h-screen overflow-y-auto no-scrollbar items-center xl:items-start" role="banner">
+      <header className="hidden md:flex flex-col w-[72px] xl:w-[260px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-4 max-h-screen items-center xl:items-start z-[100]" role="banner">
         <div className="flex flex-col w-full h-full items-center xl:items-start">
 
           {/* Logo */}
@@ -57,8 +111,64 @@ export default function Navbar() {
 
           {/* Nav Links */}
           <nav className="flex flex-col w-full flex-1 items-center xl:items-start space-y-1 mt-1" aria-label="Main navigation">
-            {navItems.map(({ href, icon: Icon, label }) => {
+            {navItems.map(({ href, icon: Icon, label, isNotification }) => {
               const isActive = pathname === href;
+              
+              if (isNotification) {
+                return (
+                  <div key={href} className="w-full relative">
+                    <button
+                      onClick={() => {
+                        setShowNotifications(!showNotifications);
+                        if (!showNotifications) markAllAsRead();
+                      }}
+                      className={`w-full flex justify-center xl:justify-start outline-none transition-colors group px-3 py-3 rounded-2xl
+                        ${showNotifications ? "bg-secondary/60 font-bold" : "font-medium hover:bg-secondary/50"}
+                      `}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <Icon
+                            className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${
+                              showNotifications ? "text-brand-green" : "text-foreground/70 group-hover:text-foreground"
+                            }`}
+                            strokeWidth={2}
+                          />
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-green text-[10px] font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-1 ring-background animate-in zoom-in duration-300">
+                              {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`hidden xl:inline text-[16px] leading-none ${showNotifications ? "text-foreground" : "text-foreground/80"}`}>
+                          {label}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Desktop Notifications Popover */}
+                    {showNotifications && (
+                      <div className="absolute left-full ml-2 top-0 w-[320px] bg-[#0a0a0a] border border-border rounded-3xl shadow-2xl z-[200] animate-scale-in overflow-hidden">
+                        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                          <h3 className="font-bold text-[16px]">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <span className="text-[11px] font-bold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-full">
+                              {unreadCount} New
+                            </span>
+                          )}
+                        </div>
+                        <NotificationsList 
+                          notifications={notifications} 
+                          onMarkRead={markAllAsRead}
+                          isLoading={isLoading}
+                          onClose={() => setShowNotifications(false)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <Link
                   key={href}
@@ -134,10 +244,11 @@ export default function Navbar() {
                   aria-expanded={showUserMenu}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-secondary/60 transition-colors w-full group outline-none"
                 >
-                  {displayImage && !displayImage.startsWith("#") ? (
+                  {displayImage && !displayImage.startsWith("#") && !imgError ? (
                     <img
                       src={displayImage}
                       alt={displayName || "User"}
+                      onError={() => setImgError(true)}
                       className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-brand-green/30"
                     />
                   ) : (
@@ -165,13 +276,21 @@ export default function Navbar() {
 
                 {/* Dropdown */}
                 {showUserMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 xl:left-0 w-[220px] bg-popover border border-border rounded-2xl shadow-card py-1 z-50 animate-scale-in">
+                  <div className="absolute bottom-full mb-2 left-0 xl:left-0 w-[220px] bg-popover border border-border rounded-2xl shadow-card py-1 z-[200] animate-scale-in">
                     <div className="px-4 py-3 border-b border-border">
                       <p className="font-bold text-[14px]">{displayName}</p>
                       <p className="text-muted-foreground text-[12px]">
                         @{profile?.username || (displayName?.replace(/\s+/g, "").toLowerCase() || "guest")}
                       </p>
                     </div>
+                    <Link
+                      href="/collections"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-foreground hover:bg-secondary/60 transition-colors w-full"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                      Saved
+                    </Link>
                     <button
                       onClick={() => { logout(); setShowUserMenu(false); }}
                       aria-label="Sign out"
@@ -248,24 +367,32 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Saved */}
-          <Link
-            href="/collections"
-            target="_self"
-            aria-label="Saved reflections"
-            aria-current={pathname === "/collections" ? "page" : undefined}
+          {/* Notifications Trigger Mobile */}
+          <button
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              if (!showNotifications) markAllAsRead();
+            }}
+            aria-label="Notifications"
             className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
-            <Bookmark
-              className={`w-[22px] h-[22px] transition-all duration-300 ${
-                pathname === "/collections" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
-              }`}
-              strokeWidth={pathname === "/collections" ? 2.5 : 2}
-            />
-            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/collections" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
-              Saved
+            <div className={`relative transition-all duration-300 flex flex-col items-center justify-center ${showNotifications ? "translate-y-[-2px]" : ""}`}>
+              <Bell
+                className={`w-[22px] h-[22px] transition-all duration-300 ${
+                  showNotifications ? "text-brand-green" : "text-muted-foreground group-hover:text-foreground"
+                }`}
+                strokeWidth={showNotifications ? 2.5 : 2}
+              />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-green text-[10px] font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-2 ring-background animate-in zoom-in duration-300">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
+            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${showNotifications ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+              Alerts
             </span>
-          </Link>
+          </button>
 
           {/* Profile / Login */}
           {user ? (
@@ -277,25 +404,24 @@ export default function Navbar() {
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
               <div className={`transition-all duration-300 flex flex-col items-center justify-center ${pathname === "/profile" ? "translate-y-[-2px]" : ""}`}>
-                {displayImage ? (
-                  displayImage.startsWith("#") ? (
-                    <div 
-                      className={`w-[24px] h-[24px] rounded-full flex items-center justify-center transition-all duration-300 ${
-                        pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
-                      }`}
-                      style={{ backgroundColor: displayImage }}
-                    >
-                      <span className="text-[10px] font-bold text-white uppercase">{displayName?.[0]}</span>
-                    </div>
-                  ) : (
-                    <img
-                      src={displayImage}
-                      alt="Profile"
-                      className={`w-[24px] h-[24px] rounded-full object-cover transition-all duration-300 ${
-                        pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
-                      }`}
-                    />
-                  )
+                {displayImage && !displayImage.startsWith("#") && !imgError ? (
+                  <img
+                    src={displayImage}
+                    alt="Profile"
+                    onError={() => setImgError(true)}
+                    className={`w-[24px] h-[24px] rounded-full object-cover transition-all duration-300 ${
+                      pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
+                    }`}
+                  />
+                ) : displayImage?.startsWith("#") || (displayImage && imgError) ? (
+                  <div 
+                    className={`w-[24px] h-[24px] rounded-full flex items-center justify-center transition-all duration-300 ${
+                      pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: displayImage && !imgError ? displayImage : "#0a0a0a" }}
+                  >
+                    <span className="text-[10px] font-bold text-white uppercase">{displayName?.[0]}</span>
+                  </div>
                 ) : (
                   <User
                     className={`w-[22px] h-[22px] transition-all duration-300 ${
@@ -321,6 +447,31 @@ export default function Navbar() {
 
         </nav>
       </div>
+
+      {/* Mobile Notifications Overlay */}
+      {showNotifications && (
+        <div className="md:hidden fixed inset-0 z-[200] bg-[#0a0a0a] animate-in slide-in-from-bottom duration-300">
+          <div className="flex flex-col h-full">
+            <header className="p-4 border-b border-border flex items-center justify-between sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-xl z-20">
+              <h2 className="text-xl font-bold">Notifications</h2>
+              <button 
+                onClick={() => setShowNotifications(false)}
+                className="p-2 rounded-full hover:bg-secondary/60 transition-colors"
+              >
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </header>
+            <div className="flex-1 overflow-y-auto pb-safe">
+              <NotificationsList 
+                notifications={notifications} 
+                onMarkRead={markAllAsRead}
+                isLoading={isLoading}
+                onClose={() => setShowNotifications(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

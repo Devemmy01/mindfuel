@@ -64,7 +64,7 @@ export function CardWatermark({
           border: "1px solid rgba(255,255,255,0.12)",
         }}
       >
-        <img src="/logo.png" alt="" className="w-5 h-5" />
+        <img src="/logo.png" alt="" className="w-7 h-7" />
 
         <div
           style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}
@@ -96,7 +96,7 @@ export function CardWatermark({
           </span> */}
           <span
             style={{
-              fontSize: "12px",
+              fontSize: "14px",
               fontWeight: 600,
               letterSpacing: "0.1em",
               color: "rgba(255,255,255,0.85)",
@@ -327,51 +327,28 @@ const CardCreator: React.FC = () => {
           className={`relative w-full ${isExporting ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
           style={{ ...bgStyle, color: bg.text }}
         >
-          {/* User attribution rendered only for exported image */}
-          {isExporting && (
-            <div className="absolute top-8 left-8 flex items-center gap-3 z-20 transition-opacity animate-in fade-in">
-              {profile?.image || user?.photoURL ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={profile?.image || user?.photoURL || ""}
-                  className="w-12 h-12 rounded-full object-cover shadow-sm ring-2 ring-white/20"
-                  alt={profile?.name || ""}
-                  crossOrigin="anonymous"
-                />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white shadow-sm ring-2 ring-white/20"
-                  style={{ backgroundColor: "#0a0a0a" }}
-                >
-                  {(profile?.name || user?.displayName)?.[0]?.toUpperCase()}
-                </div>
-              )}
-              <div className="flex flex-col">
-                <span className="font-bold text-[15px]" style={{ color: bg.text }}>{profile?.name || user?.displayName}</span>
-                <span className="text-[13px] font-medium" style={{ color: bg.text, opacity: 0.7 }}>
-                  @{profile?.username || ((profile?.name || user?.displayName)?.replace(/\s+/g, "").toLowerCase() || "guest")}
-                </span>
-              </div>
-            </div>
-          )}
+          {/* Grouped content for centered alignment */}
+          <div className={`relative z-10 w-full ${isExporting ? "flex flex-col items-start px-8 py-2" : ""}`}>
+            {/* Decorative quote */}
+            <span 
+              className={isExporting ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote !left-[24px] md:!left-[32px]"} 
+              style={{ color: bg.text, fontFamily: "'Georgia', serif" }}
+            >
+              &ldquo;
+            </span>
 
-          {/* Texture overlays */}
-          <div
-            className={`absolute inset-0 ${isExporting ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`}
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
-
-          <textarea
-            ref={textAreaRef}
-            id="post-textarea"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What's fueling your mind?"
-            className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-6 md:px-8 ${isExporting ? "text-[22px] sm:text-[26px]" : fontSize.cls}`}
-            style={{ color: bg.text, fontFamily: selectedFont.family }}
-            rows={4}
-            autoFocus
-          />
+            <textarea
+              ref={textAreaRef}
+              id="post-textarea"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="What's fueling your mind?"
+              className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-6 md:px-8 ${isExporting ? "text-[22px] sm:text-[26px] px-0" : fontSize.cls + "pb-8"}`}
+              style={{ color: bg.text, fontFamily: selectedFont.family }}
+              rows={4}
+              autoFocus
+            />
+          </div>
 
           {/* Always-visible watermark */}
           <CardWatermark isVisible={isExporting} />

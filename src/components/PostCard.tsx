@@ -330,6 +330,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   if (isHidden) return null;
 
+  const [imgError, setImgError] = useState(false);
+
   const bgStyle =
     post.backgroundStyle.type === "gradient"
       ? { backgroundImage: post.backgroundStyle.value }
@@ -356,10 +358,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     >
       <div className="mr-3 flex-shrink-0 pt-0.5">
         <Link href={`/profile/${post.userId.firebaseId}`} onClick={(e) => e.stopPropagation()} className="block outline-none press-scale">
-          {post.userId.image && !post.userId.image.startsWith("#") ? (
+          {post.userId.image && !post.userId.image.startsWith("#") && !imgError ? (
             <img
               src={post.userId.image}
               alt={post.userId.name}
+              onError={() => setImgError(true)}
               className="w-10 h-10 rounded-full bg-secondary object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
             />
           ) : (
@@ -470,9 +473,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
           style={{ ...bgStyle, color: textColor }}
         >
-          {/* Decorative quote */}
-          <span className="thought-card-quote" style={{ color: textColor }}>&ldquo;</span>
-          
           {/* Texture overlays */}
           <div className={`absolute inset-0 ${isDownloading ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
@@ -481,40 +481,25 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
           <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
 
-          {/* User attribution rendered only for downloaded image */}
-          {isDownloading && (
-            <div className="absolute top-8 left-8 flex items-center gap-3 z-20 transition-opacity animate-in fade-in">
-              {post.userId.image && !post.userId.image.startsWith("#") ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={post.userId.image}
-                  className="w-12 h-12 rounded-full object-cover shadow-sm ring-2 ring-white/20"
-                  alt={post.userId.name}
-                  crossOrigin="anonymous"
-                />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white shadow-sm ring-2 ring-white/20"
-                  style={{ backgroundColor: "#0a0a0a" }}
-                >
-                  {post.userId.name?.[0]?.toUpperCase()}
-                </div>
-              )}
-              <div className="flex flex-col">
-                <span className="font-bold text-[15px]" style={{ color: textColor }}>{post.userId.name}</span>
-                <span className="text-[13px] font-medium" style={{ color: textColor, opacity: 0.7 }}>
-                  @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
-                </span>
-              </div>
-            </div>
-          )}
+          {/* Grouped content for centered alignment */}
+          <div className={`relative z-10 w-full ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
+            {/* Decorative quote */}
+            <span 
+              className={isDownloading ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote -ml-1"} 
+              style={{ color: textColor, fontFamily: "'Georgia', serif" }}
+            >
+              &ldquo;
+            </span>
 
-          <p
-            className={`relative z-10 px-6 md:px-8 ${isDownloading ? "text-[22px] sm:text-[26px]" : "pt-8 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.5] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
-            style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
-          >
-            {post.text}
-          </p>
+            <p
+              className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-10 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+              style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
+            >
+              {post.text}
+            </p>
+
+            
+          </div>
           <CardWatermark color={textColor} isVisible={isDownloading} />
         </div>
 
