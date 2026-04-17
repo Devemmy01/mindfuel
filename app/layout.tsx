@@ -2,6 +2,7 @@ import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import Image from "next/image";
 import "./globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -181,6 +182,7 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Load card fonts */}
         <link href={CARD_FONTS_URL} rel="stylesheet" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -230,8 +232,7 @@ export default function RootLayout({
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-5 h-5 bg-foreground/5 rounded-md flex items-center justify-center">
-                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                         <img src="/logo.png" alt="" className="w-5 h-5" />
+                         <Image src="/logo.png" alt="" width={20} height={20} />
                       </div>
                       <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
                         MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.

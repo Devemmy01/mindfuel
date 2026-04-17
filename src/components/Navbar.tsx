@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal } from "lucide-react";
@@ -24,31 +25,38 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop Sidebar ─────────────────────────────── */}
-      <header className="hidden md:flex flex-col w-[72px] xl:w-[260px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-4 max-h-screen overflow-y-auto no-scrollbar items-center xl:items-start">
+      <header className="hidden md:flex flex-col w-[72px] xl:w-[260px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-4 max-h-screen overflow-y-auto no-scrollbar items-center xl:items-start" role="banner">
         <div className="flex flex-col w-full h-full items-center xl:items-start">
 
           {/* Logo */}
           <Link
             href="/"
             target="_self"
+            aria-label="MindFuel home"
             className="mb-2 p-3 w-max rounded-2xl transition-colors flex items-center justify-center hover:bg-secondary/70 outline-none group"
           >
-            <img
+            <Image
               src="/logoDarkbg.png"
               alt="MindFuel"
-              className="w-40 h-12 mx-auto object-contain rounded-full flex-shrink-0 md:hidden xl:block"
+              width={160}
+              height={48}
+              priority
+              className="mx-auto object-contain rounded-full flex-shrink-0 md:hidden xl:block"
             />
 
-            <img
+            <Image
               src="/logo.png"
               alt="MindFuel"
-              className="w-12 h-12 mx-auto object-contain rounded-full flex-shrink-0 md:block xl:hidden"
+              width={48}
+              height={48}
+              priority
+              className="mx-auto object-contain rounded-full flex-shrink-0 md:block xl:hidden"
             />
             
           </Link>
 
           {/* Nav Links */}
-          <nav className="flex flex-col w-full flex-1 items-center xl:items-start space-y-1 mt-1">
+          <nav className="flex flex-col w-full flex-1 items-center xl:items-start space-y-1 mt-1" aria-label="Main navigation">
             {navItems.map(({ href, icon: Icon, label }) => {
               const isActive = pathname === href;
               return (
@@ -56,6 +64,7 @@ export default function Navbar() {
                   key={href}
                   href={href}
                   target="_self"
+                  aria-current={isActive ? "page" : undefined}
                   className="w-full flex justify-center xl:justify-start outline-none"
                 >
                   <div
@@ -67,7 +76,7 @@ export default function Navbar() {
                   >
                     {/* Active indicator bar */}
                     {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-brand-green" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-brand-green" aria-hidden="true" />
                     )}
                     <Icon
                       className={`w-[22px] h-[22px] flex-shrink-0 transition-colors ${
@@ -76,6 +85,7 @@ export default function Navbar() {
                           : "text-foreground/70 group-hover:text-foreground"
                       }`}
                       strokeWidth={isActive ? 2.5 : 2}
+                      aria-hidden="true"
                     />
                     <span
                       className={`hidden xl:inline text-[16px] leading-none ${
@@ -84,6 +94,7 @@ export default function Navbar() {
                     >
                       {label}
                     </span>
+                    <span className="sr-only xl:hidden">{label}</span>
                   </div>
                 </Link>
               );
@@ -109,15 +120,18 @@ export default function Navbar() {
             {!user ? (
               <button
                 onClick={login}
+                aria-label="Sign in with Google"
                 className="flex items-center justify pl-3 gap-3 px py-3 rounded-2xl bg-foreground text-background font-bold text-[14px] hover:opacity-90 transition-opacity w-full shadow-sm outline-none"
               >
-                <User className="w-5 h-5 flex-shrink-0" />
+                <User className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                 <span className="hidden xl:inline">Sign In with Google</span>
               </button>
             ) : (
               <div className="w-full relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
+                  aria-label="User menu"
+                  aria-expanded={showUserMenu}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-secondary/60 transition-colors w-full group outline-none"
                 >
                   {displayImage && !displayImage.startsWith("#") ? (
@@ -160,6 +174,7 @@ export default function Navbar() {
                     </div>
                     <button
                       onClick={() => { logout(); setShowUserMenu(false); }}
+                      aria-label="Sign out"
                       className="flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-foreground hover:bg-secondary/60 transition-colors w-full rounded-b-2xl"
                     >
                       <LogOut className="w-4 h-4" />
@@ -181,12 +196,14 @@ export default function Navbar() {
             : 'translate-y-0 opacity-100'
         }`}
       >
-        <nav className="glass-strong bg-background/85 backdrop-blur-2xl border border-border/80 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full flex items-center justify-between h-[64px] px-2 mb-4 pointer-events-auto mx-auto max-w-[400px]">
+        <nav className="glass-strong bg-background/85 backdrop-blur-2xl border border-border/80 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full flex items-center justify-between h-[64px] px-2 mb-4 pointer-events-auto mx-auto max-w-[400px]" aria-label="Mobile navigation">
 
           {/* Feed */}
           <Link
             href="/"
             target="_self"
+            aria-label="Home"
+            aria-current={pathname === "/" ? "page" : undefined}
             className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Home
@@ -204,6 +221,8 @@ export default function Navbar() {
           <Link
             href="/search"
             target="_self"
+            aria-label="Search"
+            aria-current={pathname === "/search" ? "page" : undefined}
             className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Search
@@ -221,6 +240,7 @@ export default function Navbar() {
           <Link
             href="/create"
             target="_self"
+            aria-label="Create new post"
             className="flex-1 h-full flex flex-col items-center justify-center outline-none"
           >
             <div className="w-[46px] h-[46px] bg-[#00a855] rounded-full flex items-center justify-center shadow-brand-sm press-scale active:bg-[#009950] transition-transform hover:scale-105">
@@ -232,6 +252,8 @@ export default function Navbar() {
           <Link
             href="/collections"
             target="_self"
+            aria-label="Saved reflections"
+            aria-current={pathname === "/collections" ? "page" : undefined}
             className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Bookmark
@@ -250,6 +272,8 @@ export default function Navbar() {
             <Link
               href="/profile"
               target="_self"
+              aria-label="Profile"
+              aria-current={pathname === "/profile" ? "page" : undefined}
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
               <div className={`transition-all duration-300 flex flex-col items-center justify-center ${pathname === "/profile" ? "translate-y-[-2px]" : ""}`}>
@@ -288,9 +312,10 @@ export default function Navbar() {
           ) : (
             <button
               onClick={login}
+              aria-label="Sign in"
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
-              <User className="w-[22px] h-[22px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} />
+              <User className="w-[22px] h-[22px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} aria-hidden="true" />
             </button>
           )}
 

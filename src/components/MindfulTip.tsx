@@ -37,9 +37,10 @@ export default function MindfulTip() {
       <button 
         onClick={fetchTip}
         disabled={loading}
+        aria-label="Get a new mindful tip"
         className="mt-6 flex items-center gap-2 text-[12px] font-bold text-brand-green hover:underline decoration-2 underline-offset-4 tracking-tight disabled:opacity-50"
       >
-        Stay intentional {loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
+        Stay intentional {loading ? <RefreshCw className="w-3 h-3 animate-spin" aria-hidden="true" /> : <ArrowRight className="w-3 h-3" aria-hidden="true" />}
       </button>
     </div>
   );

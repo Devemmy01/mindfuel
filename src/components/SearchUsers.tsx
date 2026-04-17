@@ -59,28 +59,32 @@ export default function SearchUsers() {
   }, [query]);
 
   return (
-    <div className="relative w-full mb-6" ref={searchRef}>
+    <div className="relative w-full mb-6" ref={searchRef} role="combobox" aria-expanded={showResults} aria-haspopup="listbox" aria-controls="search-results">
+      <label htmlFor="search-users" className="sr-only">Search MindFuel</label>
       <div className="frosted-input px-4 h-[46px] flex items-center gap-3 transition-all focus-within:ring-2 focus-within:ring-brand-green/30">
-        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <input
+          id="search-users"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.length >= 2 && setShowResults(true)}
           placeholder="Search MindFuel"
+          aria-autocomplete="list"
           className="bg-transparent border-none outline-none text-[14px] placeholder:text-muted-foreground w-full"
         />
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-green" />}
+        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-green" aria-hidden="true" />}
       </div>
 
       {showResults && (
-        <div className="absolute top-full mt-2 w-full bg-popover popover-solid border border-border rounded-2xl shadow-card overflow-hidden z-50 animate-scale-in">
+        <div id="search-results" role="listbox" className="absolute top-full mt-2 w-full bg-popover popover-solid border border-border rounded-2xl shadow-card overflow-hidden z-50 animate-scale-in">
           {results.length > 0 ? (
             <div className="flex flex-col py-1">
               {results.map((u) => (
                 <Link
                   key={u._id}
                   href={`/profile/${u.firebaseId}`}
+                  role="option"
                   className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
                 >
                   {u.image ? (

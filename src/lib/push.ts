@@ -7,7 +7,7 @@ const vapidKeys = {
 
 if (vapidKeys.publicKey && vapidKeys.privateKey) {
   webpush.setVapidDetails(
-    "mailto:hello@mind-fuel.app",
+    "mailto:noreply@mind-fuel.app",
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );

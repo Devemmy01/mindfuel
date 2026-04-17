@@ -17,6 +17,8 @@ export interface PostType {
   };
   fontFamily?: string;
   createdAt: string;
+  isLiked?: boolean;
+  isSaved?: boolean;
 }
 
 export interface ProfileUser {

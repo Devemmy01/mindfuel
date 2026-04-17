@@ -4,9 +4,14 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
-import { toPng } from "html-to-image";
 import { Download, X, Type, Sparkles, Smile, ChevronDown } from "lucide-react";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import dynamic from "next/dynamic";
+import { Theme } from "emoji-picker-react";
+
+const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
+  ssr: false,
+  loading: () => <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />,
+});
 import { useRouter } from "next/navigation";
 import { useToast } from "@/providers/ToastProvider";
 import { backgroundOptions } from "@/lib/backgrounds";
@@ -158,6 +163,7 @@ const CardCreator: React.FC = () => {
     try {
       // Wait a frame so the state change renders
       await new Promise((r) => setTimeout(r, 150));
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 3,

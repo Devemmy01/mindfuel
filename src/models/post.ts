@@ -80,6 +80,11 @@ const PostSchema = new Schema(
   { timestamps: true }
 );
 
+// Performance indexes for feed queries
+PostSchema.index({ createdAt: -1 });
+PostSchema.index({ userId: 1, createdAt: -1 });
+PostSchema.index({ likesCount: -1, views: -1, createdAt: -1 });
+
 const Post = models.Post || model<IPost>("Post", PostSchema);
 
 export default Post;

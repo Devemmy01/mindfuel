@@ -89,6 +89,8 @@ export default function InstallPWA() {
           exit={{ opacity: 0, y: 60, scale: 0.95 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-50 md:w-96 bg-white dark:bg-[#111827] border border-border shadow-2xl rounded-3xl overflow-hidden isolate"
+          role="dialog"
+          aria-label="Install MindFuel app"
         >
           {/* Green accent top bar */}
           <div className="h-1 w-full bg-gradient-to-r from-brand-green/60 via-brand-green to-brand-green/60" />
@@ -132,9 +134,10 @@ export default function InstallPWA() {
             {/* Close button */}
             <button
               onClick={handleDismiss}
+              aria-label="Dismiss install prompt"
               className="absolute top-3 right-3 p-1.5 md:p-1 text-muted-foreground hover:bg-secondary/80 rounded-full transition-colors focus:outline-none"
             >
-              <X className="w-5 h-5 md:w-4 md:h-4" />
+              <X className="w-5 h-5 md:w-4 md:h-4" aria-hidden="true" />
             </button>
           </div>
         </motion.div>

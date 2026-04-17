@@ -8,17 +8,23 @@ import {
   MessageCircle, Heart, Bookmark, Share2,
   CheckCircle2, MoreHorizontal, Link as LinkIcon, Twitter, Eye, Trash2, Edit, X, Sparkles, Loader2, Smile
 } from "lucide-react";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import dynamic from "next/dynamic";
+import { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { PostType } from "@/types";
-import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { getFontById, fontOptions } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
+
+// Dynamic import heavy libraries for code splitting
+const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
+  ssr: false,
+  loading: () => <div className="w-[280px] h-[320px] bg-secondary/50 rounded-2xl animate-pulse" />,
+});
 
 interface PostCardProps {
   post: PostType;
@@ -37,9 +43,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const { showToast } = useToast();
   const router = useRouter();
   
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(post.isLiked ?? false);
   const [likes, setLikes] = useState(post.likesCount);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(post.isSaved ?? false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(post.text);
@@ -101,24 +107,18 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   useEffect(() => {
     if (!viewFetched.current) {
       viewFetched.current = true;
-      fetch(`/api/posts/${post._id}/view`, { method: "POST" }).catch(() => {});
+      // Fire-and-forget view tracking with requestIdleCallback for performance
+      const trackView = () => fetch(`/api/posts/${post._id}/view`, { method: "POST" }).catch(() => {});
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(trackView);
+      } else {
+        setTimeout(trackView, 200);
+      }
     }
   }, [post._id]);
 
-  useEffect(() => {
-    if (user) {
-      fetch(`/api/posts/${post._id}/like?userId=${user.uid}`)
-        .then((r) => r.json())
-        .then((d) => setIsLiked(d.liked))
-        .catch(() => {});
-      fetch(`/api/saves?userId=${user.uid}`)
-        .then((r) => r.json())
-        .then((d) => {
-          setIsSaved(!!d.saves?.some((s: { postId: { _id: string } }) => s.postId._id === post._id));
-        })
-        .catch(() => {});
-    }
-  }, [post._id, user]);
+  // Note: isLiked and isSaved are now provided directly by the batched /api/posts/feed endpoint
+  // We no longer manually fetch them per-card to eliminate the N+1 API waterfall.
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -200,6 +200,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     if (!cardRef.current) return;
     setIsDownloading(true);
     try {
+      // Dynamic import html-to-image only when needed (~50KB)
+      const { toPng } = await import("html-to-image");
       await new Promise((r) => setTimeout(r, 150));
       const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3, skipFonts: true });
       const link = document.createElement("a");
@@ -384,9 +386,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <div className="relative" ref={menuRef}>
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowMenu(!showMenu); }}
+              aria-label="Post options"
+              aria-expanded={showMenu}
               className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
             </button>
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-40 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
@@ -467,6 +471,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         <div className="flex items-center justify-between text-muted-foreground pr-2">
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/post/${post._id}`); }}
+            aria-label={`Comments${(post.commentsCount ?? 0) > 0 ? `, ${post.commentsCount}` : ''}`}
             className="flex items-center gap-1.5 group/btn transition-colors hover:text-blue-500 outline-none"
           >
             <div className="p-1.5 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
@@ -486,6 +491,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
           <button
             onClick={handleLike}
+            aria-label={isLiked ? "Unlike" : "Like"}
+            aria-pressed={isLiked}
             className={`flex items-center gap-1.5 group/btn transition-colors outline-none ${isLiked ? "text-rose-500" : "hover:text-rose-500"}`}
           >
             <div className={`p-1.5 rounded-full transition-colors ${isLiked ? "" : "group-hover/btn:bg-rose-500/10"}`}>
@@ -502,6 +509,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <div className="flex items-center relative" ref={shareMenuRef}>
             <button
               onClick={handleSave}
+              aria-label={isSaved ? "Unsave" : "Save"}
+              aria-pressed={isSaved}
               className={`flex items-center group/btn transition-colors outline-none ${isSaved ? "text-brand-green" : "hover:text-brand-green"}`}
             >
               <div className={`p-1.5 rounded-full transition-colors ${isSaved ? "" : "group-hover/btn:bg-brand-green/10"}`}>
@@ -513,6 +522,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             </button>
             <button
               onClick={handleShareClick}
+              aria-label="Share"
+              aria-expanded={showShareMenu}
               className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
             >
               <div className="p-1.5 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
@@ -548,6 +559,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit thought"
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(false); }}
           >
@@ -560,8 +574,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
                 <h3 className="text-[17px] font-bold tracking-tight">Edit Thought</h3>
-                <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
+                <button onClick={() => setIsEditing(false)} aria-label="Close edit" className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6">
@@ -671,6 +685,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Private note"
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsNoteModalOpen(false); }}
           >
@@ -683,8 +700,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
                 <h3 className="text-[17px] font-bold tracking-tight text-brand-green">Private Note</h3>
-                <button onClick={() => setIsNoteModalOpen(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
+                <button onClick={() => setIsNoteModalOpen(false)} aria-label="Close note" className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                  <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6">
