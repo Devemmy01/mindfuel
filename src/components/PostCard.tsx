@@ -228,7 +228,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      showToast("Reflection downloaded as image", "success");
+      showToast("Downloading...");
       setShowShareMenu(false);
       setShowMenu(false);
     } catch (err) {
@@ -492,7 +492,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             </span>
 
             <p
-              className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-10 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+              className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
               style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
             >
               {post.text}

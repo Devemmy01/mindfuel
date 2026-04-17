@@ -8,21 +8,36 @@ interface SplashScreenProps {
 }
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ isLoading }) => {
-  const [shouldRender, setShouldRender] = useState(isLoading);
+  const [shouldRender, setShouldRender] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    if (!isLoading) {
-      setIsFadingOut(true);
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-      }, 800); // Duration of fade-out animation
-      return () => clearTimeout(timer);
-    } else {
+    // If running as installed PWA, the native splash already showed — skip ours
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true;
+
+    if (isStandalone) {
+      setShouldRender(false);
+      return;
+    }
+
+    // For regular browser visits, show our custom splash while loading
+    if (isLoading) {
       setShouldRender(true);
       setIsFadingOut(false);
     }
   }, [isLoading]);
+
+  useEffect(() => {
+    if (!isLoading && shouldRender) {
+      setIsFadingOut(true);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, shouldRender]);
 
   if (!shouldRender) return null;
 
@@ -54,3 +69,4 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ isLoading }) => {
 };
 
 export default SplashScreen;
+

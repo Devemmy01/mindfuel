@@ -39,8 +39,8 @@ export default function Navbar() {
     };
 
     fetchNotifications();
-    // Poll every 15 seconds for new notifications
-    const interval = setInterval(fetchNotifications, 15000);
+    // Poll every 120 seconds for new notifications
+    const interval = setInterval(fetchNotifications, 120000);
     return () => clearInterval(interval);
   }, [user]);
 

@@ -353,7 +353,7 @@ export default function PostDetailPage() {
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      showToast("Reflection downloaded as image", "success");
+      showToast("Downloading...");
       setShowShareMenu(false);
       setShowMenu(false);
     } catch (err) {
@@ -541,7 +541,7 @@ export default function PostDetailPage() {
               </span>
 
               <p
-                className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-10 pb-16 text-[20px] sm:text-[24px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+                className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-16 text-[20px] sm:text-[24px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
                 style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
               >
                 {post.text}
