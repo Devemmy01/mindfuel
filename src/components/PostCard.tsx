@@ -83,6 +83,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -330,7 +331,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   if (isHidden) return null;
 
-  const [imgError, setImgError] = useState(false);
 
   const bgStyle =
     post.backgroundStyle.type === "gradient"

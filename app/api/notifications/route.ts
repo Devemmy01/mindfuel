@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const notifications = await Notification.find({ recipient: user._id })
       .sort({ createdAt: -1 })
       .limit(30)
-      .populate("sender", "name image username")
+      .populate("sender", "name image username firebaseId")
       .populate("postId", "text backgroundStyle")
       .lean();
 

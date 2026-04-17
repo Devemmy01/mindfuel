@@ -135,7 +135,7 @@ export default function Navbar() {
                             strokeWidth={2}
                           />
                           {unreadCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-green text-[10px] font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-1 ring-background animate-in zoom-in duration-300">
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] pt-1 font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-1 ring-background animate-in zoom-in duration-300">
                               {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                           )}
@@ -384,7 +384,7 @@ export default function Navbar() {
                 strokeWidth={showNotifications ? 2.5 : 2}
               />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-green text-[10px] font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-2 ring-background animate-in zoom-in duration-300">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow-[0_0_8px_var(--brand-green)] ring-2 ring-background animate-in zoom-in duration-300">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}

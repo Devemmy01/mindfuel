@@ -2,16 +2,18 @@ import Notification from "@/models/notification";
 import User, { IUser } from "@/models/user";
 import webpush from "@/lib/push";
 import { PushSubscription } from "web-push";
+import { Types } from "mongoose";
 
 interface NotificationParams {
-  recipientId: string | any; // MongoDB ObjectId
-  senderId: string | any;    // MongoDB ObjectId
+  recipientId: string | Types.ObjectId;
+  senderId: string | Types.ObjectId;
   type: "like" | "comment" | "reply";
-  postId: string | any;      // MongoDB ObjectId
-  commentId?: string | any;  // Optional
-  message: string;          // For push notification body
-  url: string;              // For push click action
+  postId: string | Types.ObjectId;
+  commentId?: string | Types.ObjectId;
+  message: string;
+  url: string;
 }
+
 
 export async function createNotification({
   recipientId,

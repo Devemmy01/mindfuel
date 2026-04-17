@@ -75,7 +75,7 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
         </div>
         <p className="font-bold text-[15px]">No notifications yet</p>
         <p className="text-muted-foreground text-[13px] max-w-[180px]">
-          We'll notify you here when someone likes or comments on your thoughts.
+          We&apos;ll notify you here when someone likes or comments on your thoughts.
         </p>
       </div>
     );
@@ -129,7 +129,7 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
             
             {/* Post Preview text */}
             <p className="text-[12.5px] text-muted-foreground/60 italic truncate mt-0.5 max-w-[200px]">
-              "{notification.postId.text}"
+              &ldquo;{notification.postId.text}&rdquo;
             </p>
             
             <span className="text-[11px] text-muted-foreground/50 mt-1 block font-medium">
