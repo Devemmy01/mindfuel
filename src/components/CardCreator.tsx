@@ -232,7 +232,7 @@ const CardCreator: React.FC = () => {
     }
   };
 
-  const maxChars = 500;
+  const maxChars = 200;
   const charsCount = text.length;
   const charsRatio = Math.min(charsCount / maxChars, 1);
   const radius = 11;
@@ -324,11 +324,11 @@ const CardCreator: React.FC = () => {
         {/* Live card preview */}
         <div
           ref={cardRef}
-          className={`relative w-full ${isExporting ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
+          className={`relative w-full ${isExporting ? "!rounded-none !border-none min-w-[380px]  flex flex-col justify-center" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
           style={{ ...bgStyle, color: bg.text }}
         >
           {/* Grouped content for centered alignment */}
-          <div className={`relative z-10 w-full ${isExporting ? "flex flex-col items-start px-8 py-2" : ""}`}>
+          <div className={`relative z-10 w-full pt-10 ${isExporting ? "flex flex-col items-start px-8 py-2" : ""}`}>
             {/* Decorative quote */}
             <span 
               className={isExporting ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote !left-[24px] md:!left-[32px]"} 
@@ -346,6 +346,7 @@ const CardCreator: React.FC = () => {
               className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-6 md:px-8 ${isExporting ? "text-[22px] sm:text-[26px] px-0" : fontSize.cls + "pb-8"}`}
               style={{ color: bg.text, fontFamily: selectedFont.family }}
               rows={4}
+              maxLength={maxChars}
               autoFocus
             />
           </div>

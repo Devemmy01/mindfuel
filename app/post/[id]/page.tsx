@@ -353,7 +353,7 @@ export default function PostDetailPage() {
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      showToast("Downloading...");
+      showToast("Downloading the card...");
       setShowShareMenu(false);
       setShowMenu(false);
     } catch (err) {
@@ -489,7 +489,7 @@ export default function PostDetailPage() {
       <article className="flex flex-col border-b border-border">
         {/* Author row */}
         <div className="flex items-center justify-between px-4 pb-2 mt-3">
-          <div className="flex items-center gap-3">
+          <div className="flex  gap-3">
             <Link href={`/profile/${post.userId.firebaseId}`} className="block outline-none press-scale shrink-0">
               {post.userId.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -504,11 +504,11 @@ export default function PostDetailPage() {
                 </div>
               )}
             </Link>
-            <div className="flex flex-col leading-tight min-w-0">
+            <div className="flex flex-col min-w-0">
               <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold text-[15px] hover:underline truncate">
                 {post.userId.name}
               </Link>
-              <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] text-muted-foreground truncate hover:text-foreground transition-colors">
+              <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] -mt-4 text-muted-foreground truncate hover:text-foreground transition-colors">
                 @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
               </Link>
             </div>
@@ -531,7 +531,7 @@ export default function PostDetailPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
 
             {/* Grouped content for centered alignment */}
-            <div className={`relative z-10 w-full ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
+            <div className={`relative z-10 w-full pt-10 ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
               {/* Decorative quote */}
               <span 
                 className={isDownloading ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote -ml-1"} 
@@ -703,6 +703,7 @@ export default function PostDetailPage() {
                     className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
                     style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
+                    maxLength={200}
                     autoFocus
                   />
                   <CardWatermark color={editBg.text} />

@@ -299,12 +299,14 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
             </AnimatePresence>
           </div>
           <form onSubmit={handleSubmit} className="flex items-end gap-3">
-            <CommentAvatar user={{ 
-              _id: "me", 
-              name: profile?.name || user.displayName || "Me", 
-              image: profile?.image || user.photoURL || "", 
-              firebaseId: user.uid 
-            }} />
+            <div className="mb-2">
+              <CommentAvatar user={{ 
+                _id: "me", 
+                name: profile?.name || user.displayName || "Me", 
+                image: profile?.image || user.photoURL || "", 
+                firebaseId: user.uid 
+              }} />
+            </div>
             <div className="flex-1 frosted-input flex items-center gap-1 px-3 py-2.5 min-h-[42px]">
               {/* Emoji trigger */}
               <button

@@ -228,7 +228,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      showToast("Downloading...");
+      showToast("Downloading the card...");
       setShowShareMenu(false);
       setShowMenu(false);
     } catch (err) {
@@ -482,7 +482,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
 
           {/* Grouped content for centered alignment */}
-          <div className={`relative z-10 w-full ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
+          <div className={`relative z-10 w-full pt-10 ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
             {/* Decorative quote */}
             <span 
               className={isDownloading ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote -ml-1"} 
