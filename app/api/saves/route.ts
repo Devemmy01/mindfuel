@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .populate({
         path: "postId",
-        populate: { path: "userId", select: "name image firebaseId" }
+        populate: { path: "userId", select: "name username image firebaseId" }
       })
       .lean();
 

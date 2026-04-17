@@ -27,9 +27,9 @@ export default function DynamicProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
-  // Edit Profile State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editImage, setEditImage] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -58,6 +58,7 @@ export default function DynamicProfilePage() {
               };
               setProfileUser(fallbackUser);
               setEditName(fallbackUser.name);
+              setEditUsername(fallbackUser.username || fallbackUser.name.replace(/\s+/g, "").toLowerCase());
               setEditBio("");
               setEditImage(fallbackUser.image || "");
             } else {
@@ -67,6 +68,7 @@ export default function DynamicProfilePage() {
             const userData = await userRes.json();
             setProfileUser(userData.user);
             setEditName(userData.user.name || "");
+            setEditUsername(userData.user.username || userData.user.name.replace(/\s+/g, "").toLowerCase());
             setEditBio(userData.user.bio || "");
             setEditImage(userData.user.image || "");
 
@@ -115,7 +117,20 @@ export default function DynamicProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser || !profileUser) return;
+    // Check if anything actually changed
+    const hasChanges = 
+      editName !== profileUser.name || 
+      editUsername !== (profileUser.username || "") || 
+      editBio !== (profileUser.bio || "") || 
+      editImage !== (profileUser.image || "");
+
+    if (!hasChanges) {
+      setIsEditModalOpen(false);
+      setIsUpdating(false);
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const res = await fetch("/api/users/profile", {
@@ -124,6 +139,7 @@ export default function DynamicProfilePage() {
         body: JSON.stringify({
           firebaseId: currentUser.uid,
           name: editName,
+          username: editUsername.replace(/\s+/g, "").toLowerCase(),
           bio: editBio,
           uploadedImage: editImage || "",
         }),
@@ -133,6 +149,7 @@ export default function DynamicProfilePage() {
         // Immediately update local state with the returned data
         setProfileUser(data.user);
         setEditName(data.user.name || "");
+        setEditUsername(data.user.username || data.user.name.replace(/\s+/g, "").toLowerCase());
         setEditBio(data.user.bio || "");
         setEditImage(data.user.image || "");
         
@@ -211,6 +228,23 @@ export default function DynamicProfilePage() {
                     required
                     className="frosted-input w-full px-4 h-12 text-[14px] outline-none border-none focus:ring-2 focus:ring-brand-green/30 rounded-2xl"
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[13px] font-bold text-muted-foreground ml-1">Username</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-[14px]">@</span>
+                    <input 
+                      type="text" 
+                      value={editUsername}
+                      onChange={(e) => setEditUsername(e.target.value.replace(/[^a-z0-9_.]/g, ""))}
+                      placeholder="username"
+                      required
+                      className="frosted-input w-full pl-8 pr-4 h-12 text-[14px] outline-none border-none focus:ring-2 focus:ring-brand-green/30 rounded-2xl"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60 ml-1">
+                    At least 3 characters. Letters, numbers, underscores, and dots only.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[13px] font-bold text-muted-foreground ml-1">Bio</label>
@@ -339,7 +373,7 @@ export default function DynamicProfilePage() {
 
       <div className="px-4 pt-16 pb-4 border-b border-border">
         <h2 className="text-[22px] font-bold tracking-tight leading-tight">{profileUser.name}</h2>
-        <p className="text-muted-foreground text-[14px] mt-0.5">@{profileUser.name.replace(/\s+/g, "").toLowerCase()}</p>
+        <p className="text-muted-foreground text-[14px] mt-0.5">@{profileUser.username || profileUser.name.replace(/\s+/g, "").toLowerCase()}</p>
         
         {profileUser.bio && (
           <p className="text-[15px] text-foreground/90 mt-4 leading-relaxed whitespace-pre-wrap">{profileUser.bio}</p>

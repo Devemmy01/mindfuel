@@ -11,6 +11,7 @@ import { auth, googleProvider } from "@/lib/firebase";
 
 interface UserProfile {
   name?: string;
+  username?: string;
   image: string;
   bio?: string;
 }
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const data = await res.json();
         setProfile({
           name: data.user.name,
+          username: data.user.username,
           image: data.user.image || "",
           bio: data.user.bio,
         });

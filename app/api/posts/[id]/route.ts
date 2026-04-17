@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     const post = await Post.findById(id)
-      .populate("userId", "name image firebaseId")
+      .populate("userId", "name username image firebaseId")
       .lean();
 
     if (!post) {

@@ -36,6 +36,17 @@ const fmt = (n: number) => {
   return n === 0 ? "" : String(n);
 };
 
+const isColorLight = (hex: string) => {
+  if (!hex || !hex.startsWith("#")) return true;
+  const c = hex.substring(1);
+  const rgb = parseInt(c, 16);
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >>  8) & 0xff;
+  const b = (rgb >>  0) & 0xff;
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma > 160;
+};
+
 // backgroundOptions imported from lib
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
@@ -49,9 +60,17 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(post.text);
-  const [editBg, setEditBg] = useState(
-    backgroundOptions.find(o => o.value === post.backgroundStyle.value) || backgroundOptions[0]
-  );
+  const [editBg, setEditBg] = useState(() => {
+    const foundBg = backgroundOptions.find(o => o.value === post.backgroundStyle.value);
+    if (foundBg) return foundBg;
+    return {
+      id: "custom",
+      name: "Custom Color",
+      type: "color",
+      value: post.backgroundStyle.value,
+      text: isColorLight(post.backgroundStyle.value) ? "#171717" : "#ffffff"
+    };
+  });
   const [editFont, setEditFont] = useState(getFontById(post.fontFamily ?? "inter"));
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -202,7 +221,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     try {
       // Dynamic import html-to-image only when needed (~50KB)
       const { toPng } = await import("html-to-image");
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 300));
       const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3, skipFonts: true });
       const link = document.createElement("a");
       link.download = `mindfuel-${Date.now()}.png`;
@@ -375,7 +394,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               onClick={(e) => e.stopPropagation()}
               className="text-muted-foreground text-[13px] -mt-4 sm:mt-0 max-w-[80px] hover:text-foreground transition-colors"
             >
-              @{post.userId.name.replace(/\s+/g, "").toLowerCase()}
+              @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
             </Link>
             </div>
             <span className="text-muted-foreground text-[13px] flex-shrink-0">·</span>
@@ -448,19 +467,50 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
         <div
           ref={cardRef}
-          className={`thought-card relative ${isDownloading ? "" : "rounded-2xl"} overflow-hidden border border-black/5 dark:border-white/5 mb-2.5`}
+          className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
           style={{ ...bgStyle, color: textColor }}
         >
           {/* Decorative quote */}
           <span className="thought-card-quote" style={{ color: textColor }}>&ldquo;</span>
+          
           {/* Texture overlays */}
-          <div className={`absolute inset-0 ${isDownloading ? "" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
+          <div className={`absolute inset-0 ${isDownloading ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
+          
           {/* Inner glow vignette */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
           <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
+
+          {/* User attribution rendered only for downloaded image */}
+          {isDownloading && (
+            <div className="absolute top-8 left-8 flex items-center gap-3 z-20 transition-opacity animate-in fade-in">
+              {post.userId.image && !post.userId.image.startsWith("#") ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={post.userId.image}
+                  className="w-12 h-12 rounded-full object-cover shadow-sm ring-2 ring-white/20"
+                  alt={post.userId.name}
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white shadow-sm ring-2 ring-white/20"
+                  style={{ backgroundColor: "#0a0a0a" }}
+                >
+                  {post.userId.name?.[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="font-bold text-[15px]" style={{ color: textColor }}>{post.userId.name}</span>
+                <span className="text-[13px] font-medium" style={{ color: textColor, opacity: 0.7 }}>
+                  @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
+                </span>
+              </div>
+            </div>
+          )}
+
           <p
-            className="relative z-10 px-4 md:px-5 pt-8 pb-14 text-[16px] sm:text-[18px] font-semibold leading-[1.5] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm"
+            className={`relative z-10 px-6 md:px-8 ${isDownloading ? "text-[22px] sm:text-[26px]" : "pt-8 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.5] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
             style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
           >
             {post.text}
@@ -650,11 +700,38 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   <div className="flex flex-col gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 pl-1">Theme</span>
                     <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 mask-gradient-right">
+                      {/* Custom Color Picker */}
+                      <div className="relative flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border hover:scale-105 transition-all shadow-sm">
+                        <input 
+                          type="color" 
+                          value={editBg.id === "custom" ? editBg.value : "#00bf63"} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditBg({
+                              id: "custom",
+                              name: "Custom Color",
+                              type: "color",
+                              value: val,
+                              text: isColorLight(val) ? "#171717" : "#ffffff"
+                            });
+                          }}
+                          className="absolute inset-[-10px] w-12 h-12 cursor-pointer opacity-0 z-10"
+                          title="Pick a custom color"
+                        />
+                        {editBg.id === "custom" ? (
+                          <div className="w-full h-full" style={{ backgroundColor: editBg.value }} />
+                        ) : (
+                          <div className="w-full h-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] opacity-90" />
+                        )}
+                      </div>
+            
+                      <div className="w-px h-6 bg-border mx-1 flex-shrink-0" />
+
                       {backgroundOptions.map((option) => (
                         <button
                           key={option.id}
                           onClick={() => setEditBg(option)}
-                          className={`w-10 h-10 rounded-full transition-all flex-shrink-0 ${editBg.id === option.id ? "scale-110 ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-75 hover:opacity-100 hover:scale-105"}`}
+                          className={`w-10 h-10 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 ${editBg.id === option.id && editBg.id !== "custom" ? "scale-110 ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-75 hover:opacity-100 hover:scale-105"}`}
                           style={{ background: option.value }}
                           title={option.name}
                         />

@@ -10,7 +10,9 @@ import { Theme } from "emoji-picker-react";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
-  loading: () => <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />,
+  loading: () => (
+    <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />
+  ),
 });
 import { useRouter } from "next/navigation";
 import { useToast } from "@/providers/ToastProvider";
@@ -23,8 +25,25 @@ const fontSizes = [
   { id: "lg", label: "L", cls: "text-[26px] sm:text-[30px]", px: 28 },
 ];
 
+const isColorLight = (hex: string) => {
+  if (!hex || !hex.startsWith("#")) return true;
+  const c = hex.substring(1);
+  const rgb = parseInt(c, 16);
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = (rgb >> 0) & 0xff;
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma > 160;
+};
+
 /** Beautiful MindFuel watermark used across all cards */
-export function CardWatermark({ color, isVisible = false }: { color?: string; isVisible?: boolean }) {
+export function CardWatermark({
+  color,
+  isVisible = false,
+}: {
+  color?: string;
+  isVisible?: boolean;
+}) {
   if (!isVisible) return null;
   return (
     <div
@@ -77,7 +96,7 @@ export function CardWatermark({ color, isVisible = false }: { color?: string; is
           </span> */}
           <span
             style={{
-              fontSize: "7px",
+              fontSize: "12px",
               fontWeight: 600,
               letterSpacing: "0.1em",
               color: "rgba(255,255,255,0.85)",
@@ -161,11 +180,12 @@ const CardCreator: React.FC = () => {
     if (!cardRef.current) return;
     setIsExporting(true);
     try {
-      // Wait a frame so the state change renders
-      await new Promise((r) => setTimeout(r, 150));
+      // Wait for rendering stabilization
+      await new Promise((r) => setTimeout(r, 300));
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
+        quality: 1,
         pixelRatio: 3,
         skipFonts: true,
       });
@@ -192,7 +212,12 @@ const CardCreator: React.FC = () => {
         body: JSON.stringify({
           text,
           userId: user.uid,
-          backgroundStyle: { type: bg.type, value: bg.value },
+          backgroundStyle: { 
+            id: bg.id,
+            type: bg.type, 
+            value: bg.value, 
+            text: bg.text 
+          },
           fontFamily: selectedFont.id,
         }),
       });
@@ -291,10 +316,7 @@ const CardCreator: React.FC = () => {
               {profile?.name || user?.displayName || "Anonymous"}
             </span>
             <span className="text-muted-foreground text-[12px]">
-              @
-              {(profile?.name || user?.displayName)
-                ?.replace(/\s+/g, "")
-                .toLowerCase() ?? "guest"}
+              @{profile?.username || ((profile?.name || user?.displayName)?.replace(/\s+/g, "").toLowerCase() || "guest")}
             </span>
           </div>
         </div>
@@ -302,11 +324,41 @@ const CardCreator: React.FC = () => {
         {/* Live card preview */}
         <div
           ref={cardRef}
-          className={`relative w-full ${isExporting ? "" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
+          className={`relative w-full ${isExporting ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
           style={{ ...bgStyle, color: bg.text }}
         >
+          {/* User attribution rendered only for exported image */}
+          {isExporting && (
+            <div className="absolute top-8 left-8 flex items-center gap-3 z-20 transition-opacity animate-in fade-in">
+              {profile?.image || user?.photoURL ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={profile?.image || user?.photoURL || ""}
+                  className="w-12 h-12 rounded-full object-cover shadow-sm ring-2 ring-white/20"
+                  alt={profile?.name || ""}
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-bold text-white shadow-sm ring-2 ring-white/20"
+                  style={{ backgroundColor: "#0a0a0a" }}
+                >
+                  {(profile?.name || user?.displayName)?.[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="font-bold text-[15px]" style={{ color: bg.text }}>{profile?.name || user?.displayName}</span>
+                <span className="text-[13px] font-medium" style={{ color: bg.text, opacity: 0.7 }}>
+                  @{profile?.username || ((profile?.name || user?.displayName)?.replace(/\s+/g, "").toLowerCase() || "guest")}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Texture overlays */}
-          <div className={`absolute inset-0 ${isExporting ? "" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
+          <div
+            className={`absolute inset-0 ${isExporting ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`}
+          />
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
 
           <textarea
@@ -315,7 +367,7 @@ const CardCreator: React.FC = () => {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What's fueling your mind?"
-            className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 ${fontSize.cls}`}
+            className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-6 md:px-8 ${isExporting ? "text-[22px] sm:text-[26px]" : fontSize.cls}`}
             style={{ color: bg.text, fontFamily: selectedFont.family }}
             rows={4}
             autoFocus
@@ -336,19 +388,48 @@ const CardCreator: React.FC = () => {
       <div className="shrink-0 border-t border-border glass-strong px-4 py-3 pb-safe">
         {/* Background swatches */}
         <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 mb-2">
+          {/* Custom Color Picker */}
+          <div className="relative flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border hover:scale-105 transition-all shadow-sm">
+            <input
+              type="color"
+              value={bg.id === "custom" ? bg.value : "#00bf63"}
+              onChange={(e) => {
+                const val = e.target.value;
+                setBg({
+                  id: "custom",
+                  name: "Custom Color",
+                  type: "color",
+                  value: val,
+                  text: isColorLight(val) ? "#171717" : "#ffffff",
+                });
+              }}
+              className="absolute inset-[-10px] w-12 h-12 cursor-pointer opacity-0 z-10"
+              title="Pick a custom color"
+            />
+            {bg.id === "custom" ? (
+              <div
+                className="w-full h-full"
+                style={{ backgroundColor: bg.value }}
+              />
+            ) : (
+              <div className="w-full h-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] opacity-90" />
+            )}
+          </div>
+
+          <div className="w-px h-6 bg-border mx-1 flex-shrink-0" />
+
           {backgroundOptions.map((option) => (
             <button
               key={option.id}
               onClick={() => setBg(option)}
               title={option.name}
               className={`w-8 h-8 rounded-full transition-all flex-shrink-0 ${
-                bg.id === option.id
+                bg.id === option.id && bg.id !== "custom"
                   ? "scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background"
                   : "opacity-75 hover:opacity-100 hover:scale-105"
               }`}
               style={{
-                background:
-                  option.type === "gradient" ? option.value : option.value,
+                background: option.value,
               }}
             />
           ))}

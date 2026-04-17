@@ -12,10 +12,13 @@ export async function GET(req: NextRequest) {
     }
 
     const users = await User.find({
-      name: { $regex: query, $options: "i" },
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { username: { $regex: query, $options: "i" } }
+      ]
     })
       .limit(5)
-      .select("name image firebaseId")
+      .select("name image firebaseId username")
       .lean();
 
     return NextResponse.json({ users }, { status: 200 });

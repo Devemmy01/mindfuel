@@ -157,7 +157,7 @@ export default function Navbar() {
                       {displayName}
                     </span>
                     <span className="text-muted-foreground text-[13px] truncate">
-                      @{displayName?.replace(/\s+/g, "").toLowerCase()}
+                      @{profile?.username || (displayName?.replace(/\s+/g, "").toLowerCase() || "guest")}
                     </span>
                   </div>
                   <MoreHorizontal className="hidden xl:block w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -169,7 +169,7 @@ export default function Navbar() {
                     <div className="px-4 py-3 border-b border-border">
                       <p className="font-bold text-[14px]">{displayName}</p>
                       <p className="text-muted-foreground text-[12px]">
-                        @{displayName?.replace(/\s+/g, "").toLowerCase()}
+                        @{profile?.username || (displayName?.replace(/\s+/g, "").toLowerCase() || "guest")}
                       </p>
                     </div>
                     <button

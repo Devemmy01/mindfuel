@@ -17,6 +17,7 @@ interface Comment {
     name: string;
     image: string;
     firebaseId: string;
+    username?: string;
   };
   createdAt: string;
   likesCount: number;
@@ -211,7 +212,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
                         {comment.userId.name}
                       </Link>
                       <Link href={`/profile/${comment.userId.firebaseId}`} className="text-muted-foreground text-[12px] truncate hover:text-foreground transition-colors hidden sm:inline">
-                        @{comment.userId.name.replace(/\s+/g, "").toLowerCase()}
+                        @{comment.userId.username || (comment.userId.name.replace(/\s+/g, "").toLowerCase())}
                       </Link>
                     </div>
                     <span className="text-muted-foreground text-[11px] flex-shrink-0 whitespace-nowrap">

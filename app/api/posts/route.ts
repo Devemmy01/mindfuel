@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       // Populate userId for aggregated results
       posts = await Post.populate(posts, {
         path: "userId",
-        select: "name image firebaseId",
+        select: "name username image firebaseId",
       });
 
       // Filter out posts where userId is null (deleted users)
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("userId", "name image firebaseId")
+        .populate("userId", "name username image firebaseId")
         .lean();
       
       // Filter out posts where userId is null (deleted users)

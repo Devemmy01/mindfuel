@@ -13,6 +13,7 @@ import { ToastProvider } from "@/providers/ToastProvider";
 import InstallPWA from "@/components/InstallPWA";
 import PushNotifications from "@/components/PushNotifications";
 import { Analytics } from "@vercel/analytics/react";
+import SplashWrapper from "@/components/SplashWrapper";
 
 
 // Google Fonts for card font picker
@@ -180,6 +181,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        <meta charSet="utf-8" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Load card fonts */}
@@ -194,55 +196,57 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ToastProvider>
-            {/* Top accent line */}
-            <div className="brand-accent-line" />
+            <SplashWrapper>
+              {/* Top accent line */}
+              <div className="brand-accent-line" />
 
-            <div className="min-h-screen bg-background text-foreground selection:bg-brand-green/20 flex justify-center">
-              <div className="flex w-full max-w-[1280px] relative">
+              <div className="min-h-screen bg-background text-foreground selection:bg-brand-green/20 flex justify-center">
+                <div className="flex w-full max-w-[1280px] relative">
 
-                {/* ── Left Sidebar (Navbar) ── */}
-                <Navbar />
+                  {/* ── Left Sidebar (Navbar) ── */}
+                  <Navbar />
 
-                {/* ── Main Feed Column ── */}
-                <main className="flex-grow w-full min-w-0 md:max-w-[600px] md:border-x md:border-border min-h-[100dvh]">
-                  {children}
-                </main>
+                  {/* ── Main Feed Column ── */}
+                  <main className="flex-grow w-full min-w-0 md:max-w-[600px] md:border-x md:border-border min-h-[100dvh]">
+                    {children}
+                  </main>
 
 
-                {/* ── Right Rail (lg+) ── */}
-                <aside className="hidden lg:flex flex-col w-[350px] shrink-0 sticky top-0 h-screen py-6 pl-8 pr-4 overflow-y-auto no-scrollbar scroll-smooth">
-                  
-                  {/* Search */}
-                  <SearchUsers />
-                  
-                  {/* Mindful Tip */}
-                  <MindfulTip />
+                  {/* ── Right Rail (lg+) ── */}
+                  <aside className="hidden lg:flex flex-col w-[350px] shrink-0 sticky top-0 h-screen py-6 pl-8 pr-4 overflow-y-auto no-scrollbar scroll-smooth">
+                    
+                    {/* Search */}
+                    <SearchUsers />
+                    
+                    {/* Mindful Tip */}
+                    <MindfulTip />
 
-                  {/* Saved Reflections */}
-                  <MindfulSaves />
+                    {/* Saved Reflections */}
+                    <MindfulSaves />
 
-                  {/* Subdued Footer */}
-                  <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-                        <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100">
-                          {l}
-                        </Link>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-5 h-5 bg-foreground/5 rounded-md flex items-center justify-center">
-                         <Image src="/logo.png" alt="" width={20} height={20} />
+                    {/* Subdued Footer */}
+                    <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
+                      <div className="flex flex-wrap gap-x-5 gap-y-2">
+                        {["About", "Privacy", "Terms", "Cookies"].map((l) => (
+                          <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100">
+                            {l}
+                          </Link>
+                        ))}
                       </div>
-                      <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
-                        MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.
-                      </p>
-                    </div>
-                  </footer>
-                </aside>
+                      <div className="flex items-center gap-1">
+                        <div className="w-5 h-5 bg-foreground/5 rounded-md flex items-center justify-center">
+                           <Image src="/logo.png" alt="" width={20} height={20} />
+                        </div>
+                        <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
+                          MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.
+                        </p>
+                      </div>
+                    </footer>
+                  </aside>
 
+                </div>
               </div>
-            </div>
+            </SplashWrapper>
             <InstallPWA />
             <PushNotifications />
             <Analytics />

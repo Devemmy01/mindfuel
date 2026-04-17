@@ -3,6 +3,7 @@ import { Schema, model, models, Document } from "mongoose";
 export interface IUser extends Document {
   email: string;
   name: string;
+  username?: string;
   image: string;
   uploadedImage: string;
   firebaseId: string;
@@ -34,6 +35,12 @@ const UserSchema = new Schema(
     name: {
       type: String,
       required: [true, "Name is required"],
+    },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
     },
     image: {
       type: String,

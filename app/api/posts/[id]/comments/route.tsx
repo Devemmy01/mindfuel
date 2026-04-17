@@ -28,7 +28,7 @@ export async function GET(
 
     const comments = (await Comment.find({ postId })
       .sort({ createdAt: -1 })
-      .populate("userId", "name image firebaseId")
+      .populate("userId", "name image firebaseId username")
       .lean()) as unknown as CommentType[];
 
     // Filter out comments where userId is null (deleted users)
@@ -106,7 +106,7 @@ export async function POST(
     await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
 
     const populatedComment = await Comment.findById(comment._id)
-      .populate("userId", "name image firebaseId")
+      .populate("userId", "name image firebaseId username")
       .lean();
 
     // Notify post author

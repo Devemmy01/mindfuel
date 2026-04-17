@@ -4,6 +4,7 @@ export interface PostType {
   userId: {
     _id: string;
     name: string;
+    username?: string;
     image: string;
     firebaseId: string;
   };
@@ -24,6 +25,7 @@ export interface PostType {
 export interface ProfileUser {
   _id: string;
   name: string;
+  username?: string;
   image: string;
   firebaseId: string;
   bio?: string;

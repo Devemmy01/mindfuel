@@ -91,12 +91,22 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
     };
   }, [hasMore, loading, loadingMore, fetchPosts]);
 
-  // Re-fetch with user context when they log in (to get isLiked/isSaved)
+  const hasFetched = useRef(false);
+  const lastUserId = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (user) {
-      fetchPosts(true);
+    // Fetch immediately on mount if we have no initial posts
+    if (!hasFetched.current && initialPosts.length === 0) {
+      hasFetched.current = true;
+      lastUserId.current = user?.uid;
+      fetchPosts(false, 1); // false = normal load (shows skeleton), 1 = page one
+    } 
+    // If user state hydrates later (logs in), refresh in background to get likes/saves
+    else if (user && user.uid !== lastUserId.current && hasFetched.current) {
+      lastUserId.current = user.uid;
+      fetchPosts(true); // true = transparent refresh (no skeleton overlay)
     }
-  }, [user, fetchPosts]);
+  }, [user, fetchPosts, initialPosts.length]);
 
   return (
     <>

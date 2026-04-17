@@ -10,6 +10,7 @@ interface UserResult {
   name: string;
   image: string;
   firebaseId: string;
+  username?: string;
 }
 
 export default function SearchUsers() {
@@ -95,12 +96,12 @@ export default function SearchUsers() {
                       <User className="w-4 h-4 text-muted-foreground" />
                     </div>
                   )}
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-[14px] leading-tight truncate">{u.name}</span>
-                    <span className="text-[12px] text-muted-foreground truncate">
-                      @{u.name.replace(/\s+/g, "").toLowerCase()}
-                    </span>
-                  </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-[14px] leading-tight truncate">{u.name}</span>
+                      <span className="text-[12px] text-muted-foreground truncate">
+                        @{u.username || (u.name.replace(/\s+/g, "").toLowerCase())}
+                      </span>
+                    </div>
                 </Link>
               ))}
             </div>
