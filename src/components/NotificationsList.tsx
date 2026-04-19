@@ -85,7 +85,7 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
   }
 
   return (
-    <div className="flex flex-col max-h-[450px] overflow-y-auto no-scrollbar scroll-smooth">
+    <div className="flex flex-col w-full">
       {notifications.map((notification) => {
         if (!notification.postId) return null;
 
@@ -97,8 +97,8 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
               if (!notification.isRead) onMarkRead();
               if (onClose) onClose();
             }}
-          className={`flex gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors border-b border-border/40 last:border-none relative
-            ${!notification.isRead ? "bg-brand-green/5" : ""}
+          className={`flex w-full gap-3 px-4 py-3.5 hover:bg-secondary/40 transition-colors border-b border-border/40 last:border-none relative
+            ${!notification.isRead ? "bg-brand-green/[0.03]" : ""}
           `}
         >
           {/* Unread indicator */}
