@@ -1,17 +1,17 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
-  MessageCircle, Heart, Bookmark, Share2,
+  MessageCircle, Bookmark, Share2,
   CheckCircle2, MoreHorizontal, Link as LinkIcon, Twitter, Eye, Trash2, Edit, X, Sparkles, Loader2, Smile
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { PostType } from "@/types";
@@ -19,6 +19,7 @@ import { Download } from "lucide-react";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { getFontById, fontOptions } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
+import InteractionBar from "@/components/InteractionBar";
 
 // Dynamic import heavy libraries for code splitting
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
@@ -30,11 +31,6 @@ interface PostCardProps {
   post: PostType;
 }
 
-const fmt = (n: number) => {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
-  return n === 0 ? "" : String(n);
-};
 
 const isColorLight = (hex: string) => {
   if (!hex || !hex.startsWith("#")) return true;
@@ -54,9 +50,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const { showToast } = useToast();
   const router = useRouter();
   
-  const [isLiked, setIsLiked] = useState(post.isLiked ?? false);
-  const [likes, setLikes] = useState(post.likesCount);
-  const [isSaved, setIsSaved] = useState(post.isSaved ?? false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(post.text);
@@ -78,8 +71,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [privateNote, setPrivateNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
-
-  const [justLiked, setJustLiked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -128,61 +119,25 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     if (!viewFetched.current) {
       viewFetched.current = true;
       // Fire-and-forget view tracking with requestIdleCallback for performance
-      const trackView = () => fetch(`/api/posts/${post._id}/view`, { method: "POST" }).catch(() => {});
+      const trackView = () => {
+        fetch(`/api/posts/${post._id}/view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user?.uid }),
+        }).catch(() => {});
+      };
       if ('requestIdleCallback' in window) {
         requestIdleCallback(trackView);
       } else {
         setTimeout(trackView, 200);
       }
     }
-  }, [post._id]);
+  }, [post._id, user?.uid]);
 
   // Note: isLiked and isSaved are now provided directly by the batched /api/posts/feed endpoint
   // We no longer manually fetch them per-card to eliminate the N+1 API waterfall.
 
-  const handleLike = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!user) return;
 
-    const newIsLiked = !isLiked;
-    setIsLiked(newIsLiked);
-    setLikes((p) => newIsLiked ? p + 1 : p - 1);
-
-    if (newIsLiked) {
-      setJustLiked(true);
-      setTimeout(() => setJustLiked(false), 600);
-    }
-
-    try {
-      const res = await fetch(`/api/posts/${post._id}/like`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid }),
-      });
-      if (res.ok) {
-        showToast(newIsLiked ? "Reflection liked" : "Reflection unliked", "success");
-      }
-    } catch {
-      setIsLiked(!newIsLiked);
-      setLikes((p) => newIsLiked ? p - 1 : p + 1);
-    }
-  };
-
-  const handleSave = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!user) return;
-    setIsSaved((p) => !p);
-    try {
-      const res = await fetch('/api/saves', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, postId: post._id }),
-      });
-      if (res.ok) {
-        showToast(!isSaved ? "Saved to library" : "Removed from library", "success");
-      }
-    } catch {}
-  };
 
   const handleShareClick = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -299,7 +254,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         body: JSON.stringify({ userId: user.uid, note: privateNote }),
       });
       if (res.ok) {
-        setIsSaved(true);
         setIsNoteModalOpen(false);
         showToast("Private note saved", "success");
       }
@@ -359,9 +313,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       <div className="mr-3 flex-shrink-0 pt-0.5">
         <Link href={`/profile/${post.userId.firebaseId}`} onClick={(e) => e.stopPropagation()} className="block outline-none press-scale">
           {post.userId.image && !post.userId.image.startsWith("#") && !imgError ? (
-            <img
+            <Image
               src={post.userId.image}
               alt={post.userId.name}
+              width={40}
+              height={40}
               onError={() => setImgError(true)}
               className="w-10 h-10 rounded-full bg-secondary object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
             />
@@ -503,65 +459,23 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <CardWatermark color={textColor} isVisible={isDownloading} />
         </div>
 
-        <div className="flex items-center justify-between text-muted-foreground pr-2">
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/post/${post._id}`); }}
-            aria-label={`Comments${(post.commentsCount ?? 0) > 0 ? `, ${post.commentsCount}` : ''}`}
-            className="flex items-center gap-1.5 group/btn transition-colors hover:text-blue-500 outline-none"
-          >
-            <div className="p-1.5 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
-              <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.75} />
-            </div>
-            {(post.commentsCount ?? 0) > 0 && (
-              <span className="text-[12px] font-semibold">{fmt(post.commentsCount || 0)}</span>
-            )}
-          </button>
-
-          <div className="flex items-center gap-1.5 text-muted-foreground/60">
-            <div className="p-1.5">
-              <Eye className="w-[18px] h-[18px]" strokeWidth={1.75} />
-            </div>
-            <span className="text-[12px] font-medium">{fmt(post.views)}</span>
-          </div>
-
-          <button
-            onClick={handleLike}
-            aria-label={isLiked ? "Unlike" : "Like"}
-            aria-pressed={isLiked}
-            className={`flex items-center gap-1.5 group/btn transition-colors outline-none ${isLiked ? "text-rose-500" : "hover:text-rose-500"}`}
-          >
-            <div className={`p-1.5 rounded-full transition-colors ${isLiked ? "" : "group-hover/btn:bg-rose-500/10"}`}>
-              <Heart
-                className={`w-[18px] h-[18px] transition-all ${isLiked ? "fill-current" : ""} ${justLiked ? "animate-heart" : ""}`}
-                strokeWidth={isLiked ? 0 : 1.75}
-              />
-            </div>
-            {likes > 0 && (
-              <span className={`text-[12px] font-semibold ${isLiked ? "text-rose-500" : ""}`}>{fmt(likes)}</span>
-            )}
-          </button>
-
+        <div className="flex items-center gap-1.5 pr-2">
+          <InteractionBar 
+            postId={post._id}
+            initialLikes={post.likesCount}
+            initialViews={post.views}
+            initialComments={post.commentsCount || 0}
+            initialIsLiked={post.isLiked ?? false}
+            initialIsSaved={post.isSaved ?? false}
+          />
           <div className="flex items-center relative" ref={shareMenuRef}>
-            <button
-              onClick={handleSave}
-              aria-label={isSaved ? "Unsave" : "Save"}
-              aria-pressed={isSaved}
-              className={`flex items-center group/btn transition-colors outline-none ${isSaved ? "text-brand-green" : "hover:text-brand-green"}`}
-            >
-              <div className={`p-1.5 rounded-full transition-colors ${isSaved ? "" : "group-hover/btn:bg-brand-green/10"}`}>
-                <Bookmark
-                  className={`w-[18px] h-[18px] transition-all ${isSaved ? "fill-current" : ""}`}
-                  strokeWidth={1.75}
-                />
-              </div>
-            </button>
             <button
               onClick={handleShareClick}
               aria-label="Share"
               aria-expanded={showShareMenu}
               className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
             >
-              <div className="p-1.5 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
+              <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
                 <Share2 className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`} strokeWidth={1.75} />
               </div>
             </button>

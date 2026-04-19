@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
-import { Send, Trash2, User as UserIcon, Heart, Loader2, Smile } from "lucide-react";
+import { Send, Trash2, Heart, Loader2, Smile } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Comment {
   _id: string;
@@ -29,8 +30,10 @@ function CommentAvatar({ user }: { user: Comment["userId"] }) {
   
   if (user.image && !user.image.startsWith("#") && !imgError) {
     return (
-      <img
+      <Image
         src={user.image}
+        width={36}
+        height={36}
         className="w-9 h-9 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
         alt={user.name}
         onError={() => setImgError(true)}
@@ -45,7 +48,11 @@ function CommentAvatar({ user }: { user: Comment["userId"] }) {
   );
 }
 
-const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
+const CommentSection: React.FC<{ 
+  postId: string;
+  onCommentAdded?: () => void;
+  onCommentDeleted?: () => void;
+}> = ({ postId, onCommentAdded, onCommentDeleted }) => {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -117,6 +124,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
         setComments((prev) => [{ ...data.comment, isLiked: false, likesCount: 0 }, ...prev]);
         setNewComment("");
         showToast("Reflection added", "success");
+        onCommentAdded?.();
       }
     } catch {
       // silent
@@ -132,6 +140,7 @@ const CommentSection: React.FC<{ postId: string }> = ({ postId }) => {
       if (res.ok) {
         setComments((prev) => prev.filter((c) => c._id !== commentId));
         showToast("Reflection deleted", "success");
+        onCommentDeleted?.();
       }
     } catch {}
   };

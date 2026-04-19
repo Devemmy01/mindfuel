@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User, { IUser } from "@/models/user";
+import cloudinary from "@/lib/cloudinary";
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB base64 overhead
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     // Validate image size if provided
     if (uploadedImage && uploadedImage.length > MAX_IMAGE_SIZE) {
       return NextResponse.json(
-        { error: "Image size exceeds 5MB limit" },
+        { error: "Image size exceeds 15MB limit" },
         { status: 400 }
       );
     }
@@ -59,7 +60,6 @@ export async function POST(req: NextRequest) {
         }).lean() as IUser | null;
 
         if (existingUser) {
-          console.log(`[Username Collision] User ${firebaseId} tried to claim "${cleanUsername}" which is already held by ${existingUser.firebaseId} (${existingUser.name})`);
           return NextResponse.json(
             { error: "This username is already taken" },
             { status: 400 }
@@ -73,10 +73,38 @@ export async function POST(req: NextRequest) {
       updateData.bio = bio;
     }
     
-    // Handle image - if uploadedImage is provided (including empty string or path), update it
+    // Handle image - use Cloudinary for base64 uploads
     if (uploadedImage !== undefined && uploadedImage !== null) {
-      updateData.image = uploadedImage;
-      updateData.uploadedImage = uploadedImage;
+      if (uploadedImage === "") {
+        updateData.image = "";
+        updateData.uploadedImage = "";
+      } else if (uploadedImage.startsWith("data:image")) {
+        // This is a new base64 upload, send to Cloudinary
+        try {
+          const uploadResponse = await cloudinary.uploader.upload(uploadedImage, {
+            folder: "mindfuel_profiles",
+            resource_type: "image",
+            // Transformation: Square crop, auto format, auto quality
+            transformation: [
+              { width: 400, height: 400, crop: "fill", gravity: "face" },
+              { fetch_format: "auto", quality: "auto" }
+            ]
+          });
+          
+          updateData.image = uploadResponse.secure_url;
+          updateData.uploadedImage = uploadResponse.secure_url;
+        } catch (uploadError) {
+          console.error("Cloudinary upload error:", uploadError);
+          return NextResponse.json(
+            { error: "Failed to upload image to Cloudinary" },
+            { status: 500 }
+          );
+        }
+      } else {
+        // It's already a URL or a local path (like /pp1.png)
+        updateData.image = uploadedImage;
+        updateData.uploadedImage = uploadedImage;
+      }
     }
 
     // If no updates provided, return error

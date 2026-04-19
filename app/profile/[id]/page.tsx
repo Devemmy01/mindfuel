@@ -1,15 +1,15 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/providers/AuthProvider";
 import Link from "next/link";
+import Image from "next/image";
 import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
+import { useAuth } from "@/providers/AuthProvider";
 
 const profileTabs = ["Posts", "Liked", "Saved"] as const;
 type ProfileTab = (typeof profileTabs)[number];
@@ -297,9 +297,11 @@ export default function DynamicProfilePage() {
 
       <div className="relative">
         <div className="w-full h-28 sm:h-36 bg-brand-green flex items-center justify-center border-b border-border/30 overflow-hidden relative">
-          <img 
+          <Image 
             src="/logoDarkbg.png" 
             alt="MindFuel" 
+            width={160}
+            height={48}
             className="opacity-90 drop-shadow-sm select-none pointer-events-none" 
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10" />
@@ -310,9 +312,12 @@ export default function DynamicProfilePage() {
             className="p-1 rounded-full bg-background shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
           >
             {profileUser.image && !profileUser.image.startsWith("#") && !imgError ? (
-              <img
+              <Image
                 src={profileUser.image}
                 alt={profileUser.name}
+                width={72}
+                height={72}
+                unoptimized
                 onError={() => setImgError(true)}
                 className="w-18 h-18 rounded-full object-cover ring-4 ring-background"
               />
@@ -355,9 +360,11 @@ export default function DynamicProfilePage() {
                 className="relative w-full h-full flex items-center justify-center p-4"
                 onClick={(e) => e.stopPropagation()}
               >
-                <img
+                <Image
                   src={profileUser.image}
                   alt={profileUser.name}
+                  width={500}
+                  height={500}
                   className="rounded-2xl object-contain max-h-[85vh] w-auto max-w-full shadow-2xl ring-1 ring-white/10"
                 />
               </motion.div>

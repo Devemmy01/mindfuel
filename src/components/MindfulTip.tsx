@@ -10,9 +10,9 @@ export default function MindfulTip() {
   const fetchTip = async () => {
     setLoading(true);
     try {
-      const res = await fetch("https://api.adviceslip.com/advice");
+      const res = await fetch("/api/tips/random");
       const data = await res.json();
-      setTip(data.slip.advice);
+      setTip(data.text);
     } catch (err) {
       console.error("Failed to fetch tip:", err);
       setTip("Breathe deeply. You are exactly where you need to be.");

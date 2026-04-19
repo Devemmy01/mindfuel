@@ -11,7 +11,18 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https" as const,
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https" as const,
+        hostname: "**",
+      },
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

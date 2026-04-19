@@ -5,6 +5,7 @@ import PostCard from "@/components/PostCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -34,6 +35,7 @@ interface FeedClientProps {
 export default function FeedClient({ initialPosts, initialHasMore }: FeedClientProps) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<PostType[]>(initialPosts);
+  const [loadMode, setLoadMode] = useState<"trending" | "newest">("trending");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const currentPageRef = useRef(1);
@@ -41,7 +43,9 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
   const [loadingMore, setLoadingMore] = useState(false);
   const observerTarget = React.useRef<HTMLDivElement>(null);
 
-  const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1) => {
+  const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1, sortMode?: "trending" | "newest") => {
+    const activeSort = sortMode || loadMode;
+    
     if (isRefresh) {
       setRefreshing(true);
       currentPageRef.current = 1;
@@ -54,7 +58,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
 
     try {
       const userId = user?.uid ? `&userId=${user.uid}` : "";
-      const res = await fetch(`/api/posts/feed?page=${pageNum}&limit=10${userId}`);
+      const res = await fetch(`/api/posts/feed?page=${pageNum}&limit=10&sort=${activeSort}${userId}`);
       const data = await res.json();
 
       if (pageNum === 1) {
@@ -71,7 +75,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [user]);
+  }, [user, loadMode]);
 
   useEffect(() => {
     const currentTarget = observerTarget.current;
@@ -99,27 +103,39 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
     if (!hasFetched.current && initialPosts.length === 0) {
       hasFetched.current = true;
       lastUserId.current = user?.uid;
-      fetchPosts(false, 1); // false = normal load (shows skeleton), 1 = page one
+      fetchPosts(false, 1);
     } 
     // If user state hydrates later (logs in), refresh in background to get likes/saves
     else if (user && user.uid !== lastUserId.current && hasFetched.current) {
       lastUserId.current = user.uid;
-      fetchPosts(true); // true = transparent refresh (no skeleton overlay)
+      fetchPosts(true);
     }
   }, [user, fetchPosts, initialPosts.length]);
+
+  const handleTabChange = (mode: "trending" | "newest") => {
+    if (mode === loadMode) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setLoadMode(mode);
+    setPosts([]); 
+    fetchPosts(false, 1, mode);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <>
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
-        {/* Mobile top bar */}
-        <div className="flex md:hidden justify-between items-center px-4 py-2.5">
+        {/* Desktop/Mobile top bar */}
+        <div className="flex justify-between items-center px-4 py-2">
           <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/logoDarkbg.png"
               alt="MindFuel"
-              className="h-12 w-40 object-contain"
+              width={120}
+              height={36}
+              className="h-9 w-auto object-contain"
             />
           </div>
           <button
@@ -128,8 +144,42 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
             <RefreshCw
-              className={`w-4.5 h-4.5 text-muted-foreground ${refreshing ? "animate-spin" : ""}`}
+              className={`w-4 h-4 text-muted-foreground ${refreshing ? "animate-spin" : ""}`}
             />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex w-full px-2">
+          <button
+            onClick={() => handleTabChange("trending")}
+            className="flex-1 relative py-3 text-[15px] font-bold transition-all outline-none group"
+          >
+            <span className={loadMode === "trending" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}>
+              Trending
+            </span>
+            {loadMode === "trending" && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-[3px] bg-brand-green rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
+          </button>
+          <button
+            onClick={() => handleTabChange("newest")}
+            className="flex-1 relative py-3 text-[15px] font-bold transition-all outline-none group"
+          >
+            <span className={loadMode === "newest" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}>
+              Newest
+            </span>
+            {loadMode === "newest" && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-[3px] bg-brand-green rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
           </button>
         </div>
       </header>

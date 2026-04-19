@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import Image from "next/image";
 import { MessageCircle, Heart, BellOff } from "lucide-react";
 
 export interface AppNotification {
@@ -34,9 +35,11 @@ function NotificationAvatar({ sender }: { sender: AppNotification["sender"] }) {
   
   if (sender.image && !sender.image.startsWith("#") && !imgError) {
     return (
-      <img
+      <Image
         src={sender.image}
         alt={sender.name}
+        width={40}
+        height={40}
         onError={() => setImgError(true)}
         className="w-10 h-10 rounded-full object-cover ring-1 ring-border"
       />

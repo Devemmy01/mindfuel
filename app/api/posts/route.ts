@@ -35,56 +35,30 @@ export async function GET(req: NextRequest) {
       query = {};
     }
     
-    let posts;
+    let validPosts: PostType[] = [];
     let total;
 
     if (!firebaseId) {
-      // Global Mindfeed: Use Calm Decay Scoring
-      posts = await Post.aggregate([
-        { $match: query },
-        {
-          $addFields: {
-            ageInHours: {
-              $divide: [
-                { $subtract: [new Date(), "$createdAt"] },
-                3600000,
-              ],
-            },
-          },
-        },
-        {
-          $addFields: {
-            score: {
-              $divide: [
-                {
-                  $add: [
-                    { $multiply: [{ $ln: { $add: ["$likesCount", 1] } }, 2] },
-                    { $ln: { $add: ["$views", 1] } },
-                  ],
-                },
-                { $pow: [{ $add: ["$ageInHours", 2] }, 1.5] },
-              ],
-            },
-          },
-        },
-        { $sort: { score: -1, createdAt: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-      ]);
+      // Global Mindfeed: Optimized chronological sort
+      const rawPosts = await Post.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
 
       // Populate userId for aggregated results
-      posts = await Post.populate(posts, {
+      const populatedPosts = await Post.populate(rawPosts, {
         path: "userId",
         select: "name username image firebaseId",
       });
 
       // Filter out posts where userId is null (deleted users)
-      posts = (posts as unknown as PostType[]).filter((p) => p.userId);
+      validPosts = (populatedPosts as unknown as PostType[]).filter((p) => p.userId);
 
       total = await Post.countDocuments(query);
     } else {
       // Profile or Liked feed: Keep simple chronological sort
-      posts = await Post.find(query)
+      const rawPosts = await Post.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -92,14 +66,14 @@ export async function GET(req: NextRequest) {
         .lean();
       
       // Filter out posts where userId is null (deleted users)
-      posts = (posts as unknown as PostType[]).filter((p) => p.userId);
+      validPosts = (rawPosts as unknown as PostType[]).filter((p) => p.userId);
       
       total = await Post.countDocuments(query);
     }
 
-    const hasMore = total > skip + posts.length;
+    const hasMore = total > skip + validPosts.length;
 
-    return NextResponse.json({ posts, hasMore, total }, { status: 200 });
+    return NextResponse.json({ posts: validPosts, hasMore, total }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

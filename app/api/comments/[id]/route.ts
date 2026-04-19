@@ -13,7 +13,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const deletedComment = await Comment.findByIdAndDelete(commentId);
 
     if (deletedComment) {
-      await Post.findByIdAndUpdate(deletedComment.postId, { $inc: { commentsCount: -1 } });
+      await Post.updateOne(
+        { _id: deletedComment.postId },
+        { $inc: { commentsCount: -1 } }
+      );
+      // Safety: Ensure count doesn't drop below zero
+      await Post.updateOne(
+        { _id: deletedComment.postId, commentsCount: { $lt: 0 } },
+        { $set: { commentsCount: 0 } }
+      );
     }
 
     if (!deletedComment) {

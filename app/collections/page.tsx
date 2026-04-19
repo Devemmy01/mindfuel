@@ -5,6 +5,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import PostCard from "@/components/PostCard";
 import { Bookmark, Loader2, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { SaveType } from "@/types";
 
@@ -39,8 +40,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
             style={{ borderColor: `${textColor}20` }}
           >
             {post.userId.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.userId.image} alt="" className="w-4 h-4 rounded-full object-cover" />
+              <Image src={post.userId.image} alt="" width={16} height={16} className="w-4 h-4 rounded-full object-cover" />
             ) : (
               <div className="w-4 h-4 rounded-full" style={{ background: `${textColor}30` }} />
             )}

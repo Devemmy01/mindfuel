@@ -29,22 +29,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Determine viewer identifier: prefer authenticated userId, fallback to IP hash
     const viewerId = userId || getViewerIdentifier(req);
 
-    // Check cookie first (fast path)
-    const viewedCookie = req.cookies.get(`viewed_${id}`);
-    if (viewedCookie) {
-      const post = await Post.findById(id);
-      return NextResponse.json({ views: post?.views || 0 }, { status: 200 });
-    }
+    // Determination of viewer identifier is already handled below.
+    // We removed the cookie-based early return to ensure that 
+    // fresh views can be recorded if the database allows it (e.g. after a reset).
 
-    // Check if viewer is in viewedBy array (DB-level dedup)
-    const existingView = await Post.findOne({
-      _id: id,
-      viewedBy: viewerId,
-    });
+    // Atomic check and update: only increment and add to set if not already present
+    const post = await Post.findOneAndUpdate(
+      { _id: id, viewedBy: { $ne: viewerId } },
+      {
+        $inc: { views: 1 },
+        $addToSet: { viewedBy: viewerId },
+      },
+      { new: true }
+    );
 
-    if (existingView) {
-      // Already viewed — set cookie and return
-      const response = NextResponse.json({ views: existingView.views }, { status: 200 });
+    if (!post) {
+      // If no post found with this ID where user hasn't viewed, 
+      // either post doesn't exist OR user already viewed.
+      const existingPost = await Post.findById(id).select("views");
+      if (!existingPost) {
+        return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      }
+      
+      // Already viewed — set cookie and return current views
+      const response = NextResponse.json({ views: existingPost.views }, { status: 200 });
       response.cookies.set(`viewed_${id}`, "true", {
         maxAge: 60 * 60 * 24,
         path: "/",
@@ -54,16 +62,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
       return response;
     }
-
-    // New unique view — increment and track
-    const post = await Post.findByIdAndUpdate(
-      id,
-      {
-        $inc: { views: 1 },
-        $addToSet: { viewedBy: viewerId },
-      },
-      { new: true }
-    );
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });

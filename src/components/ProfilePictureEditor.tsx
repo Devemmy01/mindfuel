@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useRef } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 interface ProfilePictureEditorProps {
   currentImage: string;
@@ -91,9 +91,11 @@ export default function ProfilePictureEditor({
       <div className="flex justify-center">
         <div className="p-0 rounded-full shadow-lg overflow-hidden border-4 border-brand-green/30">
           {preview ? (
-            <img
+            <Image
               src={preview}
               alt={userName}
+              width={112}
+              height={112}
               className="w-28 h-28 rounded-full object-cover"
             />
           ) : (
@@ -172,9 +174,11 @@ export default function ProfilePictureEditor({
                     : "opacity-75 hover:opacity-100"
                 }`}
               >
-                <img
+                <Image
                   src={avatar.path}
                   alt={avatar.label}
+                  width={80}
+                  height={80}
                   className="w-full h-full object-cover"
                 />
               </button>

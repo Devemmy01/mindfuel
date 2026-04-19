@@ -34,13 +34,12 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
       <Container style={container}>
         <Section style={logoContainer}>
           <Img
-            src="https://mind-fuel.app/icon-512.png"
-            width="32"
-            height="32"
+            src="https://mind-fuel.app/logoDarkbg.png"
+            width="140"
+            height="auto"
             alt="MindFuel"
             style={logo}
           />
-          <Text style={logoText}>MindFuel</Text>
         </Section>
         
         <Text style={text}>
@@ -84,21 +83,16 @@ const container = {
 };
 
 const logoContainer = {
-  display: 'flex',
-  alignItems: 'center',
-  marginBottom: '32px',
+  backgroundColor: '#171717',
+  padding: '10px 6px',
+  borderRadius: '12px',
+  width: '152px',
+  margin: '0 auto 32px',
+  textAlign: 'center' as const,
 };
 
 const logo = {
   borderRadius: '6px',
-};
-
-const logoText = {
-  fontSize: '18px',
-  fontWeight: 'bold',
-  marginLeft: '10px',
-  letterSpacing: '-0.02em',
-  margin: '0',
 };
 
 const text = {

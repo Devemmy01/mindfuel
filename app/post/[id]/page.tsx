@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Share2,
   Bookmark,
-  Heart,
   MessageCircle,
   Loader2,
   MoreHorizontal,
@@ -23,8 +22,8 @@ import {
 } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { format } from "date-fns";
 import Link from "next/link";
+import Image from "next/image";
 import CommentSection from "@/components/CommentSection";
 import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
@@ -32,11 +31,13 @@ import { PostType } from "@/types";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { fontOptions, getFontById } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
+import InteractionBar from "@/components/InteractionBar";
+import { format } from "date-fns";
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
-  return n === 0 ? "" : String(n);
+  return String(n);
 };
 
 const isColorLight = (hex: string) => {
@@ -62,12 +63,14 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const shareMenuRef = React.useRef<HTMLDivElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const cardRef = React.useRef<HTMLButtonElement>(null);
+  const viewFetched = useRef(false);
   
   // Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -87,6 +90,35 @@ export default function PostDetailPage() {
   const editTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  useEffect(() => {
+    if (id && !viewFetched.current) {
+      viewFetched.current = true;
+      const trackView = async () => {
+        try {
+          const res = await fetch(`/api/posts/${id}/view`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user?.uid }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.views !== undefined) {
+              setPost(prev => prev ? { ...prev, views: data.views } : null);
+            }
+          }
+        } catch {
+          // Ignore errors
+        }
+      };
+      
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(trackView);
+      } else {
+        setTimeout(trackView, 1000);
+      }
+    }
+  }, [id, user?.uid]);
 
   // Close menus on outside click
   useEffect(() => {
@@ -110,6 +142,7 @@ export default function PostDetailPage() {
         const data = await res.json();
         setPost(data.post);
         setLikesCount(data.post?.likesCount || 0);
+        setCommentsCount(data.post?.commentsCount || 0);
         
         // Init edit state
         setEditText(data.post?.text || "");
@@ -186,29 +219,6 @@ export default function PostDetailPage() {
         .catch(() => {});
     }
   }, [post, user]);
-
-  const handleLike = async () => {
-    if (!user || !post) return;
-    
-    const newIsLiked = !isLiked;
-    setIsLiked(newIsLiked);
-    setLikesCount((p) => newIsLiked ? p + 1 : p - 1);
-
-    try {
-      const res = await fetch(`/api/posts/${post._id}/like`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid }),
-      });
-      if (res.ok) {
-        showToast(newIsLiked ? "Reflection liked" : "Reflection unliked", "success");
-      }
-    } catch {
-      // Revert
-      setIsLiked(!newIsLiked);
-      setLikesCount((p) => newIsLiked ? p - 1 : p + 1);
-    }
-  };
 
   const handleDelete = async () => {
     if (!user || !post || user.uid !== post.userId.firebaseId) return;
@@ -296,21 +306,6 @@ export default function PostDetailPage() {
       }
       router.push("/");
     }
-  };
-
-  const handleSave = async () => {
-    if (!user || !post) return;
-    setIsSaved((p) => !p);
-    try {
-      const res = await fetch("/api/saves", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, postId: post._id }),
-      });
-      if (res.ok) {
-        showToast(!isSaved ? "Saved to library" : "Removed from library", "success");
-      }
-    } catch {}
   };
 
   const handleShareClick = () => {
@@ -492,9 +487,10 @@ export default function PostDetailPage() {
           <div className="flex  gap-3">
             <Link href={`/profile/${post.userId.firebaseId}`} className="block outline-none press-scale shrink-0">
               {post.userId.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={post.userId.image}
+                  width={40}
+                  height={40}
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent hover:ring-brand-green/20 transition-all"
                   alt=""
                 />
@@ -504,7 +500,7 @@ export default function PostDetailPage() {
                 </div>
               )}
             </Link>
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col gap-3 min-w-0">
               <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold text-[15px] hover:underline truncate">
                 {post.userId.name}
               </Link>
@@ -552,7 +548,7 @@ export default function PostDetailPage() {
           </button>
         </div>
 
-        {/* Timestamp + views */}
+        {/* Engagement counts moved into InteractionBar behavior, but we keep the visual divider for density */}
         <div className="px-4 py-3 border-b border-border flex items-center gap-2 text-[13px] text-muted-foreground">
           <span>
             {format(new Date(post.createdAt), "h:mm a · MMM d, yyyy")}
@@ -562,58 +558,32 @@ export default function PostDetailPage() {
             {fmt(post.views || 0)}
           </span>
           <span>Views</span>
+          <span>·</span>
+          <span className="font-bold text-foreground">
+            {fmt(likesCount)}
+          </span>
+          <span>Likes</span>
         </div>
 
-        {/* Engagement counts */}
-        {likesCount > 0 && (
-          <div className="px-4 py-2.5 border-b border-border flex items-center gap-4 text-[13px]">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-foreground">
-                {fmt(likesCount)}
-              </span>
-              <span className="text-muted-foreground">Likes</span>
-            </div>
-          </div>
-        )}
-
         {/* Action bar */}
-        <div className="flex justify-around items-center py-1 border-b border-border px-2">
-          <button className="flex-1 flex justify-center p-3 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5 transition-colors rounded-xl group">
-            <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-          </button>
-
-          <button
-            onClick={handleLike}
-            className={`flex-1 flex justify-center p-3 transition-colors rounded-xl group ${
-              isLiked
-                ? "text-rose-500"
-                : "text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5"
-            }`}
-          >
-            <Heart
-              className={`w-5 h-5 group-hover:scale-110 transition-transform ${isLiked ? "fill-current" : ""}`}
-            />
-          </button>
-
-          <button
-            onClick={handleSave}
-            className={`flex-1 flex justify-center p-3 transition-colors rounded-xl group ${
-              isSaved
-                ? "text-brand-green"
-                : "text-muted-foreground hover:text-brand-green hover:bg-brand-green/5"
-            }`}
-          >
-            <Bookmark
-              className={`w-5 h-5 group-hover:scale-110 transition-transform ${isSaved ? "fill-current" : ""}`}
-            />
-          </button>
+        <div className="flex items-center py-1 border-b border-border px-4">
+          <InteractionBar 
+            postId={post._id}
+            initialLikes={post.likesCount}
+            initialViews={post.views}
+            initialComments={commentsCount}
+            initialIsLiked={isLiked}
+            initialIsSaved={isSaved}
+            showViews={false} // Already shown above in detail view
+          />
+          
           <div
-            className="flex-1 flex justify-center relative"
+            className="flex justify-center relative"
             ref={shareMenuRef}
           >
             <button
               onClick={handleShareClick}
-              className={`flex justify-center p-3 w-full transition-colors rounded-xl group ${
+              className={`flex justify-center p-2 w-full transition-colors rounded-xl group ${
                 showShareMenu
                   ? "text-blue-500 bg-blue-500/5"
                   : "text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5"
@@ -640,7 +610,7 @@ export default function PostDetailPage() {
                 </button>
                 <button
                   onClick={shareToWhatsApp}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                  className="calc-w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
                 >
                   <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share to
                   WhatsApp
@@ -660,7 +630,11 @@ export default function PostDetailPage() {
 
       {/* Comments */}
       <div className="flex-1 w-full pb-32">
-        <CommentSection postId={post._id} />
+        <CommentSection 
+          postId={post._id} 
+          onCommentAdded={() => setCommentsCount(prev => prev + 1)}
+          onCommentDeleted={() => setCommentsCount(prev => prev - 1)}
+        />
       </div>
 
   {/* Edit Modal */}

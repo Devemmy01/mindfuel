@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
-import User from "@/models/user";
+import User, { IUser } from "@/models/user";
 import { resend } from "@/lib/resend";
 import { WelcomeEmail } from "@/emails/WelcomeEmail";
 import React from "react";
@@ -17,8 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upsert user, returns original document if new: false
-    // If null, it means a new user was created
+    // Upsert user, returning the newly created or updated document
     const user = await User.findOneAndUpdate(
       { firebaseId },
       {
@@ -30,13 +29,20 @@ export async function POST(req: NextRequest) {
           pushSubscriptions: [],
         },
       },
-      { upsert: true, new: false },
-    );
+      { upsert: true, new: true, runValidators: true }
+    ).lean() as IUser | null;
 
-    // If user is null, it's a new signup
-    if (!user && email) {
+    // Determine if this is a new signup by comparing createdAt and updatedAt.
+    // If they are identical (or very close), the doc was just created.
+    const isNewSignup = 
+      user && 
+      user.createdAt && 
+      user.updatedAt && 
+      new Date(user.updatedAt).getTime() - new Date(user.createdAt).getTime() < 2000;
+
+    if (isNewSignup && email) {
       try {
-        await resend.emails.send({
+        const { error } = await resend.emails.send({
           from: "MindFuel <noreply@mind-fuel.app>",
           to: email,
           subject: "Welcome to MindFuel",
@@ -44,13 +50,17 @@ export async function POST(req: NextRequest) {
             <WelcomeEmail name={name || "Explorer"} />
           ) as React.ReactElement,
         });
+
+        if (error) {
+          console.error("Resend welcome email error:", error);
+        }
       } catch (emailError) {
-        console.error("Failed to send welcome email:", emailError);
+        console.error("Failed to send welcome email (exception):", emailError);
       }
     }
 
     return NextResponse.json(
-      { user: user || { firebaseId, email, name } },
+      { user },
       { status: 200 },
     );
   } catch (error: unknown) {

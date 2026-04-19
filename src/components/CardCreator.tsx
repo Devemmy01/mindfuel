@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
@@ -6,6 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { Download, X, Type, Sparkles, Smile, ChevronDown } from "lucide-react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { Theme } from "emoji-picker-react";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
@@ -64,7 +64,7 @@ export function CardWatermark({
           border: "1px solid rgba(255,255,255,0.12)",
         }}
       >
-        <img src="/logo.png" alt="" className="w-7 h-7" />
+        <Image src="/logo.png" alt="" width={28} height={28} className="w-7 h-7" />
 
         <div
           style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}
@@ -299,9 +299,11 @@ const CardCreator: React.FC = () => {
         <div className="flex gap-3 mb-3">
           <div className="flex-shrink-0">
             {profile?.image || user?.photoURL ? (
-              <img
+              <Image
                 src={profile?.image || user?.photoURL || ""}
                 alt="Me"
+                width={36}
+                height={36}
                 className="w-9 h-9 rounded-full object-cover ring-2 ring-brand-green/20"
               />
             ) : (

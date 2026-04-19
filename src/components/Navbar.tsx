@@ -245,9 +245,11 @@ export default function Navbar() {
                   className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-secondary/60 transition-colors w-full group outline-none"
                 >
                   {displayImage && !displayImage.startsWith("#") && !imgError ? (
-                    <img
+                    <Image
                       src={displayImage}
                       alt={displayName || "User"}
+                      width={36}
+                      height={36}
                       onError={() => setImgError(true)}
                       className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-brand-green/30"
                     />
@@ -405,9 +407,11 @@ export default function Navbar() {
             >
               <div className={`transition-all duration-300 flex flex-col items-center justify-center ${pathname === "/profile" ? "translate-y-[-2px]" : ""}`}>
                 {displayImage && !displayImage.startsWith("#") && !imgError ? (
-                  <img
+                  <Image
                     src={displayImage}
                     alt="Profile"
+                    width={24}
+                    height={24}
                     onError={() => setImgError(true)}
                     className={`w-[24px] h-[24px] rounded-full object-cover transition-all duration-300 ${
                       pathname === "/profile" ? "ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-80 group-hover:opacity-100"

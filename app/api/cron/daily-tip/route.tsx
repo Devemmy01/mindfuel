@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
+import Tip from "@/models/tip";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
 import React from "react";
@@ -20,16 +21,15 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
 
-    // 1. Fetch a mindful tip
+    // 1. Fetch a mindful tip from our local collection
     let tip = "Breathe deeply. You are exactly where you need to be.";
     try {
-      const tipRes = await fetch("https://api.adviceslip.com/advice", {
-        cache: "no-store",
-      });
-      const tipData = await tipRes.json();
-      tip = tipData.slip.advice;
+      const randomTips = await Tip.aggregate([{ $sample: { size: 1 } }]);
+      if (randomTips && randomTips.length > 0) {
+        tip = randomTips[0].text;
+      }
     } catch (tipError) {
-      console.error("Failed to fetch tip for cron:", tipError);
+      console.error("Failed to fetch local tip for cron:", tipError);
     }
 
     // 2. Fetch all users who want the daily email

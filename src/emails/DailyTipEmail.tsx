@@ -26,11 +26,11 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
     <Preview>Your Daily Mindful Tip, {name}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={logoOuter}>
+        <Section style={logoContainer}>
           <Img
-            src="https://mind-fuel.app/icon-512.png"
-            width="48"
-            height="48"
+            src="https://mind-fuel.app/logoDarkbg.png"
+            width="160"
+            height="auto"
             alt="MindFuel"
             style={logo}
           />
@@ -81,8 +81,13 @@ const container = {
   textAlign: 'center' as const,
 };
 
-const logoOuter = {
-  marginBottom: '40px',
+const logoContainer = {
+  backgroundColor: '#171717',
+  padding: '10px 6px',
+  borderRadius: '12px',
+  width: '172px',
+  margin: '0 auto 40px',
+  textAlign: 'center' as const,
 };
 
 const logo = {

@@ -1,4 +1,14 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document } from "mongoose";
+
+export interface ISave extends Document {
+  userId: Schema.Types.ObjectId;
+  postId: Schema.Types.ObjectId;
+  collectionId?: Schema.Types.ObjectId;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 
 const SaveSchema = new Schema(
   {
@@ -28,6 +38,6 @@ const SaveSchema = new Schema(
 
 SaveSchema.index({ userId: 1, postId: 1 }, { unique: true });
 
-const Save = models.Save || model("Save", SaveSchema);
+const Save = models.Save || model<ISave>("Save", SaveSchema);
 
 export default Save;

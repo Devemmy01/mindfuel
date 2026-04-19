@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Download, X, Share } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 function isIOS(): boolean {
   if (typeof window === "undefined") return false;
@@ -101,8 +102,7 @@ export default function InstallPWA() {
 
             {/* App icon */}
             <div className="h-16 w-16 md:h-14 md:w-14 bg-gradient-to-br from-gray-900 to-black rounded-2xl flex-shrink-0 flex items-center justify-center shadow-lg overflow-hidden border border-white/10 mx-auto md:mx-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="MindFuel" className="w-10 h-10 object-contain" />
+              <Image src="/logo.png" alt="MindFuel" width={40} height={40} className="w-10 h-10 object-contain" />
             </div>
 
             <div className="flex-1 text-center md:text-left w-full">

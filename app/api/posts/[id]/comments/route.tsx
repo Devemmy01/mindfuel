@@ -34,6 +34,13 @@ export async function GET(
     // Filter out comments where userId is null (deleted users)
     const validComments = comments.filter((c) => c.userId);
 
+    // Self-healing sync: Ensure post.commentsCount matches actual valid comments
+    // Using fire-and-forget or background update to avoid blocking response
+    Post.updateOne(
+      { _id: postId, commentsCount: { $ne: validComments.length } },
+      { $set: { commentsCount: validComments.length } }
+    ).catch(err => console.error("Comment count sync failed:", err));
+
     // If user is logged in, check which comments they liked
     if (user) {
       const commentLikes = await CommentLike.find({
@@ -121,41 +128,53 @@ export async function POST(
 
         if (author) {
           // 1. In-App & Push Notification
-          await createNotification({
-            recipientId: post.userId,
-            senderId: user._id,
-            type: "comment",
-            postId: new Types.ObjectId(postId),
-            commentId: comment._id,
-            message: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}`,
-            url: `/post/${postId}`
-          });
+          try {
+            await createNotification({
+              recipientId: post.userId,
+              senderId: user._id,
+              type: "comment",
+              postId: new Types.ObjectId(postId),
+              commentId: comment._id,
+              message: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}`,
+              url: `/post/${postId}`
+            });
+          } catch (notifErr) {
+            console.error("In-app/Push notification failed:", notifErr);
+          }
 
           // 2. Email Notification
           if (author.email && author.preferences?.notifications !== false) {
-            await resend.emails.send({
-              from: "MindFuel <noreply@mind-fuel.app>",
-              to: author.email,
-              subject: `${user.name} commented on your thought`,
-              headers: {
-                "X-Entity-Ref-ID": `${postId}-${comment._id}`,
-                "importance": "high"
-              },
-              react: (
-                <CommentEmail
-                  authorName={author.name}
-                  commenterName={user.name}
-                  commentContent={filteredContent}
-                  postText={post.text}
-                  postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${postId}`}
-                />
-              ) as React.ReactElement,
-            });
+            try {
+              const { error } = await resend.emails.send({
+                from: "MindFuel <noreply@mind-fuel.app>",
+                to: author.email,
+                subject: `${user.name} commented on your thought`,
+                headers: {
+                  "X-Entity-Ref-ID": `${postId}-${comment._id}`,
+                  "importance": "high"
+                },
+                react: (
+                  <CommentEmail
+                    authorName={author.name}
+                    commenterName={user.name}
+                    commentContent={filteredContent}
+                    postText={post.text}
+                    postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${postId}`}
+                  />
+                ) as React.ReactElement,
+              });
+
+              if (error) {
+                console.error("Resend comment email error:", error);
+              }
+            } catch (emailErr) {
+              console.error("Comment email failed (exception):", emailErr);
+            }
           }
         }
       }
     } catch (notifyError) {
-      console.error("Notification failed:", notifyError);
+      console.error("Notification process failed:", notifyError);
     }
 
     return NextResponse.json({ comment: populatedComment }, { status: 201 });

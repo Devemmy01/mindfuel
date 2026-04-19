@@ -11,9 +11,7 @@ import MindfulSaves from "@/components/MindfulSaves";
 import MindfulTip from "@/components/MindfulTip";
 import { ToastProvider } from "@/providers/ToastProvider";
 import InstallPWA from "@/components/InstallPWA";
-import PushNotifications from "@/components/PushNotifications";
 import { Analytics } from "@vercel/analytics/react";
-import SplashWrapper from "@/components/SplashWrapper";
 
 
 // Google Fonts for card font picker
@@ -196,7 +194,6 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ToastProvider>
-            <SplashWrapper>
               {/* Top accent line */}
               <div className="brand-accent-line" />
 
@@ -246,9 +243,7 @@ export default function RootLayout({
 
                 </div>
               </div>
-            </SplashWrapper>
             <InstallPWA />
-            <PushNotifications />
             <Analytics />
 
           </ToastProvider>

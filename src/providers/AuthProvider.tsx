@@ -103,35 +103,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Sync user with MongoDB
-        try {
-          await fetch("/api/auth/sync", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              firebaseId: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.displayName,
-              image: firebaseUser.photoURL,
-            }),
-          });
-
-          // Fetch user profile
-          await fetchUserProfile(firebaseUser.uid);
-
-          // Register for push notifications
-          registerPushSubscription(firebaseUser.uid);
-        } catch (error) {
-          console.error("Failed to sync user:", error);
-        }
-      }
-
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+
+      if (firebaseUser) {
+        // Sync user with MongoDB asynchronously
+        const syncUser = async () => {
+          try {
+            const hasSyncedThisSession = sessionStorage.getItem(`synced_${firebaseUser.uid}`);
+            
+            if (!hasSyncedThisSession) {
+              const res = await fetch("/api/auth/sync", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  firebaseId: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  name: firebaseUser.displayName,
+                  image: firebaseUser.photoURL,
+                }),
+              });
+              
+              if (res.ok) {
+                const data = await res.json();
+                if (data.user) {
+                  setProfile({
+                    name: data.user.name,
+                    username: data.user.username,
+                    image: data.user.image || "",
+                    bio: data.user.bio,
+                  });
+                }
+                sessionStorage.setItem(`synced_${firebaseUser.uid}`, "true");
+              }
+            } else {
+              // Only fetch the profile if already synced this session
+              await fetchUserProfile(firebaseUser.uid);
+            }
+
+            // Register for push notifications
+            registerPushSubscription(firebaseUser.uid);
+          } catch (error) {
+            console.error("Failed to sync user:", error);
+          }
+        };
+
+        syncUser();
+      }
     });
 
     return () => unsubscribe();
