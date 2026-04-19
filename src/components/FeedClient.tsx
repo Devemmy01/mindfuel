@@ -128,8 +128,8 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
         {/* Desktop/Mobile top bar */}
-        <div className="flex justify-between items-center px-4 py-2">
-          <div className="flex items-center gap-2.5">
+        <div className="flex justify-between md:justify-end items-center px-4 py-2">
+          <div className="flex items-center gap-2.5 md:hidden">
             <Image
               src="/logoDarkbg.png"
               alt="MindFuel"
@@ -141,7 +141,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
           <button
             onClick={() => fetchPosts(true)}
             aria-label="Refresh feed"
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
+            className="w-9 h-9 flex items-center md:hidden justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
             <RefreshCw
               className={`w-4 h-4 text-muted-foreground ${refreshing ? "animate-spin" : ""}`}
@@ -161,7 +161,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             {loadMode === "trending" && (
               <motion.div
                 layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-brand-green rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
+                className="absolute bottom-0 left-0 right-0 h-[3px] bg-green-500 rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -176,7 +176,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             {loadMode === "newest" && (
               <motion.div
                 layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-brand-green rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
+                className="absolute bottom-0 left-0 right-0 h-[3px] bg-green-500 rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
