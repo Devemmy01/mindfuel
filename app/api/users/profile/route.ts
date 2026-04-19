@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
 
     // Prepare update object - always include all fields
     const updateData: Record<string, unknown> = {};
-    
+
     if (name !== undefined && name !== null) {
       updateData.name = name;
     }
     if (username !== undefined && username !== null) {
       // Clean username: remove spaces, lowercase, max 20 chars
       const cleanUsername = username.replace(/\s+/g, "").toLowerCase().slice(0, 20);
-      
+
       // Basic validation
       if (cleanUsername.length < 3) {
         return NextResponse.json(
@@ -43,20 +43,20 @@ export async function POST(req: NextRequest) {
         );
       }
       if (!/^[a-z0-9_.]+$/.test(cleanUsername)) {
-         return NextResponse.json(
+        return NextResponse.json(
           { error: "Username can only contain letters, numbers, underscores, and dots" },
           { status: 400 }
         );
       }
-      
+
       // 1. Fetch current user to see if we're actually changing the username
       const currentUserRecord = await User.findOne({ firebaseId }).lean() as IUser | null;
-      
+
       // 2. Only check for duplicates if the username is different from current
       if (currentUserRecord?.username !== cleanUsername) {
-        const existingUser = await User.findOne({ 
-          username: cleanUsername, 
-          firebaseId: { $ne: firebaseId } 
+        const existingUser = await User.findOne({
+          username: cleanUsername,
+          firebaseId: { $ne: firebaseId }
         }).lean() as IUser | null;
 
         if (existingUser) {
@@ -66,13 +66,13 @@ export async function POST(req: NextRequest) {
           );
         }
       }
-      
+
       updateData.username = cleanUsername;
     }
     if (bio !== undefined && bio !== null) {
       updateData.bio = bio;
     }
-    
+
     // Handle image - use Cloudinary for base64 uploads
     if (uploadedImage !== undefined && uploadedImage !== null) {
       if (uploadedImage === "") {
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
               { fetch_format: "auto", quality: "auto" }
             ]
           });
-          
+
           updateData.image = uploadResponse.secure_url;
           updateData.uploadedImage = uploadResponse.secure_url;
         } catch (uploadError) {

@@ -7,8 +7,8 @@ import Save, { ISave } from "@/models/save";
 import { PostType } from "@/types";
 
 // In-memory cache for the global feed
-const globalFeedCache: { 
-  [key: string]: { timestamp: number; validPosts: PostType[]; total: number } 
+const globalFeedCache: {
+  [key: string]: { timestamp: number; validPosts: PostType[]; total: number }
 } = {};
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -124,10 +124,10 @@ export async function GET(req: NextRequest) {
 
     if (firebaseId && validPosts.length > 0) {
       const userDoc = await User.findOne({ firebaseId }).select("_id").lean() as { _id: string } | null;
-      
+
       if (userDoc) {
         const postIds = validPosts.map((p) => p._id);
-        
+
         const [likedDocs, savedDocs] = await Promise.all([
           Like.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")

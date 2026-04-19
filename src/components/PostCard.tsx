@@ -4,8 +4,20 @@ import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
-  MessageCircle, Bookmark, Share2,
-  CheckCircle2, MoreHorizontal, Link as LinkIcon, Twitter, Eye, Trash2, Edit, X, Sparkles, Loader2, Smile
+  MessageCircle,
+  Bookmark,
+  Share2,
+  CheckCircle2,
+  MoreHorizontal,
+  Link as LinkIcon,
+  Twitter,
+  Eye,
+  Trash2,
+  Edit,
+  X,
+  Sparkles,
+  Loader2,
+  Smile,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Theme } from "emoji-picker-react";
@@ -24,21 +36,22 @@ import InteractionBar from "@/components/InteractionBar";
 // Dynamic import heavy libraries for code splitting
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
-  loading: () => <div className="w-[280px] h-[320px] bg-secondary/50 rounded-2xl animate-pulse" />,
+  loading: () => (
+    <div className="w-[280px] h-[320px] bg-secondary/50 rounded-2xl animate-pulse" />
+  ),
 });
 
 interface PostCardProps {
   post: PostType;
 }
 
-
 const isColorLight = (hex: string) => {
   if (!hex || !hex.startsWith("#")) return true;
   const c = hex.substring(1);
   const rgb = parseInt(c, 16);
   const r = (rgb >> 16) & 0xff;
-  const g = (rgb >>  8) & 0xff;
-  const b = (rgb >>  0) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = (rgb >> 0) & 0xff;
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luma > 160;
 };
@@ -49,22 +62,25 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
-  
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(post.text);
   const [editBg, setEditBg] = useState(() => {
-    const foundBg = backgroundOptions.find(o => o.value === post.backgroundStyle.value);
+    const foundBg = backgroundOptions.find(
+      (o) => o.value === post.backgroundStyle.value,
+    );
     if (foundBg) return foundBg;
     return {
       id: "custom",
       name: "Custom Color",
       type: "color",
       value: post.backgroundStyle.value,
-      text: isColorLight(post.backgroundStyle.value) ? "#171717" : "#ffffff"
+      text: isColorLight(post.backgroundStyle.value) ? "#171717" : "#ffffff",
     };
   });
-  const [editFont, setEditFont] = useState(getFontById(post.fontFamily ?? "inter"));
+  const [editFont, setEditFont] = useState(
+    getFontById(post.fontFamily ?? "inter"),
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -80,30 +96,38 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const viewFetched = useRef(false);
-  
+
   const editTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
+      if (
+        shareMenuRef.current &&
+        !shareMenuRef.current.contains(e.target as Node)
+      ) {
         setShowShareMenu(false);
       }
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowMenu(false);
       }
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target as Node)
+      ) {
         setShowEmojiPicker(false);
       }
     };
-    if (showShareMenu || showMenu || showEmojiPicker) document.addEventListener("mousedown", handleClickOutside);
+    if (showShareMenu || showMenu || showEmojiPicker)
+      document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showShareMenu, showMenu, showEmojiPicker]);
 
   const onEmojiClick = (emojiData: { emoji: string }) => {
     const cursor = editTextAreaRef.current?.selectionStart ?? editText.length;
-    const updated = editText.slice(0, cursor) + emojiData.emoji + editText.slice(cursor);
+    const updated =
+      editText.slice(0, cursor) + emojiData.emoji + editText.slice(cursor);
     setEditText(updated);
     setShowEmojiPicker(false);
     setTimeout(() => {
@@ -126,7 +150,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           body: JSON.stringify({ userId: user?.uid }),
         }).catch(() => {});
       };
-      if ('requestIdleCallback' in window) {
+      if ("requestIdleCallback" in window) {
         requestIdleCallback(trackView);
       } else {
         setTimeout(trackView, 200);
@@ -137,15 +161,15 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   // Note: isLiked and isSaved are now provided directly by the batched /api/posts/feed endpoint
   // We no longer manually fetch them per-card to eliminate the N+1 API waterfall.
 
-
-
   const handleShareClick = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     setShowShareMenu((p) => !p);
   };
 
   const copyLink = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     navigator.clipboard.writeText(`${window.location.origin}/post/${post._id}`);
     showToast("Link copied to clipboard", "success");
     setShowShareMenu(false);
@@ -153,32 +177,47 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   };
 
   const shareToX = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:`);
-    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`, '_blank');
+    const text = encodeURIComponent(
+      `Thought on MindFuel by ${post.userId.name}:`,
+    );
+    window.open(
+      `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`,
+      "_blank",
+    );
     setShowShareMenu(false);
     setShowMenu(false);
   };
 
   const shareToWhatsApp = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:\n${url}`);
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    const text = encodeURIComponent(
+      `Thought on MindFuel by ${post.userId.name}:\n${url}`,
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
     setShowShareMenu(false);
     setShowMenu(false);
   };
 
   const downloadCard = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     if (!cardRef.current) return;
     setIsDownloading(true);
     try {
       // Dynamic import html-to-image only when needed (~50KB)
       const { toPng } = await import("html-to-image");
       await new Promise((r) => setTimeout(r, 300));
-      const dataUrl = await toPng(cardRef.current, { cacheBust: true, quality: 1, pixelRatio: 3, skipFonts: true });
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        quality: 1,
+        pixelRatio: 3,
+        skipFonts: true,
+      });
       const link = document.createElement("a");
       link.download = `mindfuel-${Date.now()}.png`;
       link.href = dataUrl;
@@ -194,7 +233,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     if (!user || user.uid !== post.userId.firebaseId) return;
     if (!confirm("Are you sure you want to delete this thought?")) return;
 
@@ -214,7 +254,13 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || user.uid !== post.userId.firebaseId || !editText.trim() || isUpdating) return;
+    if (
+      !user ||
+      user.uid !== post.userId.firebaseId ||
+      !editText.trim() ||
+      isUpdating
+    )
+      return;
     setIsUpdating(true);
     try {
       const res = await fetch(`/api/posts/${post._id}`, {
@@ -223,14 +269,13 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         body: JSON.stringify({
           userId: user.uid,
           text: editText,
-          backgroundStyle: { 
+          backgroundStyle: {
             id: editBg.id,
-            type: editBg.type, 
-            value: editBg.value, 
-            text: editBg.text 
+            type: editBg.type,
+            value: editBg.value,
+            text: editBg.text,
           },
           fontFamily: editFont.id,
-
         }),
       });
       if (res.ok) {
@@ -265,11 +310,16 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   };
 
   const handleReport = async (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (confirm("Report this reflection? It will be hidden from your feed and the admin will be notified.")) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (
+      confirm(
+        "Report this reflection? It will be hidden from your feed and the admin will be notified.",
+      )
+    ) {
       setIsHidden(true);
       setShowMenu(false);
-      
+
       try {
         await fetch("/api/reports", {
           method: "POST",
@@ -285,7 +335,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   if (isHidden) return null;
 
-
   const bgStyle =
     post.backgroundStyle.type === "gradient"
       ? { backgroundImage: post.backgroundStyle.value }
@@ -297,213 +346,269 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     post.backgroundStyle.value.toLowerCase() === "#f5f5dc";
   const textColor = isLight ? "#171717" : "#ffffff";
 
-  const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: false })
+  const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
+    addSuffix: false,
+  })
     .replace("about ", "")
     .replace("less than a minute", "now");
 
   return (
     <>
-    <motion.article
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileTap={{ scale: 0.995 }}
-      onClick={() => router.push(`/post/${post._id}`)}
-      className="flex flex-row px-4 py-4 border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer group outline-none"
-    >
-      <div className="mr-3 flex-shrink-0 pt-0.5">
-        <Link href={`/profile/${post.userId.firebaseId}`} onClick={(e) => e.stopPropagation()} className="block outline-none press-scale">
-          {post.userId.image && !post.userId.image.startsWith("#") && !imgError ? (
-            <Image
-              src={post.userId.image}
-              alt={post.userId.name}
-              width={40}
-              height={40}
-              onError={() => setImgError(true)}
-              className="w-10 h-10 rounded-full bg-secondary object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
-            />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-[13px] font-bold text-white"
-              style={{
-                backgroundColor: "#0a0a0a",
-              }}
-            >
-              {post.userId.name?.[0]?.toUpperCase()}
-            </div>
-          )}
-        </Link>
-      </div>
+      <motion.article
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileTap={{ scale: 0.995 }}
+        onClick={() => router.push(`/post/${post._id}`)}
+        className="flex flex-row px-4 py-4 border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer group outline-none"
+      >
+        <div className="mr-3 flex-shrink-0 pt-0.5">
+          <Link
+            href={`/profile/${post.userId.firebaseId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="block outline-none press-scale"
+          >
+            {post.userId.image &&
+            !post.userId.image.startsWith("#") &&
+            !imgError ? (
+              <Image
+                src={post.userId.image}
+                alt={post.userId.name}
+                width={40}
+                height={40}
+                onError={() => setImgError(true)}
+                className="w-10 h-10 rounded-full bg-secondary object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-[13px] font-bold text-white"
+                style={{
+                  backgroundColor: "#0a0a0a",
+                }}
+              >
+                {post.userId.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+          </Link>
+        </div>
 
-      <div className="flex flex-col w-full min-w-0">
-        <div className="flex items-center justify-between w-full mb-1">
-          <div className="flex gap-4 min-w-0">
-            <div className="flex flex-col">
-              <Link 
-              href={`/profile/${post.userId.firebaseId}`}
-              onClick={(e) => e.stopPropagation()}
-              className="font-bold text-[14px] text-foreground hover:underline whitespace-nowrap max-w-[120px] sm:max-w-[160px]"
-            >
-              {post.userId.name}
-            </Link>
-            {post.isSponsored && (
-              <CheckCircle2 className="w-[14px] h-[14px] text-brand-green flex-shrink-0" fill="currentColor" strokeWidth={0} />
-            )} 
-            <Link 
-              href={`/profile/${post.userId.firebaseId}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-muted-foreground text-[13px] -mt-4 sm:mt-0 max-w-[80px] hover:text-foreground transition-colors"
-            >
-              @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
-            </Link>
-            </div>
-            <span className="text-muted-foreground text-[13px] flex-shrink-0">·</span>
-            <span className="text-muted-foreground text-[13px] flex-shrink-0 whitespace-nowrap">
-              {timeAgo}
-            </span>
-          </div>
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowMenu(!showMenu); }}
-              aria-label="Post options"
-              aria-expanded={showMenu}
-              className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-            >
-              <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
-            </button>
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-40 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                {user?.uid === post.userId.firebaseId ? (
-                  <>
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(true); setShowMenu(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" /> Edit
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors border-t border-border/50"
-                    >
-                      <Trash2 className="w-4 h-4" /> Delete
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsNoteModalOpen(true); setShowMenu(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" /> Private Note
-                    </button>
-                    <button
-                      onClick={copyLink}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <LinkIcon className="w-4 h-4" /> Copy Link
-                    </button>
-                    <button
-                      onClick={downloadCard}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
-                    >
-                      <Download className="w-4 h-4" /> Download
-                    </button>
-                    <button
-                      onClick={handleReport}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" /> Report
-                    </button>
-                  </>
+        <div className="flex flex-col w-full min-w-0">
+          <div className="flex items-center justify-between w-full mb-1">
+            <div className="flex gap-4 min-w-0">
+              <div className="flex flex-col">
+                <Link
+                  href={`/profile/${post.userId.firebaseId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-bold text-[14px] text-foreground hover:underline whitespace-nowrap max-w-[120px] sm:max-w-[160px]"
+                >
+                  {post.userId.name}
+                </Link>
+                {post.isSponsored && (
+                  <CheckCircle2
+                    className="w-[14px] h-[14px] text-brand-green flex-shrink-0"
+                    fill="currentColor"
+                    strokeWidth={0}
+                  />
                 )}
+                <Link
+                  href={`/profile/${post.userId.firebaseId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted-foreground text-[13px] -mt-4 sm:mt-0 max-w-[80px] hover:text-foreground transition-colors"
+                >
+                  @
+                  {post.userId.username ||
+                    post.userId.name.replace(/\s+/g, "").toLowerCase()}
+                </Link>
               </div>
-            )}
+              <span className="text-muted-foreground text-[13px] flex-shrink-0">
+                ·
+              </span>
+              <span className="text-muted-foreground text-[13px] flex-shrink-0 whitespace-nowrap">
+                {timeAgo}
+              </span>
+            </div>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowMenu(!showMenu);
+                }}
+                aria-label="Post options"
+                aria-expanded={showMenu}
+                className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+              >
+                <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 top-full mt-1 w-40 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+                  {user?.uid === post.userId.firebaseId ? (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsEditing(true);
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" /> Edit
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors border-t border-border/50"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsNoteModalOpen(true);
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" /> Private Note
+                      </button>
+                      <button
+                        onClick={copyLink}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                      >
+                        <LinkIcon className="w-4 h-4" /> Copy Link
+                      </button>
+                      <button
+                        onClick={downloadCard}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                      >
+                        <Download className="w-4 h-4" /> Download
+                      </button>
+                      <button
+                        onClick={handleReport}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" /> Report
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {post.isSponsored && (
+            <span className="brand-pill mb-2 self-start">Promoted</span>
+          )}
+
+          <div
+            ref={cardRef}
+            className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
+            style={{ ...bgStyle, color: textColor }}
+          >
+            {/* Texture overlays */}
+            <div
+              className={`absolute inset-0 ${isDownloading ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
+
+            {/* Inner glow vignette */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
+
+            {/* Grouped content for centered alignment */}
+            <div
+              className={`relative z-10 w-full pt-10 ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}
+            >
+              {/* Decorative quote */}
+              <span
+                className={
+                  isDownloading
+                    ? "relative mb-1 block text-[64px] font-black opacity-[0.08]"
+                    : "thought-card-quote -ml-1"
+                }
+                style={{ color: textColor, fontFamily: "'Georgia', serif" }}
+              >
+                &ldquo;
+              </span>
+
+              <p
+                className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+                style={{
+                  fontFamily: getFontById(post.fontFamily ?? "inter").family,
+                }}
+              >
+                {post.text}
+              </p>
+            </div>
+            <CardWatermark color={textColor} isVisible={isDownloading} />
+          </div>
+
+          <div className="flex items-center gap-1.5 pr-2">
+            <InteractionBar
+              postId={post._id}
+              initialLikes={post.likesCount}
+              initialViews={post.views}
+              initialComments={post.commentsCount || 0}
+              initialIsLiked={post.isLiked ?? false}
+              initialIsSaved={post.isSaved ?? false}
+            />
+            <div className="flex items-center relative" ref={shareMenuRef}>
+              <button
+                onClick={handleShareClick}
+                aria-label="Share"
+                aria-expanded={showShareMenu}
+                className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
+              >
+                <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
+                  <Share2
+                    className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`}
+                    strokeWidth={1.75}
+                  />
+                </div>
+              </button>
+
+              {showShareMenu && (
+                <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+                  <button
+                    onClick={copyLink}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy
+                    Link
+                  </button>
+                  <button
+                    onClick={shareToX}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
+                  </button>
+                  <button
+                    onClick={shareToWhatsApp}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share
+                    to WhatsApp
+                  </button>
+                  <button
+                    onClick={downloadCard}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Download className="w-4 h-4 text-brand-green" /> Download
+                    Image
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {post.isSponsored && (
-          <span className="brand-pill mb-2 self-start">Promoted</span>
-        )}
-
-        <div
-          ref={cardRef}
-          className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
-          style={{ ...bgStyle, color: textColor }}
-        >
-          {/* Texture overlays */}
-          <div className={`absolute inset-0 ${isDownloading ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`} />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
-          
-          {/* Inner glow vignette */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
-          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
-
-          {/* Grouped content for centered alignment */}
-          <div className={`relative z-10 w-full pt-10 ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}>
-            {/* Decorative quote */}
-            <span 
-              className={isDownloading ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote -ml-1"} 
-              style={{ color: textColor, fontFamily: "'Georgia', serif" }}
-            >
-              &ldquo;
-            </span>
-
-            <p
-              className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
-              style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
-            >
-              {post.text}
-            </p>
-
-            
-          </div>
-          <CardWatermark color={textColor} isVisible={isDownloading} />
-        </div>
-
-        <div className="flex items-center gap-1.5 pr-2">
-          <InteractionBar 
-            postId={post._id}
-            initialLikes={post.likesCount}
-            initialViews={post.views}
-            initialComments={post.commentsCount || 0}
-            initialIsLiked={post.isLiked ?? false}
-            initialIsSaved={post.isSaved ?? false}
-          />
-          <div className="flex items-center relative" ref={shareMenuRef}>
-            <button
-              onClick={handleShareClick}
-              aria-label="Share"
-              aria-expanded={showShareMenu}
-              className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
-            >
-              <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
-                <Share2 className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`} strokeWidth={1.75} />
-              </div>
-            </button>
-
-            {showShareMenu && (
-              <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                <button onClick={copyLink} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors">
-                  <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy Link
-                </button>
-                <button onClick={shareToX} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors">
-                  <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
-                </button>
-                <button onClick={shareToWhatsApp} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50">
-                  <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share to WhatsApp
-                </button>
-                <button onClick={downloadCard} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors">
-                  <Download className="w-4 h-4 text-brand-green" /> Download Image
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.article>
+      </motion.article>
 
       <AnimatePresence>
         {isEditing && (
-          <motion.div 
+          <motion.div
             key="edit-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -511,10 +616,14 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             role="dialog"
             aria-modal="true"
             aria-label="Edit thought"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(false); }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsEditing(false);
+            }}
           >
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -522,21 +631,31 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
-                <h3 className="text-[17px] font-bold tracking-tight">Edit Thought</h3>
-                <button onClick={() => setIsEditing(false)} aria-label="Close edit" className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                <h3 className="text-[17px] font-bold tracking-tight">
+                  Edit Thought
+                </h3>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  aria-label="Close edit"
+                  className="p-2 hover:bg-secondary/60 rounded-full transition-colors"
+                >
                   <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6">
                 {/* Live Preview Area */}
-                <div 
+                <div
                   className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[160px] mb-6 transition-all duration-300"
-                  style={{ background: editBg.type === "gradient" ? editBg.value : editBg.value, color: editBg.text }}
+                  style={{
+                    background:
+                      editBg.type === "gradient" ? editBg.value : editBg.value,
+                    color: editBg.text,
+                  }}
                 >
                   <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
                   <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
-                  
-                  <textarea 
+
+                  <textarea
                     ref={editTextAreaRef}
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
@@ -547,12 +666,15 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   />
                   <CardWatermark color={editBg.text} />
                 </div>
-                
+
                 {/* Tools Toolbar */}
                 <div className="flex flex-col gap-4 mb-6">
                   <div className="flex items-center justify-between gap-3">
                     {/* Emoji / Font */}
-                    <div className="flex items-center gap-3 relative" ref={emojiPickerRef}>
+                    <div
+                      className="flex items-center gap-3 relative"
+                      ref={emojiPickerRef}
+                    >
                       <button
                         type="button"
                         onClick={() => setShowEmojiPicker((p) => !p)}
@@ -570,7 +692,12 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
                             className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50"
                           >
-                            <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
+                            <EmojiPicker
+                              onEmojiClick={onEmojiClick}
+                              theme={Theme.AUTO}
+                              width={280}
+                              height={320}
+                            />
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -597,13 +724,17 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
                   {/* Themes / Backgrounds */}
                   <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 pl-1">Theme</span>
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 pl-1">
+                      Theme
+                    </span>
                     <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 mask-gradient-right">
                       {/* Custom Color Picker */}
                       <div className="relative flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border hover:scale-105 transition-all shadow-sm">
-                        <input 
-                          type="color" 
-                          value={editBg.id === "custom" ? editBg.value : "#00bf63"} 
+                        <input
+                          type="color"
+                          value={
+                            editBg.id === "custom" ? editBg.value : "#00bf63"
+                          }
                           onChange={(e) => {
                             const val = e.target.value;
                             setEditBg({
@@ -611,19 +742,22 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                               name: "Custom Color",
                               type: "color",
                               value: val,
-                              text: isColorLight(val) ? "#171717" : "#ffffff"
+                              text: isColorLight(val) ? "#171717" : "#ffffff",
                             });
                           }}
                           className="absolute inset-[-10px] w-12 h-12 cursor-pointer opacity-0 z-10"
                           title="Pick a custom color"
                         />
                         {editBg.id === "custom" ? (
-                          <div className="w-full h-full" style={{ backgroundColor: editBg.value }} />
+                          <div
+                            className="w-full h-full"
+                            style={{ backgroundColor: editBg.value }}
+                          />
                         ) : (
                           <div className="w-full h-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] opacity-90" />
                         )}
                       </div>
-            
+
                       <div className="w-px h-6 bg-border mx-1 flex-shrink-0" />
 
                       {backgroundOptions.map((option) => (
@@ -641,10 +775,23 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 </div>
 
                 <div className="flex gap-3">
-                  <button onClick={() => setIsEditing(false)} className="flex-[1] py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale">Cancel</button>
-                  <button onClick={handleUpdate} disabled={isUpdating || !editText.trim()} className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2 relative overflow-hidden group">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="flex-[1] py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdate}
+                    disabled={isUpdating || !editText.trim()}
+                    className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2 relative overflow-hidden group"
+                  >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full duration-1000 -translate-x-full transition-transform" />
-                    {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isUpdating ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
                     Save Changes
                   </button>
                 </div>
@@ -656,7 +803,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
       <AnimatePresence>
         {isNoteModalOpen && (
-          <motion.div 
+          <motion.div
             key="note-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -664,10 +811,14 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             role="dialog"
             aria-modal="true"
             aria-label="Private note"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" 
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsNoteModalOpen(false); }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsNoteModalOpen(false);
+            }}
           >
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -675,14 +826,23 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
-                <h3 className="text-[17px] font-bold tracking-tight text-brand-green">Private Note</h3>
-                <button onClick={() => setIsNoteModalOpen(false)} aria-label="Close note" className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                <h3 className="text-[17px] font-bold tracking-tight text-brand-green">
+                  Private Note
+                </h3>
+                <button
+                  onClick={() => setIsNoteModalOpen(false)}
+                  aria-label="Close note"
+                  className="p-2 hover:bg-secondary/60 rounded-full transition-colors"
+                >
                   <X className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
               <div className="p-6">
-                <p className="text-[13px] text-muted-foreground mb-4">Reflect on this thought. This note is only visible to you and will save the reflection to your library.</p>
-                <textarea 
+                <p className="text-[13px] text-muted-foreground mb-4">
+                  Reflect on this thought. This note is only visible to you and
+                  will save the reflection to your library.
+                </p>
+                <textarea
                   value={privateNote}
                   onChange={(e) => setPrivateNote(e.target.value)}
                   placeholder="Your personal reflection..."
@@ -691,9 +851,22 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   autoFocus
                 />
                 <div className="flex gap-3">
-                  <button onClick={() => setIsNoteModalOpen(false)} className="flex-1 py-3 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale">Cancel</button>
-                  <button onClick={handleSaveNote} disabled={isSavingNote || !privateNote.trim()} className="flex-[2] py-3 bg-brand-green text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2">
-                    {isSavingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bookmark className="w-4 h-4" />}
+                  <button
+                    onClick={() => setIsNoteModalOpen(false)}
+                    className="flex-1 py-3 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNote}
+                    disabled={isSavingNote || !privateNote.trim()}
+                    className="flex-[2] py-3 bg-brand-green text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
+                  >
+                    {isSavingNote ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Bookmark className="w-4 h-4" />
+                    )}
                     Save Note
                   </button>
                 </div>
