@@ -6,7 +6,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   try {
     await connectToDB();
-    const post = await Post.findById(id).populate('userId', 'name').lean() as any;
+    const post = await Post.findById(id).populate('userId', 'name').lean() as { text: string; createdAt: Date; userId: { name: string } } | null;
     
     if (!post) {
       return { title: 'Post Not Found | MindFuel' }
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         title,
         description,
         type: "article",
-        publishedTime: post.createdAt,
+        publishedTime: post.createdAt.toISOString(),
         authors: [post.userId.name],
       },
       twitter: {
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         description,
       }
     }
-  } catch (err) {
+  } catch {
     return { title: 'Thought | MindFuel' }
   }
 }
