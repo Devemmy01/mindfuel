@@ -225,12 +225,12 @@ const CommentSection: React.FC<{
 
                 {/* Body */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="flex items-baseline gap-1.5 min-w-0">
+                  <div className="flex items-baseline gap-4">
+                    <div className="flex flex-col items-baseline min-w-0">
                       <Link href={`/profile/${comment.userId.firebaseId}`} className="font-bold text-[13px] truncate hover:underline">
                         {comment.userId.name}
                       </Link>
-                      <Link href={`/profile/${comment.userId.firebaseId}`} className="text-muted-foreground text-[12px] truncate hover:text-foreground transition-colors hidden sm:inline">
+                      <Link href={`/profile/${comment.userId.firebaseId}`} className="text-[12px] -mt-4  md:mt-0 truncate hover:text-foreground transition-colors">
                         @{comment.userId.username || (comment.userId.name.replace(/\s+/g, "").toLowerCase())}
                       </Link>
                     </div>
@@ -240,7 +240,7 @@ const CommentSection: React.FC<{
                         .replace("less than a minute", "now")}
                     </span>
                   </div>
-                  <p className="text-[14px] text-foreground/90 leading-[1.5] mt-0.5 break-words">
+                  <p className="text-[14px] text-foreground/90 leading-[1.5] mt-0.5 md:mt-4 break-words">
                     {comment.content}
                   </p>
 

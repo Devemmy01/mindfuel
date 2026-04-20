@@ -500,11 +500,11 @@ export default function PostDetailPage() {
                 </div>
               )}
             </Link>
-            <div className="flex flex-col gap-3 min-w-0">
+            <div className="flex flex-col gap- min-w-0">
               <Link href={`/profile/${post.userId.firebaseId}`} className="font-bold text-[15px] hover:underline truncate">
                 {post.userId.name}
               </Link>
-              <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] -mt-4 text-muted-foreground truncate hover:text-foreground transition-colors">
+              <Link href={`/profile/${post.userId.firebaseId}`} className="text-[13px] -mt-4 md:mt-0 text-muted-foreground truncate hover:text-foreground transition-colors">
                 @{post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase()}
               </Link>
             </div>

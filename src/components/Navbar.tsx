@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -18,9 +18,44 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const desktopNotificationsRef = useRef<HTMLDivElement>(null);
+  const mobileNotificationsRef = useRef<HTMLButtonElement>(null);
+  const mobileOverlayRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      
+      let closeNotifications = true;
+      if (
+        desktopNotificationsRef.current?.contains(target) ||
+        mobileNotificationsRef.current?.contains(target) ||
+        mobileOverlayRef.current?.contains(target)
+      ) {
+        closeNotifications = false;
+      }
+
+      let closeMenu = true;
+      if (userMenuRef.current?.contains(target)) {
+        closeMenu = false;
+      }
+
+      if (showNotifications && closeNotifications) setShowNotifications(false);
+      if (showUserMenu && closeMenu) setShowUserMenu(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications, showUserMenu]);
+
   // Fetch notifications
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
 
     const fetchNotifications = async () => {
       setIsLoading(true);
@@ -116,7 +151,7 @@ export default function Navbar() {
               
               if (isNotification) {
                 return (
-                  <div key={href} className="w-full relative">
+                  <div key={href} className="w-full relative" ref={desktopNotificationsRef}>
                     <button
                       onClick={() => {
                         setShowNotifications(!showNotifications);
@@ -237,7 +272,7 @@ export default function Navbar() {
                 <span className="hidden xl:inline">Sign In with Google</span>
               </button>
             ) : (
-              <div className="w-full relative">
+              <div className="w-full relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   aria-label="User menu"
@@ -371,6 +406,7 @@ export default function Navbar() {
 
           {/* Notifications Trigger Mobile */}
           <button
+            ref={mobileNotificationsRef}
             onClick={() => {
               setShowNotifications(!showNotifications);
               if (!showNotifications) markAllAsRead();
@@ -396,7 +432,6 @@ export default function Navbar() {
             </span>
           </button>
 
-          {/* Profile / Login */}
           {user ? (
             <Link
               href="/profile"
@@ -445,7 +480,12 @@ export default function Navbar() {
               aria-label="Sign in"
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
-              <User className="w-[22px] h-[22px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} aria-hidden="true" />
+              <div className="transition-all duration-300 flex flex-col items-center justify-center translate-y-[-2px]">
+                <User className="w-[20px] h-[20px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} aria-hidden="true" />
+              </div>
+              <span className="absolute bottom-1.5 text-[9px] font-bold text-foreground opacity-100 translate-y-0 transition-opacity">
+                Sign In
+              </span>
             </button>
           )}
 
@@ -454,7 +494,10 @@ export default function Navbar() {
 
       {/* Mobile Notifications Overlay */}
       {showNotifications && (
-        <div className="md:hidden fixed inset-0 z-[200] bg-[#0a0a0a] animate-in slide-in-from-bottom duration-300">
+        <div 
+          ref={mobileOverlayRef}
+          className="md:hidden fixed inset-0 z-[200] bg-[#0a0a0a] animate-in slide-in-from-bottom duration-300"
+        >
           <div className="flex flex-col h-full">
             <header className="p-4 border-b border-border flex items-center justify-between sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-xl z-20">
               <h2 className="text-xl font-bold">Notifications</h2>

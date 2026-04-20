@@ -55,7 +55,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
 }
 
 export default function CollectionsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, login, loading: authLoading } = useAuth();
   const [saves, setSaves] = useState<SaveType[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -96,7 +96,10 @@ export default function CollectionsPage() {
             Sign in to save thoughts and build your personal library.
           </p>
         </div>
-        <button className="px-8 py-3 text-white rounded-full font-bold text-[15px] shadow-brand-sm bg-[#00a855] cursor-pointer transition-colors press-scale">
+        <button 
+          onClick={login}
+          className="px-8 py-3 text-white rounded-full font-bold text-[15px] shadow-brand-sm bg-[#00a855] cursor-pointer transition-colors press-scale"
+        >
           Sign In with Google
         </button>
       </div>

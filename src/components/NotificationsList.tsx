@@ -87,7 +87,7 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
   return (
     <div className="flex flex-col w-full">
       {notifications.map((notification) => {
-        if (!notification.postId) return null;
+        if (!notification.postId || !notification.sender) return null;
 
         return (
           <Link
