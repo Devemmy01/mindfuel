@@ -159,40 +159,7 @@ export default function PostDetailPage() {
         );
         setEditFont(getFontById(data.post?.fontFamily ?? "inter"));
 
-        // Dynamic SEO
-        if (data.post) {
-          const truncatedText = data.post.text.slice(0, 80) + (data.post.text.length > 80 ? "…" : "");
-          document.title = `${data.post.userId.name}: "${truncatedText}" | MindFuel`;
-          
-          // Update meta description
-          let metaDesc = document.querySelector('meta[name="description"]');
-          if (!metaDesc) {
-            metaDesc = document.createElement("meta");
-            metaDesc.setAttribute("name", "description");
-            document.head.appendChild(metaDesc);
-          }
-          metaDesc.setAttribute("content", `${data.post.userId.name} shared a thought on MindFuel: "${data.post.text.slice(0, 150)}"`);
 
-          // JSON-LD Article schema
-          const existingLd = document.querySelector('script[data-post-ld]');
-          if (existingLd) existingLd.remove();
-          const ldScript = document.createElement("script");
-          ldScript.type = "application/ld+json";
-          ldScript.setAttribute("data-post-ld", "true");
-          ldScript.textContent = JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: truncatedText,
-            author: { "@type": "Person", name: data.post.userId.name },
-            datePublished: data.post.createdAt,
-            interactionStatistic: [
-              { "@type": "InteractionCounter", interactionType: "https://schema.org/LikeAction", userInteractionCount: data.post.likesCount },
-              { "@type": "InteractionCounter", interactionType: "https://schema.org/ViewAction", userInteractionCount: data.post.views },
-            ],
-            publisher: { "@type": "Organization", name: "MindFuel", url: window.location.origin },
-          });
-          document.head.appendChild(ldScript);
-        }
       } catch {
         // handled in render
       } finally {

@@ -38,7 +38,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mindfuel.app";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mind-fuel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -102,21 +102,12 @@ export const metadata: Metadata = {
     title: "MindFuel — Fuel Your Mind Daily",
     description:
       "A calm, intentional space to share your thoughts, curations, and ideas. Join MindFuel and share what fuels your mind.",
-    images: [
-      {
-        url: "/logo.png",
-        width: 512,
-        height: 512,
-        alt: "MindFuel Logo",
-      },
-    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "MindFuel — Fuel Your Mind Daily",
     description:
       "A calm, intentional space to share your thoughts and ideas without the noise.",
-    images: ["/logo.png"],
     creator: "@mindfuelapp",
   },
   alternates: {
