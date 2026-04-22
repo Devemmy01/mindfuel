@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import PostCard from "@/components/PostCard";
+import OnboardingOverlay from "@/components/OnboardingOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, RefreshCw } from "lucide-react";
 import Link from "next/link";
@@ -125,6 +126,8 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
 
   return (
     <>
+      <OnboardingOverlay />
+
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
         {/* Desktop/Mobile top bar */}
