@@ -229,7 +229,9 @@ export default function RootLayout({
                           MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.
                         </p>
                       </div>
-                      <a href="https://fazier.com/launches/www.mind-fuel.app" target="_blank"><img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=dark" width="120" alt="Fazier badge" /></a>
+                      <a href="https://fazier.com/launches/www.mind-fuel.app" target="_blank" rel="noopener noreferrer">
+            <Image src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=dark" width={120} height={40} alt="Fazier badge" />
+          </a>
                     </footer>
                   </aside>
 
