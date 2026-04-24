@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
+import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, RefreshCw } from "lucide-react";
 import Link from "next/link";
@@ -35,8 +36,8 @@ interface FeedClientProps {
 
 export default function FeedClient({ initialPosts, initialHasMore }: FeedClientProps) {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"feed" | "reflections">("feed");
   const [posts, setPosts] = useState<PostType[]>(initialPosts);
-  const [loadMode, setLoadMode] = useState<"trending" | "newest">("trending");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const currentPageRef = useRef(1);
@@ -44,9 +45,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
   const [loadingMore, setLoadingMore] = useState(false);
   const observerTarget = React.useRef<HTMLDivElement>(null);
 
-  const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1, sortMode?: "trending" | "newest") => {
-    const activeSort = sortMode || loadMode;
-    
+  const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1) => {
     if (isRefresh) {
       setRefreshing(true);
       currentPageRef.current = 1;
@@ -59,7 +58,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
 
     try {
       const userId = user?.uid ? `&userId=${user.uid}` : "";
-      const res = await fetch(`/api/posts/feed?page=${pageNum}&limit=10&sort=${activeSort}${userId}`);
+      const res = await fetch(`/api/posts/feed?page=${pageNum}&limit=10${userId}`);
       const data = await res.json();
 
       if (pageNum === 1) {
@@ -76,7 +75,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [user, loadMode]);
+  }, [user]);
 
   useEffect(() => {
     const currentTarget = observerTarget.current;
@@ -113,17 +112,6 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
     }
   }, [user, fetchPosts, initialPosts.length]);
 
-  const handleTabChange = (mode: "trending" | "newest") => {
-    if (mode === loadMode) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    setLoadMode(mode);
-    setPosts([]); 
-    fetchPosts(false, 1, mode);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
     <>
       <OnboardingOverlay />
@@ -152,37 +140,27 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex w-full px-2">
+        {/* Simple header title */}
+        <div className="flex border-b border-border/30">
           <button
-            onClick={() => handleTabChange("trending")}
-            className="flex-1 relative py-3 text-[15px] font-bold transition-all outline-none group"
+            onClick={() => setActiveTab("feed")}
+            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
+              activeTab === "feed"
+                ? "text-brand-green border-b-2 border-brand-green"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <span className={loadMode === "trending" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}>
-              Trending
-            </span>
-            {loadMode === "trending" && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-green-500 rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              />
-            )}
+            Feed
           </button>
           <button
-            onClick={() => handleTabChange("newest")}
-            className="flex-1 relative py-3 text-[15px] font-bold transition-all outline-none group"
+            onClick={() => setActiveTab("reflections")}
+            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
+              activeTab === "reflections"
+                ? "text-brand-green border-b-2 border-brand-green"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <span className={loadMode === "newest" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}>
-              Newest
-            </span>
-            {loadMode === "newest" && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-green-500 rounded-t-full shadow-[0_-2px_8px_rgba(0,191,99,0.3)]"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              />
-            )}
+            Reflections
           </button>
         </div>
       </header>
@@ -206,16 +184,46 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            {posts.map((post, i) => (
-              <motion.div
-                key={post._id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.3 }}
-              >
-                <PostCard post={post} />
-              </motion.div>
-            ))}
+            {activeTab === "reflections" ? (
+              <div className="px-4 pt-4">
+                <DailyReflectionPrompt responseCount={posts.filter(p => p.promptId).length} />
+                <div className="mt-4">
+                  {posts.filter(p => p.promptId).map((post, i) => (
+                    <motion.div
+                      key={post._id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04, duration: 0.3 }}
+                    >
+                      <PostCard post={post} isHighlighted={true} />
+                    </motion.div>
+                  ))}
+                  {posts.filter(p => p.promptId).length === 0 && (
+                    <div className="bg-secondary/20 border border-border/30 rounded-2xl p-6 my-6 text-center">
+                      <div className="w-12 h-12 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Sparkles className="w-5 h-5 text-brand-green" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Be the first to share your reflection
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {posts.filter(p => !p.promptId).map((post, i) => (
+                  <motion.div
+                    key={post._id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                  >
+                    <PostCard post={post} />
+                  </motion.div>
+                ))}
+              </>
+            )}
 
             {/* End of Feed / Load More */}
             <div ref={observerTarget} className="h-4 w-full" />

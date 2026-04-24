@@ -15,6 +15,7 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ),
 });
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useToast } from "@/providers/ToastProvider";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { fontOptions, defaultFont, type FontOption } from "@/lib/fonts";
@@ -64,36 +65,9 @@ export function CardWatermark({
           border: "1px solid rgba(255,255,255,0.12)",
         }}
       >
-        <Image src="/logo.png" alt="" width={28} height={28} className="w-7 h-7" />
-
         <div
           style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}
         >
-          {/* <span
-            style={{
-              fontSize: "9px",
-              fontWeight: 900,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.95)",
-              fontFamily: "Inter, sans-serif",
-            }}
-          >
-            MindFuel
-          </span>
-          <span
-            style={{
-              fontSize: "6.5px",
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.55)",
-              fontFamily: "Inter, sans-serif",
-              marginTop: "1px",
-            }}
-          >
-            by Lumyn
-          </span> */}
           <span
             style={{
               fontSize: "14px",
@@ -115,8 +89,11 @@ export function CardWatermark({
 const CardCreator: React.FC = () => {
   const { user, profile } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const [text, setText] = useState("");
+  const [promptId, setPromptId] = useState<string | null>(null);
+  const [promptQuestion, setPromptQuestion] = useState<string | null>(null);
   const [bg, setBg] = useState(backgroundOptions[0]);
   const [fontSize, setFontSize] = useState(fontSizes[1]);
   const [selectedFont, setSelectedFont] = useState<FontOption>(defaultFont);
@@ -128,6 +105,20 @@ const CardCreator: React.FC = () => {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const fontPickerRef = useRef<HTMLDivElement>(null);
+
+  // Handle prompt from URL params (from onboarding/daily reflection)
+  // Prompt text is locked and cannot be edited
+  useEffect(() => {
+    const promptParam = searchParams.get("prompt");
+    const promptIdParam = searchParams.get("promptId");
+    if (promptParam) {
+      // Store prompt separately - not part of editable text
+      setPromptQuestion(promptParam);
+      setPromptId(promptIdParam);
+      // Text starts empty, user only edits their reflection
+      setText("");
+    }
+  }, [searchParams]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -210,15 +201,16 @@ const CardCreator: React.FC = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text,
+          text: displayText, // Send combined text (prompt + reflection)
           userId: user.uid,
-          backgroundStyle: { 
+          backgroundStyle: {
             id: bg.id,
-            type: bg.type, 
-            value: bg.value, 
-            text: bg.text 
+            type: bg.type,
+            value: bg.value,
+            text: bg.text,
           },
           fontFamily: selectedFont.id,
+          promptId: promptId || undefined, // Metadata about which prompt was used
         }),
       });
       if (res.ok) {
@@ -232,7 +224,7 @@ const CardCreator: React.FC = () => {
     }
   };
 
-  const maxChars = 200;
+  const maxChars = 300;
   const charsCount = text.length;
   const charsRatio = Math.min(charsCount / maxChars, 1);
   const radius = 11;
@@ -241,10 +233,11 @@ const CardCreator: React.FC = () => {
   const isNearLimit = maxChars - charsCount <= 40;
   const isOverLimit = charsCount > maxChars;
 
-  const bgStyle =
-    bg.type === "gradient"
-      ? { backgroundImage: bg.value }
-      : { backgroundColor: bg.value };
+  // Combined text for card preview (shows both prompt context and reflection)
+  const displayText = promptQuestion
+    ? `Reflecting on: "${promptQuestion}"\n\n${text}`
+    : text;
+
 
   return (
     <div className="flex flex-col w-full h-[100dvh] bg-background">
@@ -318,33 +311,72 @@ const CardCreator: React.FC = () => {
               {profile?.name || user?.displayName || "Anonymous"}
             </span>
             <span className="text-muted-foreground text-[12px]">
-              @{profile?.username || ((profile?.name || user?.displayName)?.replace(/\s+/g, "").toLowerCase() || "guest")}
+              @
+              {profile?.username ||
+                (profile?.name || user?.displayName)
+                  ?.replace(/\s+/g, "")
+                  .toLowerCase() ||
+                "guest"}
             </span>
           </div>
         </div>
+
+        {/* Prompt indicator - shows when responding to daily prompt (locked, not editable) */}
+        {promptId && promptQuestion && (
+          <div className="mb-4 px-3 py-2.5 bg-secondary/50 border border-border/50 rounded-xl shadow-sm">
+            <p className="text-xs text-foreground/90 font-medium">
+              Responding to: &quot;{promptQuestion}&quot;
+            </p>
+          </div>
+        )}
 
         {/* Live card preview */}
         <div
           ref={cardRef}
           className={`relative w-full ${isExporting ? "!rounded-none !border-none min-w-[380px]  flex flex-col justify-center" : "rounded-2xl"} shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[200px] transition-all duration-300`}
-          style={{ ...bgStyle, color: bg.text }}
+          style={{ background: bg.value, color: bg.text }}
         >
           {/* Grouped content for centered alignment */}
-          <div className={`relative z-10 w-full pt-10 ${isExporting ? "flex flex-col items-start px-8 py-2" : ""}`}>
+          <div
+            className={`relative z-10 w-full pt-10 ${isExporting ? "flex flex-col items-start px-8 py-2" : ""}`}
+          >
             {/* Decorative quote */}
-            <span 
-              className={isExporting ? "relative mb-1 block text-[64px] font-black opacity-[0.08]" : "thought-card-quote !left-[24px] md:!left-[32px]"} 
+            <span
+              className={
+                isExporting
+                  ? "relative mb-1 block text-[64px] font-black opacity-[0.08]"
+                  : "thought-card-quote !left-[24px] md:!left-[32px]"
+              }
               style={{ color: bg.text, fontFamily: "'Georgia', serif" }}
             >
               &ldquo;
             </span>
+
+            {/* Locked prompt context (if responding to a reflection prompt) */}
+            {promptQuestion && (
+              <div
+                className={`px-6 md:px-8 mb-3 italic ${fontSize.cls}`}
+                style={{
+                  color: bg.text === "#171717" ? "rgba(0,0,0,0.6)" : "#f5f5f5",
+                  fontFamily: selectedFont.family,
+                  opacity: 0.85,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Reflecting on:</span>
+                {"\n"}&quot;{promptQuestion}&quot;
+              </div>
+            )}
 
             <textarea
               ref={textAreaRef}
               id="post-textarea"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="What's fueling your mind?"
+              placeholder={
+                promptQuestion
+                  ? "Share your reflection..."
+                  : "What's fueling your mind?"
+              }
               className={`w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-6 md:px-8 ${isExporting ? "text-[22px] sm:text-[26px] px-0" : fontSize.cls + "pb-8"}`}
               style={{ color: bg.text, fontFamily: selectedFont.family }}
               rows={4}

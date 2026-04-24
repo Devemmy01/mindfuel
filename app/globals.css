@@ -179,6 +179,15 @@
   background-color: hsl(220 9% 40%);
 }
 
+/* Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
 /* ===========================
    SAFE AREA UTILITIES (PWA)
    =========================== */

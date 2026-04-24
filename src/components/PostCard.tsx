@@ -43,6 +43,7 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
 
 interface PostCardProps {
   post: PostType;
+  isHighlighted?: boolean;
 }
 
 const isColorLight = (hex: string) => {
@@ -58,13 +59,35 @@ const isColorLight = (hex: string) => {
 
 // backgroundOptions imported from lib
 
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(post.text);
+
+  // Extract prompt prefix and reflection text from saved combined string
+  const getParsedData = React.useCallback(() => {
+    if (!post.promptId) return { prefix: null, text: post.text };
+    const text = post.text;
+    // Extract: 'Reflecting on: "..."' allowing flexible spacing/newlines after
+    const match = text.match(/^(Reflecting on: "[^"]+")\s*([\s\S]*)$/);
+    if (match) {
+      return { prefix: match[1], text: match[2].trimStart() };
+    }
+    return { prefix: null, text: text };
+  }, [post.promptId, post.text]);
+
+  const parsedData = React.useMemo(() => getParsedData(), [getParsedData]);
+  const promptPrefix = parsedData.prefix;
+  const [editText, setEditText] = useState(parsedData.text);
+
+  React.useEffect(() => {
+    if (isEditing) {
+      setEditText(parsedData.text);
+    }
+  }, [isEditing, parsedData.text]);
+
   const [editBg, setEditBg] = useState(() => {
     const foundBg = backgroundOptions.find(
       (o) => o.value === post.backgroundStyle.value,
@@ -268,7 +291,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.uid,
-          text: editText,
+          text: promptPrefix ? `${promptPrefix}\n\n${editText}` : editText,
           backgroundStyle: {
             id: editBg.id,
             type: editBg.type,
@@ -335,16 +358,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   if (isHidden) return null;
 
-  const bgStyle =
-    post.backgroundStyle.type === "gradient"
-      ? { backgroundImage: post.backgroundStyle.value }
-      : { backgroundColor: post.backgroundStyle.value };
 
-  const isLight =
-    post.backgroundStyle.value === "#ffffff" ||
-    post.backgroundStyle.value === "#F5F5DC" ||
-    post.backgroundStyle.value.toLowerCase() === "#f5f5dc";
-  const textColor = isLight ? "#171717" : "#ffffff";
+  const textColor = post.backgroundStyle.text || "#ffffff";
 
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
     addSuffix: false,
@@ -359,7 +374,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         animate={{ opacity: 1, y: 0 }}
         whileTap={{ scale: 0.995 }}
         onClick={() => router.push(`/post/${post._id}`)}
-        className="flex flex-row px-4 py-4 border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer group outline-none"
+        className={`flex flex-row px-4 py-4 border-b transition-all cursor-pointer group outline-none ${
+          isHighlighted
+            ? "bg-gradient-to-r from-brand-green/5 to-transparent border-brand-green/30 hover:bg-gradient-to-r hover:from-brand-green/8"
+            : "border-border hover:bg-secondary/20"
+        }`}
       >
         <div className="mr-3 flex-shrink-0 pt-0.5">
           <Link
@@ -506,7 +525,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
           <div
             ref={cardRef}
             className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
-            style={{ ...bgStyle, color: textColor }}
+            style={{ background: post.backgroundStyle.value, color: textColor }}
           >
             {/* Texture overlays */}
             <div
@@ -534,19 +553,31 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 &ldquo;
               </span>
 
-              <p
-                className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-14 text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+              <div
+                className={`relative ${isDownloading ? "px-0" : "px-6 md:px-8"} pt-4 pb-14 transition-all`}
                 style={{
                   fontFamily: getFontById(post.fontFamily ?? "inter").family,
                 }}
               >
-                {post.text}
-              </p>
+                {promptPrefix && (
+                  <div 
+                    className={`mb-4 italic opacity-80 ${isDownloading ? "text-[20px] sm:text-[24px]" : "text-[15px] sm:text-[17px]"}`}
+                    style={{ color: textColor === "#171717" ? "rgba(0,0,0,0.6)" : "#f5f5f5" }}
+                  >
+                    {promptPrefix}
+                  </div>
+                )}
+                <p
+                  className={`relative ${isDownloading ? "text-[22px] sm:text-[26px]" : "text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm`}
+                >
+                  {editText}
+                </p>
+              </div>
             </div>
             <CardWatermark color={textColor} isVisible={isDownloading} />
           </div>
 
-          <div className="flex items-center gap-1.5 pr-2">
+          <div className="flex items-center w-full mt-3 px-1">
             <InteractionBar
               postId={post._id}
               initialLikes={post.likesCount}
@@ -554,54 +585,55 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               initialComments={post.commentsCount || 0}
               initialIsLiked={post.isLiked ?? false}
               initialIsSaved={post.isSaved ?? false}
-            />
-            <div className="flex items-center relative" ref={shareMenuRef}>
-              <button
-                onClick={handleShareClick}
-                aria-label="Share"
-                aria-expanded={showShareMenu}
-                className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
-              >
-                <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
-                  <Share2
-                    className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`}
-                    strokeWidth={1.75}
-                  />
-                </div>
-              </button>
+            >
+              <div className="flex items-center relative" ref={shareMenuRef}>
+                <button
+                  onClick={handleShareClick}
+                  aria-label="Share"
+                  aria-expanded={showShareMenu}
+                  className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
+                >
+                  <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
+                    <Share2
+                      className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`}
+                      strokeWidth={1.75}
+                    />
+                  </div>
+                </button>
 
-              {showShareMenu && (
-                <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                  <button
-                    onClick={copyLink}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                  >
-                    <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy
-                    Link
-                  </button>
-                  <button
-                    onClick={shareToX}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                  >
-                    <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
-                  </button>
-                  <button
-                    onClick={shareToWhatsApp}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
-                  >
-                    <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share
-                    to WhatsApp
-                  </button>
-                  <button
-                    onClick={downloadCard}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                  >
-                    <Download className="w-4 h-4 text-brand-green" /> Download
-                    Image
-                  </button>
-                </div>
-              )}
-            </div>
+                {showShareMenu && (
+                  <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+                    <button
+                      onClick={copyLink}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                    >
+                      <LinkIcon className="w-4 h-4 text-muted-foreground" />{" "}
+                      Copy Link
+                    </button>
+                    <button
+                      onClick={shareToX}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                    >
+                      <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
+                    </button>
+                    <button
+                      onClick={shareToWhatsApp}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                    >
+                      <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share
+                      to WhatsApp
+                    </button>
+                    <button
+                      onClick={downloadCard}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                    >
+                      <Download className="w-4 h-4 text-brand-green" /> Download
+                      Image
+                    </button>
+                  </div>
+                )}
+              </div>
+            </InteractionBar>
           </div>
         </div>
       </motion.article>
@@ -643,6 +675,14 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 </button>
               </div>
               <div className="p-6">
+                {promptPrefix && (
+                  <div className="mb-4 px-4 py-3 bg-secondary/50 border border-border/50 rounded-xl shadow-sm">
+                    <p className="text-[14px] text-foreground/90 font-medium">
+                      {promptPrefix}
+                    </p>
+                  </div>
+                )}
+
                 {/* Live Preview Area */}
                 <div
                   className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[160px] mb-6 transition-all duration-300"
@@ -659,9 +699,10 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     ref={editTextAreaRef}
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
+                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-8 pb-14 text-[18px] scrollbar-dark relative z-10"
                     style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
+                    maxLength={300}
                     autoFocus
                   />
                   <CardWatermark color={editBg.text} />

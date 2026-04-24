@@ -2,7 +2,6 @@ import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import Image from "next/image";
 import "./globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -12,7 +11,6 @@ import MindfulTip from "@/components/MindfulTip";
 import { ToastProvider } from "@/providers/ToastProvider";
 import InstallPWA from "@/components/InstallPWA";
 import { Analytics } from "@vercel/analytics/react";
-
 
 // Google Fonts for card font picker
 const CARD_FONTS_URL =
@@ -102,6 +100,14 @@ export const metadata: Metadata = {
     title: "MindFuel — Fuel Your Mind Daily",
     description:
       "A calm, intentional space to share your thoughts, curations, and ideas. Join MindFuel and share what fuels your mind.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "MindFuel — Fuel Your Mind Daily",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -109,6 +115,7 @@ export const metadata: Metadata = {
     description:
       "A calm, intentional space to share your thoughts and ideas without the noise.",
     creator: "@mindfuelapp",
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: baseUrl,
@@ -172,7 +179,11 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         {/* Load card fonts */}
         <link href={CARD_FONTS_URL} rel="stylesheet" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -185,61 +196,61 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ToastProvider>
-              {/* Top accent line */}
-              <div className="brand-accent-line" />
+            {/* Top accent line */}
+            <div className="brand-accent-line" />
 
-              <div className="min-h-screen bg-background text-foreground selection:bg-brand-green/20 flex justify-center">
-                <div className="flex w-full max-w-[1280px] relative">
+            <div className="min-h-screen bg-background text-foreground selection:bg-brand-green/20 flex justify-center">
+              <div className="flex w-full max-w-[1280px] relative">
+                {/* ── Left Sidebar (Navbar) ── */}
+                <Navbar />
 
-                  {/* ── Left Sidebar (Navbar) ── */}
-                  <Navbar />
+                {/* ── Main Feed Column ── */}
+                <main className="flex-grow w-full min-w-0 md:max-w-[600px] md:border-x md:border-border min-h-[100dvh]">
+                  {children}
+                </main>
 
-                  {/* ── Main Feed Column ── */}
-                  <main className="flex-grow w-full min-w-0 md:max-w-[600px] md:border-x md:border-border min-h-[100dvh]">
-                    {children}
-                  </main>
+                {/* ── Right Rail (lg+) ── */}
+                <aside className="hidden lg:flex flex-col w-[350px] shrink-0 sticky top-0 h-screen py-6 pl-8 pr-4 overflow-y-auto no-scrollbar scroll-smooth">
+                  {/* Search */}
+                  <SearchUsers />
 
+                  {/* Mindful Tip */}
+                  <MindfulTip />
 
-                  {/* ── Right Rail (lg+) ── */}
-                  <aside className="hidden lg:flex flex-col w-[350px] shrink-0 sticky top-0 h-screen py-6 pl-8 pr-4 overflow-y-auto no-scrollbar scroll-smooth">
-                    
-                    {/* Search */}
-                    <SearchUsers />
-                    
-                    {/* Mindful Tip */}
-                    <MindfulTip />
+                  {/* Saved Reflections */}
+                  <MindfulSaves />
 
-                    {/* Saved Reflections */}
-                    <MindfulSaves />
-
-                    {/* Subdued Footer */}
-                    <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
-                      <div className="flex flex-wrap gap-x-5 gap-y-2">
-                        {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-                          <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100">
-                            {l}
-                          </Link>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-5 h-5 bg-foreground/5 rounded-md flex items-center justify-center">
-                           <Image src="/logo.png" alt="" width={20} height={20} />
-                        </div>
-                        <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
-                          MindFuel - a <a href="http://lumynhq.studio" className="text-brand-green underline">Lumyn</a> product.
-                        </p>
-                      </div>
-                      <a href="https://fazier.com/launches/www.mind-fuel.app" target="_blank" rel="noopener noreferrer">
-            <Image src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=dark" width={120} height={40} alt="Fazier badge" />
-          </a>
-                    </footer>
-                  </aside>
-
-                </div>
+                  {/* Subdued Footer */}
+                  <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {["About", "Privacy", "Terms", "Cookies"].map((l) => (
+                        <Link
+                          href={`/${l.toLowerCase()}`}
+                          key={l}
+                          className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100"
+                        >
+                          {l}
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
+                        MindFuel - a{" "}
+                        <a
+                          href="http://lumynhq.studio"
+                          className="text-brand-green underline"
+                        >
+                          Lumyn
+                        </a>{" "}
+                        product.
+                      </p>
+                    </div>
+                  </footer>
+                </aside>
               </div>
+            </div>
             <InstallPWA />
             <Analytics />
-
           </ToastProvider>
         </AuthProvider>
       </body>

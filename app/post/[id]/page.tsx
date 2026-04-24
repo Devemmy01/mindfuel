@@ -121,6 +121,26 @@ export default function PostDetailPage() {
   }, [id, user?.uid]);
 
   // Close menus on outside click
+  // Extract prompt prefix and reflection text from saved combined string
+  const getParsedData = React.useCallback(() => {
+    if (!post?.promptId) return { prefix: null, text: post?.text || "" };
+    const text = post.text;
+    const match = text.match(/^(Reflecting on: "[^"]+")\s*([\s\S]*)$/);
+    if (match) {
+      return { prefix: match[1], text: match[2].trimStart() };
+    }
+    return { prefix: null, text: text };
+  }, [post]);
+
+  const parsedData = React.useMemo(() => getParsedData(), [getParsedData]);
+  const promptPrefix = parsedData.prefix;
+
+  useEffect(() => {
+    if (post && !isEditing) {
+      setEditText(parsedData.text);
+    }
+  }, [post, isEditing, parsedData.text]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node)) {
@@ -503,12 +523,24 @@ export default function PostDetailPage() {
                 &ldquo;
               </span>
 
-              <p
-                className={`relative ${isDownloading ? "text-[22px] sm:text-[26px] px-0" : "px-6 md:px-8 pt-4 pb-16 text-[20px] sm:text-[24px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm transition-all`}
+              <div
+                className={`relative ${isDownloading ? "px-0" : "px-6 md:px-8"} pt-4 pb-16 transition-all`}
                 style={{ fontFamily: getFontById(post.fontFamily ?? "inter").family }}
               >
-                {post.text}
-              </p>
+                {promptPrefix && (
+                  <div 
+                    className={`mb-4 italic opacity-80 ${isDownloading ? "text-[22px] sm:text-[26px]" : "text-[16px] sm:text-[18px]"}`}
+                    style={{ color: isColorLight(bgStyle.backgroundColor || "") ? "rgba(0,0,0,0.6)" : "#f5f5f5" }}
+                  >
+                    {promptPrefix}
+                  </div>
+                )}
+                <p
+                  className={`relative ${isDownloading ? "text-[22px] sm:text-[26px]" : "text-[20px] sm:text-[24px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm`}
+                >
+                  {editText}
+                </p>
+              </div>
             </div>
             {/* Watermark */}
             <CardWatermark color={textColor} isVisible={isDownloading} />
@@ -542,56 +574,56 @@ export default function PostDetailPage() {
             initialIsLiked={isLiked}
             initialIsSaved={isSaved}
             showViews={false} // Already shown above in detail view
-          />
-          
-          <div
-            className="flex justify-center relative"
-            ref={shareMenuRef}
           >
-            <button
-              onClick={handleShareClick}
-              className={`flex justify-center p-2 w-full transition-colors rounded-xl group ${
-                showShareMenu
-                  ? "text-blue-500 bg-blue-500/5"
-                  : "text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5"
-              }`}
+            <div
+              className="flex justify-center relative"
+              ref={shareMenuRef}
             >
-              <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            </button>
+              <button
+                onClick={handleShareClick}
+                className={`flex justify-center p-2 w-full transition-colors rounded-xl group ${
+                  showShareMenu
+                    ? "text-blue-500 bg-blue-500/5"
+                    : "text-muted-foreground hover:text-blue-500 hover:bg-blue-500/5"
+                }`}
+              >
+                <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              </button>
 
-            {/* Share Dropdown */}
-            {showShareMenu && (
-              <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                <button
-                  onClick={copyLink}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                >
-                  <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy
-                  Link
-                </button>
-                <button
-                  onClick={shareToX}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                >
-                  <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
-                </button>
-                <button
-                  onClick={shareToWhatsApp}
-                  className="calc-w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
-                >
-                  <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share to
-                  WhatsApp
-                </button>
-                <button
-                  onClick={downloadCard}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                >
-                  <Download className="w-4 h-4 text-brand-green" /> Download
-                  Image
-                </button>
-              </div>
-            )}
-          </div>
+              {/* Share Dropdown */}
+              {showShareMenu && (
+                <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
+                  <button
+                    onClick={copyLink}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <LinkIcon className="w-4 h-4 text-muted-foreground" /> Copy
+                    Link
+                  </button>
+                  <button
+                    onClick={shareToX}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
+                  </button>
+                  <button
+                    onClick={shareToWhatsApp}
+                    className="calc-w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share to
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={downloadCard}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Download className="w-4 h-4 text-brand-green" /> Download
+                    Image
+                  </button>
+                </div>
+              )}
+            </div>
+          </InteractionBar>
         </div>
       </article>
 
@@ -644,7 +676,7 @@ export default function PostDetailPage() {
                     className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
                     style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
-                    maxLength={200}
+                    maxLength={300}
                     autoFocus
                   />
                   <CardWatermark color={editBg.text} />

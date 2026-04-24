@@ -50,7 +50,7 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
           <Section style={boxCard}>
             <Text style={boxTitle}>Getting Started</Text>
             <Text style={listItem}>
-              ✨ <strong>Share your first thought:</strong> Use the card creator
+              <strong>Share your first thought:</strong> Use the card creator
               to design a beautiful reflection.
             </Text>
             <Text style={listItem}>

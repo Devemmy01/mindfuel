@@ -3,13 +3,16 @@ import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
 import Like from "@/models/like";
+import Save from "@/models/save";
 import { PostType } from "@/types";
+import { updateStreak } from "@/lib/streakUtils";
 
 // GET /api/posts - Fetch feed or user posts
 export async function GET(req: NextRequest) {
   try {
     await connectToDB();
     const firebaseId = req.nextUrl.searchParams.get("userId");
+    const currentUserId = req.nextUrl.searchParams.get("currentUserId");
     const type = req.nextUrl.searchParams.get("type"); // 'liked' or null (default)
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10");
@@ -73,7 +76,30 @@ export async function GET(req: NextRequest) {
 
     const hasMore = total > skip + validPosts.length;
 
-    return NextResponse.json({ posts: validPosts, hasMore, total }, { status: 200 });
+    // Fetch user-specific data if currentUserId is provided
+    let likedPostIds: Set<string> = new Set();
+    let savedPostIds: Set<string> = new Set();
+
+    if (currentUserId && validPosts.length > 0) {
+      const currentUserDoc = await User.findOne({ firebaseId: currentUserId }).select("_id").lean() as { _id: string } | null;
+      if (currentUserDoc) {
+        const postIds = validPosts.map(p => p._id);
+        const [likes, saves] = await Promise.all([
+          Like.find({ userId: currentUserDoc._id, postId: { $in: postIds } }).select("postId").lean().exec() as unknown as Promise<Array<{ postId: { toString(): string } }>>,
+          Save.find({ userId: currentUserDoc._id, postId: { $in: postIds } }).select("postId").lean().exec() as unknown as Promise<Array<{ postId: { toString(): string } }>>
+        ]);
+        likedPostIds = new Set(likes.map(l => l.postId.toString()));
+        savedPostIds = new Set(saves.map(s => s.postId.toString()));
+      }
+    }
+
+    const enrichedPosts = validPosts.map(post => ({
+      ...post,
+      isLiked: likedPostIds.has(post._id.toString()),
+      isSaved: savedPostIds.has(post._id.toString())
+    }));
+
+    return NextResponse.json({ posts: enrichedPosts, hasMore, total }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
@@ -87,7 +113,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { text, userId: firebaseId, backgroundStyle, fontFamily, isSponsored } = await req.json();
+    const { text, userId: firebaseId, backgroundStyle, fontFamily, isSponsored, promptId } = await req.json();
 
     if (!text || !firebaseId) {
       return NextResponse.json(
@@ -107,11 +133,34 @@ export async function POST(req: NextRequest) {
       backgroundStyle,
       fontFamily: fontFamily || "inter",
       isSponsored: isSponsored || false,
+      promptId: promptId || undefined,
       views: 0,
       likesCount: 0,
     });
 
-    return NextResponse.json({ post: newPost }, { status: 201 });
+    // Update user's reflection streak
+    const streakUpdate = updateStreak(
+      user.lastReflectionDate,
+      user.streakDays || 0,
+      user.longestStreak || 0
+    );
+
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      streakUpdate,
+      { new: true }
+    );
+
+    return NextResponse.json(
+      { 
+        post: newPost,
+        streak: {
+          streakDays: updatedUser?.streakDays || 0,
+          longestStreak: updatedUser?.longestStreak || 0,
+        }
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

@@ -5,6 +5,7 @@ import User from "@/models/user";
 import Like, { ILike } from "@/models/like";
 import Save, { ISave } from "@/models/save";
 import { PostType } from "@/types";
+import { getTodayPrompt } from "@/lib/dailyPrompts";
 
 // In-memory cache for the global feed
 const globalFeedCache: {
@@ -18,7 +19,6 @@ export async function GET(req: NextRequest) {
     await connectToDB();
 
     const firebaseId = req.nextUrl.searchParams.get("userId");
-    const sort = req.nextUrl.searchParams.get("sort") || "trending"; // trending or newest
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     let validPosts: PostType[] = [];
     let total = 0;
 
-    const cacheKey = `feed_${sort}_${page}_${limit}`;
+    const cacheKey = `feed_${page}_${limit}`;
     const now = Date.now();
 
     // 1. Fetch Global Data (Cached if possible)
@@ -34,77 +34,78 @@ export async function GET(req: NextRequest) {
       validPosts = globalFeedCache[cacheKey].validPosts;
       total = globalFeedCache[cacheKey].total;
     } else {
-      let populatedPosts: unknown[];
-      let totalCount: number;
+      // Get today's prompt ID for boosting
+      const todayPrompt = getTodayPrompt();
 
-      if (sort === "trending") {
-        // Trending Algorithm: (Engagement) / (Age + 2)^1.8
-        [populatedPosts, totalCount] = await Promise.all([
-          Post.aggregate([
-            {
-              $addFields: {
-                // MS to Hours
-                ageInHours: {
-                  $divide: [{ $subtract: [new Date(), "$createdAt"] }, 3600000]
-                }
-              }
-            },
-            {
-              $addFields: {
-                trendingScore: {
-                  $divide: [
-                    {
-                      $add: [
-                        { $multiply: [{ $ifNull: ["$likesCount", 0] }, 3] },
-                        { $multiply: [{ $ifNull: ["$commentsCount", 0] }, 5] },
-                        { $multiply: [{ $ifNull: ["$views", 0] }, 0.1] },
-                        0.1 // Base score for newest items
-                      ]
-                    },
-                    { $pow: [{ $add: ["$ageInHours", 2] }, 1.8] }
-                  ]
-                }
-              }
-            },
-            { $sort: { trendingScore: -1, createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
-            {
-              $lookup: {
-                from: "users",
-                localField: "userId",
-                foreignField: "_id",
-                as: "userId"
-              }
-            },
-            { $unwind: "$userId" },
-            {
-              $project: {
-                "userId.pushSubscriptions": 0,
-                "userId.__v": 0,
-                "userId.createdAt": 0,
-                "userId.updatedAt": 0,
-                "userId.preferences": 0,
+      // Intelligent Feed Algorithm: Balance recency and engagement
+      // Recent posts get priority, but quality content rises to the top
+      const [populatedPosts, totalCount] = await Promise.all([
+        Post.aggregate([
+          {
+            $addFields: {
+              // MS to Hours
+              ageInHours: {
+                $divide: [{ $subtract: [new Date(), "$createdAt"] }, 3600000]
+              },
+              // Boost posts responding to today's prompt (3x multiplier for relevance)
+              promptBoost: {
+                $cond: [
+                  { $eq: ["$promptId", todayPrompt.id] },
+                  3,
+                  1
+                ]
               }
             }
-          ]),
-          Post.estimatedDocumentCount()
-        ]);
-      } else {
-        // Simple Newest sort
-        [populatedPosts, totalCount] = await Promise.all([
-          Post.find({})
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .populate({
-              path: "userId",
-              select: "name username image firebaseId",
-            })
-            .lean(),
-          Post.estimatedDocumentCount()
-        ]);
-      }
+          },
+          {
+            $addFields: {
+              // Intelligent score: (Engagement × Quality) / (Age + 1)^1.1
+              // Twitter-inspired weighting: Likes (30x), Comments (50x), Views (0.1x)
+              // This rewards quality while maintaining a fresh feed.
+              feedScore: {
+                $divide: [
+                  {
+                    $multiply: [
+                      {
+                        $add: [
+                          { $multiply: [{ $ifNull: ["$likesCount", 0] }, 30] },
+                          { $multiply: [{ $ifNull: ["$commentsCount", 0] }, 50] },
+                          { $multiply: [{ $ifNull: ["$views", 0] }, 0.1] },
+                          10 // Base score to ensure new posts surface
+                        ]
+                      },
+                      "$promptBoost" // Apply prompt boost multiplier
+                    ]
+                  },
+                  { $pow: [{ $add: ["$ageInHours", 1] }, 1.1] } // Maintain gravity at 1.1 for freshness
+                ]
+              }
+            }
+          },
+          { $sort: { feedScore: -1, createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: "users",
+              localField: "userId",
+              foreignField: "_id",
+              as: "userId"
+            }
+          },
+          { $unwind: "$userId" },
+          {
+            $project: {
+              "userId.pushSubscriptions": 0,
+              "userId.__v": 0,
+              "userId.createdAt": 0,
+              "userId.updatedAt": 0,
+              "userId.preferences": 0,
+            }
+          }
+        ]),
+        Post.estimatedDocumentCount()
+      ]);
 
       validPosts = (populatedPosts as unknown as PostType[]).filter((p) => p.userId);
       total = totalCount;

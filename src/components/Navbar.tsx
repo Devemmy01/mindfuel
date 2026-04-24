@@ -252,7 +252,7 @@ export default function Navbar() {
                 target="_self"
                 className="outline-none block w-full"
               >
-                <div className="bg-[#00a855] active:bg-[#009950] text-white font-bold transition-colors rounded-2xl flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">
+                <div className="bg-[#00a855] active:bg-[#009950] text-white font-bold transition-colors rounded-full flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">
                   <Plus className="w-5 h-5 flex-shrink-0" strokeWidth={3} />
                   <span className="hidden xl:inline text-[15px]">New Post</span>
                 </div>

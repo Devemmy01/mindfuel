@@ -14,6 +14,7 @@ interface InteractionBarProps {
   initialIsLiked: boolean;
   initialIsSaved: boolean;
   showViews?: boolean;
+  children?: React.ReactNode;
 }
 
 const fmt = (n: number) => {
@@ -30,6 +31,7 @@ export default function InteractionBar({
   initialIsLiked,
   initialIsSaved,
   showViews = true,
+  children,
 }: InteractionBarProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -114,7 +116,7 @@ export default function InteractionBar({
   };
 
   return (
-    <div className="flex items-center justify-between text-muted-foreground w-full">
+    <div className="flex items-center justify-between w-full text-muted-foreground">
       {/* Comments */}
       <button
         onClick={handleComment}
@@ -182,6 +184,7 @@ export default function InteractionBar({
           />
         </div>
       </button>
+      {children}
     </div>
   );
 }

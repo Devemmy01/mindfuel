@@ -14,6 +14,7 @@ export interface IPost extends Document {
     text?: string;
   };
   fontFamily: string;
+  promptId?: string;
   viewedBy?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -70,6 +71,10 @@ const PostSchema = new Schema(
     fontFamily: {
       type: String,
       default: "inter",
+    },
+    promptId: {
+      type: String,
+      default: null,
     },
     viewedBy: {
       type: [String],

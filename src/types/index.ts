@@ -13,10 +13,12 @@ export interface PostType {
   commentsCount?: number;
   isSponsored?: boolean;
   backgroundStyle: {
+    text: string;
     type: "color" | "gradient" | string;
     value: string;
   };
   fontFamily?: string;
+  promptId?: string;
   createdAt: string;
   isLiked?: boolean;
   isSaved?: boolean;

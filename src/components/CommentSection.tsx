@@ -332,7 +332,7 @@ const CommentSection: React.FC<{
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a reflection…"
                 rows={1}
-                maxLength={200}
+                maxLength={300}
                 className="flex-1 bg-transparent border-none outline-none resize-none text-[14px] placeholder:text-muted-foreground leading-snug max-h-24"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {

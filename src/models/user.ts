@@ -19,6 +19,9 @@ export interface IUser extends Document {
       auth: string;
     };
   }>;
+  streakDays: number;
+  lastReflectionDate?: Date;
+  longestStreak: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +83,18 @@ const UserSchema = new Schema(
         },
       ],
       default: [],
+    },
+    streakDays: {
+      type: Number,
+      default: 0,
+    },
+    lastReflectionDate: {
+      type: Date,
+      default: null,
+    },
+    longestStreak: {
+      type: Number,
+      default: 0,
     },
   },
 

@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
+import StreakDisplay from "@/components/StreakDisplay";
+import ReflectionCalendar from "@/components/ReflectionCalendar";
 import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
@@ -21,8 +23,10 @@ export default function DynamicProfilePage() {
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [posts, setPosts] = useState<PostType[]>([]);
+  const [allUserPosts, setAllUserPosts] = useState<PostType[]>([]);
   const [ownPostCount, setOwnPostCount] = useState(0);
   const [ownLikesCount, setOwnLikesCount] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -68,17 +72,19 @@ export default function DynamicProfilePage() {
           } else {
             const userData = await userRes.json();
             setProfileUser(userData.user);
+            setStreakDays(userData.user.streakDays || 0);
             setEditName(userData.user.name || "");
             setEditUsername(userData.user.username || userData.user.name.replace(/\s+/g, "").toLowerCase());
             setEditBio(userData.user.bio || "");
             setEditImage(userData.user.image || "");
 
-            // Also fetch total stats once
             const statsRes = await fetch(`/api/posts?userId=${profileId}`);
             const statsData = await statsRes.json();
-            setOwnPostCount(statsData.posts?.length || 0);
+            const userPosts = statsData.posts || [];
+            setAllUserPosts(userPosts);
+            setOwnPostCount(userPosts.length);
             setOwnLikesCount(
-              statsData.posts?.reduce(
+              userPosts.reduce(
                 (acc: number, p: { likesCount: number }) => acc + p.likesCount,
                 0
               ) || 0
@@ -89,19 +95,21 @@ export default function DynamicProfilePage() {
         // Fetch Content based on activeTab
         setPosts([]); // Clear immediately for better UX
         let postsData: PostType[] = [];
+        const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
+        
         if (activeTab === "Saved") {
-          const res = await fetch(`/api/saves?userId=${profileId}`);
+          const res = await fetch(`/api/saves?userId=${profileId}${currentUserQuery}`);
           const data = await res.json();
           // Transform saves to posts
           postsData = (data.saves || [])
             .map((s: { postId: PostType }) => s.postId)
             .filter(Boolean);
         } else if (activeTab === "Liked") {
-          const res = await fetch(`/api/posts?userId=${profileId}&type=liked`);
+          const res = await fetch(`/api/posts?userId=${profileId}&type=liked${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         } else {
-          const res = await fetch(`/api/posts?userId=${profileId}`);
+          const res = await fetch(`/api/posts?userId=${profileId}${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         }
@@ -397,11 +405,20 @@ export default function DynamicProfilePage() {
             <span className="font-bold text-[16px]">{ownLikesCount}</span>
             <span className="text-muted-foreground text-[13px]">Likes</span>
           </div>
+          {streakDays > 0 && (
+            <StreakDisplay streakDays={streakDays} size="sm" />
+          )}
           <div className="flex items-center gap-1.5 text-muted-foreground text-[13px]">
             <CalendarDays className="w-3.5 h-3.5" />
             <span className="pt-1">Joined {joinedDate}</span>
           </div>
         </div>
+
+        {allUserPosts.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-border/40">
+            <ReflectionCalendar posts={allUserPosts} />
+          </div>
+        )}
 
         {/* Mobile Footers */}
         <div className="lg:hidden mt-6 pt-5 border-t border-border/40 flex flex-col gap-3">
