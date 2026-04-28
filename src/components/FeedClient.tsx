@@ -10,6 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
 // Skeleton card
 function SkeletonCard() {
@@ -29,92 +30,160 @@ function SkeletonCard() {
   );
 }
 
-interface FeedClientProps {
-  initialPosts: PostType[];
-  initialHasMore: boolean;
-}
-
-export default function FeedClient({ initialPosts, initialHasMore }: FeedClientProps) {
+export default function FeedClient() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("feed");
-  const [posts, setPosts] = useState<PostType[]>(initialPosts);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const currentPageRef = useRef(1);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const observerTarget = React.useRef<HTMLDivElement>(null);
+  
+  // Simplify state to remove pagination logic
+  const [feedPosts, setFeedPosts] = useState<PostType[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const isFetchingFeed = useRef(false);
 
-  const fetchPosts = useCallback(async (isRefresh = false, pageNum = 1) => {
+  const [reflectionPosts, setReflectionPosts] = useState<PostType[]>([]);
+  const [reflectionLoading, setReflectionLoading] = useState(false);
+  const isFetchingReflections = useRef(false);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Computed values based on active tab
+  const posts = activeTab === "feed" ? feedPosts : reflectionPosts;
+  const loading = activeTab === "feed" ? feedLoading : reflectionLoading;
+
+  const fetchPosts = useCallback(async (type: "feed" | "reflections", isRefresh = false) => {
+    const isFeed = type === "feed";
+    const isFetchingRef = isFeed ? isFetchingFeed : isFetchingReflections;
+    
+    if (isFetchingRef.current && !isRefresh) return;
+    isFetchingRef.current = true;
+
+    const setLoading = isFeed ? setFeedLoading : setReflectionLoading;
+    const setPosts = isFeed ? setFeedPosts : setReflectionPosts;
+
     if (isRefresh) {
       setRefreshing(true);
-      currentPageRef.current = 1;
-      setHasMore(true);
-    } else if (pageNum === 1) {
-      setLoading(true);
     } else {
-      setLoadingMore(true);
+      setLoading(true);
     }
 
     try {
       const userId = user?.uid ? `&userId=${user.uid}` : "";
-      const res = await fetch(`/api/posts/feed?page=${pageNum}&limit=10${userId}`);
+      const bustParam = isRefresh ? "&bust=1" : "";
+      
+      const res = await fetch(`/api/posts/feed?type=${type}${userId}${bustParam}`);
+      if (!res.ok) throw new Error("Fetch failed");
       const data = await res.json();
 
-      if (pageNum === 1) {
-        setPosts(data.posts || []);
-      } else {
-        setPosts((prev) => [...prev, ...(data.posts || [])]);
-      }
-
-      setHasMore(data.hasMore);
+      setPosts(data.posts || []);
     } catch (err) {
-      console.error("Failed to fetch posts", err);
+      console.error(`Failed to fetch ${type} posts`, err);
     } finally {
       setLoading(false);
       setRefreshing(false);
-      setLoadingMore(false);
+      isFetchingRef.current = false;
     }
   }, [user]);
 
+  // Initial fetch and tab-switching fetch
   useEffect(() => {
-    const currentTarget = observerTarget.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
-          const next = ++currentPageRef.current;
-          fetchPosts(false, next);
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    if (currentTarget) observer.observe(currentTarget);
-    return () => {
-      if (currentTarget) observer.unobserve(currentTarget);
-    };
-  }, [hasMore, loading, loadingMore, fetchPosts]);
-
-  const hasFetched = useRef(false);
-  const lastUserId = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    // Fetch immediately on mount if we have no initial posts
-    if (!hasFetched.current && initialPosts.length === 0) {
-      hasFetched.current = true;
-      lastUserId.current = user?.uid;
-      fetchPosts(false, 1);
-    } 
-    // If user state hydrates later (logs in), refresh in background to get likes/saves
-    else if (user && user.uid !== lastUserId.current && hasFetched.current) {
-      lastUserId.current = user.uid;
-      fetchPosts(true);
+    const currentPosts = activeTab === "feed" ? feedPosts : reflectionPosts;
+    if (currentPosts.length === 0) {
+      fetchPosts(activeTab);
     }
-  }, [user, fetchPosts, initialPosts.length]);
+  }, [activeTab, fetchPosts, feedPosts, reflectionPosts]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleTabClick = (tab: "feed" | "reflections") => {
+    if (activeTab === tab) {
+      scrollToTop();
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
+  const hasHydrated = useRef(false);
+  const lastUserId = useRef<string | undefined>(undefined);
+  const lastFetchTime = useRef<number>(Date.now());
+
+  // Handle user hydration and auth state changes
+  useEffect(() => {
+    if (!user) {
+      if (hasHydrated.current && lastUserId.current) {
+        // User logged out
+        lastUserId.current = undefined;
+        fetchPosts("feed", true);
+        fetchPosts("reflections", true);
+      }
+      return;
+    }
+
+    if (user.uid !== lastUserId.current) {
+      hasHydrated.current = true;
+      lastUserId.current = user.uid;
+
+      // Always refresh if the user state changes to ensure we have the correct liked/saved statuses
+      // and fresh content for the authenticated state.
+      fetchPosts("feed", true);
+      fetchPosts("reflections", true);
+    }
+  }, [user, fetchPosts]);
+
+  // Visibility-based auto-refresh: if user comes back after 2+ min, quietly reload feed
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const elapsed = Date.now() - lastFetchTime.current;
+        if (elapsed > 2 * 60 * 1000) { // 2 minutes
+          lastFetchTime.current = Date.now();
+          fetchPosts(activeTab, true);
+        }
+      } else {
+        // Record when we left
+        lastFetchTime.current = Date.now();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [fetchPosts, activeTab]);
+
+  // Pull-to-refresh
+  const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
+    onRefresh: () => fetchPosts(activeTab, true),
+  });
 
   return (
-    <>
+    <div ref={containerRef} className="relative">
       <OnboardingOverlay />
+
+      {/* Pull-to-refresh indicator — fixed so it doesn't affect layout */}
+      <AnimatePresence>
+        {(pullDistance > 8 || isPullRefreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            className="fixed top-16 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          >
+            <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-brand-green ${
+                  isPullRefreshing ? "animate-spin" : ""
+                }`}
+                style={{
+                  transform: isPullRefreshing
+                    ? undefined
+                    : `rotate(${Math.min(pullDistance * 3, 280)}deg)`,
+                }}
+              />
+              {isPullRefreshing && (
+                <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
@@ -130,7 +199,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             />
           </div>
           <button
-            onClick={() => fetchPosts(true)}
+            onClick={() => fetchPosts(activeTab, true)}
             aria-label="Refresh feed"
             className="w-9 h-9 flex items-center md:hidden justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
@@ -143,7 +212,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
         {/* Simple header title */}
         <div className="flex border-b border-border/30">
           <button
-            onClick={() => setActiveTab("feed")}
+            onClick={() => handleTabClick("feed")}
             className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
               activeTab === "feed"
                 ? "text-brand-green border-b-2 border-brand-green"
@@ -153,7 +222,7 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
             Feed
           </button>
           <button
-            onClick={() => setActiveTab("reflections")}
+            onClick={() => handleTabClick("reflections")}
             className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
               activeTab === "reflections"
                 ? "text-brand-green border-b-2 border-brand-green"
@@ -180,44 +249,44 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
           </motion.div>
         ) : posts.length > 0 ? (
           <motion.div
-            key="feed"
+            key={`${activeTab}-content`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
             {activeTab === "reflections" ? (
               <div className="px-4 pt-4">
-                <DailyReflectionPrompt responseCount={posts.filter(p => p.promptId).length} />
+                <DailyReflectionPrompt responseCount={posts.length} />
                 <div className="mt-4">
-                  {posts.filter(p => p.promptId).map((post, i) => (
+                  {posts.map((post, i) => (
                     <motion.div
                       key={post._id}
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04, duration: 0.3 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-20px" }}
+                      transition={{ 
+                        duration: 0.4, 
+                        ease: [0.21, 0.47, 0.32, 0.98],
+                        delay: Math.min(i * 0.05, 0.3) // Limit initial stagger delay
+                      }}
                     >
                       <PostCard post={post} isHighlighted={true} />
                     </motion.div>
                   ))}
-                  {posts.filter(p => p.promptId).length === 0 && (
-                    <div className="bg-secondary/20 border border-border/30 rounded-2xl p-6 my-6 text-center">
-                      <div className="w-12 h-12 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Sparkles className="w-5 h-5 text-brand-green" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Be the first to share your reflection
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
               <>
-                {posts.filter(p => !p.promptId).map((post, i) => (
+                {posts.map((post, i) => (
                   <motion.div
                     key={post._id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-20px" }}
+                    transition={{ 
+                      duration: 0.4, 
+                      ease: [0.21, 0.47, 0.32, 0.98],
+                      delay: Math.min(i * 0.05, 0.3) // Limit initial stagger delay
+                    }}
                   >
                     <PostCard post={post} />
                   </motion.div>
@@ -225,44 +294,12 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
               </>
             )}
 
-            {/* End of Feed / Load More */}
-            <div ref={observerTarget} className="h-4 w-full" />
-
-            {loadingMore && (
-              <div className="flex justify-center py-8">
-                <RefreshCw className="w-5 h-5 animate-spin text-brand-green/40" aria-hidden="true" />
-              </div>
-            )}
-
-            {!hasMore && posts.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="px-4 py-16 text-center space-y-3"
-              >
-                <div className="inline-flex justify-center items-center w-14 h-14 rounded-full bg-brand-green/10 border border-brand-green/20 text-brand-green mb-2">
-                  <Sparkles className="w-6 h-6" aria-hidden="true" />
-                </div>
-                <h3 className="text-[17px] font-bold tracking-tight">
-                  You&apos;re all caught up
-                </h3>
-                <p className="text-muted-foreground text-[14px] max-w-[240px] mx-auto">
-                  You&apos;ve seen all recorded thoughts. Time to add your own.
-                </p>
-                <Link
-                  href="/create"
-                  className="inline-flex items-center gap-2 mt-2 px-6 py-2.5 text-white rounded-full font-bold text-[14px] bg-[#00a855] transition-colors shadow-brand-sm press-scale"
-                >
-                  <Sparkles className="w-4 h-4" aria-hidden="true" />
-                  Share a Thought
-                </Link>
-              </motion.div>
-            )}
+            {/* No more pagination! Just the end of the list indicator */}
+            <div className="h-20 w-full" />
           </motion.div>
         ) : (
           <motion.div
-            key="empty"
+            key={`${activeTab}-empty`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             className="px-4 py-20 flex flex-col items-center justify-center space-y-5 text-center"
@@ -271,16 +308,20 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
               <Sparkles className="w-8 h-8 text-brand-green" aria-hidden="true" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold">The feed is empty</h3>
+              <h3 className="text-xl font-bold">
+                {activeTab === "feed" ? "The feed is empty" : "No reflections yet"}
+              </h3>
               <p className="text-muted-foreground text-[14px] max-w-[260px]">
-                No thoughts have been shared yet. Be the trailblazer.
+                {activeTab === "feed" 
+                  ? "No thoughts have been shared yet. Be the trailblazer."
+                  : "Nobody has shared a reflection yet. Start the conversation!"}
               </p>
             </div>
             <Link
               href="/create"
               className="px-8 py-3 text-white rounded-full font-bold text-[15px] bg-[#00a855] transition-colors shadow-brand-sm press-scale"
             >
-              Post Your Thought
+              {activeTab === "feed" ? "Post Your Thought" : "Share a Reflection"}
             </Link>
           </motion.div>
         )}
@@ -288,6 +329,6 @@ export default function FeedClient({ initialPosts, initialHasMore }: FeedClientP
 
       {/* Bottom padding for mobile nav */}
       <div className="mobile-content-offset" />
-    </>
+    </div>
   );
 }

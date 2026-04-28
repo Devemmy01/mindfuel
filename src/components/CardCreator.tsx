@@ -14,6 +14,7 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
     <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />
   ),
 });
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/providers/ToastProvider";
@@ -51,43 +52,35 @@ export function CardWatermark({
       className="absolute bottom-0 right-0 flex items-end gap-0 select-none pointer-events-none z-20"
       style={{ padding: "16px 18px" }}
     >
-      {/* Brand mark badge */}
       <div
+        className="flex items-center gap-2 px-3 text-center py-1.5 rounded-full"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          background: "rgba(0,0,0,0.18)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          borderRadius: "100px",
-          padding: "5px 10px 5px 7px",
-          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(0, 0, 0, 0.25)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <div
-          style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: 700,
+            textAlign: "center",
+            letterSpacing: "0.05em",
+            color: "rgba(255, 255, 255, 0.9)",
+            fontFamily: "Inter, sans-serif",
+            textTransform: "lowercase",
+          }}
         >
-          <span
-            style={{
-              fontSize: "14px",
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              color: "rgba(255,255,255,0.85)",
-              fontFamily: "Inter, sans-serif",
-              marginTop: "2px",
-            }}
-          >
-            www.mind-fuel.app
-          </span>
-        </div>
+          mind-fuel.app
+        </span>
       </div>
     </div>
   );
 }
 
 const CardCreator: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, openSignInModal } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -194,7 +187,11 @@ const CardCreator: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !text.trim() || isOverLimit || isSubmitting) return;
+    if (!user) {
+      openSignInModal();
+      return;
+    }
+    if (!text.trim() || isOverLimit || isSubmitting) return;
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/posts", {
@@ -214,7 +211,22 @@ const CardCreator: React.FC = () => {
         }),
       });
       if (res.ok) {
-        showToast("Reflection shared with the world", "success");
+        const data = await res.json();
+        const postId = data.post._id;
+        
+        showToast(
+          <span className="flex items-center gap-1.5">
+            your post has been made.{" "}
+            <Link 
+              href={`/post/${postId}`} 
+              className="font-bold underline hover:text-brand-green transition-colors"
+            >
+              View
+            </Link>
+          </span>, 
+          "success", 
+          5000
+        );
         router.push("/");
       }
     } catch (err) {
@@ -224,7 +236,7 @@ const CardCreator: React.FC = () => {
     }
   };
 
-  const maxChars = 300;
+  const maxChars = 500;
   const charsCount = text.length;
   const charsRatio = Math.min(charsCount / maxChars, 1);
   const radius = 11;
@@ -237,7 +249,6 @@ const CardCreator: React.FC = () => {
   const displayText = promptQuestion
     ? `Reflecting on: "${promptQuestion}"\n\n${text}`
     : text;
-
 
   return (
     <div className="flex flex-col w-full h-[100dvh] bg-background">
@@ -271,7 +282,7 @@ const CardCreator: React.FC = () => {
 
           <button
             onClick={handleSubmit}
-            disabled={!text.trim() || !user || isOverLimit || isSubmitting}
+            disabled={!text.trim() || isOverLimit || isSubmitting}
             className="px-5 py-2 text-white rounded-full font-bold text-[14px] tracking-wide disabled:opacity-40 bg-[#00a855] hover:bg-[#00a855] active:bg-[#00a855] transition-colors shadow-brand-sm press-scale"
           >
             {isSubmitting ? (

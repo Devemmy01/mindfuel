@@ -9,9 +9,8 @@ import { getTodayPrompt } from "@/lib/dailyPrompts";
 
 // In-memory cache for the global feed
 const globalFeedCache: {
-  [key: string]: { timestamp: number; validPosts: PostType[]; total: number }
+  [key: string]: { timestamp: number; validPosts: PostType[]; total: number };
 } = {};
-const CACHE_TTL = 30000; // 30 seconds
 
 // GET /api/posts/feed - Optimized feed endpoint that returns posts + user-specific data
 export async function GET(req: NextRequest) {
@@ -19,28 +18,40 @@ export async function GET(req: NextRequest) {
     await connectToDB();
 
     const firebaseId = req.nextUrl.searchParams.get("userId");
-    const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
-    const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    const type = req.nextUrl.searchParams.get("type"); // 'feed', 'reflections', or null
+    // Pagination removed as per user request for a single-stream feed
+    // Allow clients to bypass the server-side cache on an explicit refresh
+    const bustCache = req.nextUrl.searchParams.get("bust") === "1";
 
     let validPosts: PostType[] = [];
     let total = 0;
 
-    const cacheKey = `feed_${page}_${limit}`;
+    const cacheKey = `feed_${type || "all"}_${firebaseId ? "user" : "guest"}`;
     const now = Date.now();
+    const CACHE_TTL = 30_000; // 30 seconds
 
-    // 1. Fetch Global Data (Cached if possible)
-    if (globalFeedCache[cacheKey] && now - globalFeedCache[cacheKey].timestamp < CACHE_TTL) {
+    // 1. Fetch Global Data (Cached if possible, unless busted)
+    if (!bustCache && globalFeedCache[cacheKey] && now - globalFeedCache[cacheKey].timestamp < CACHE_TTL) {
       validPosts = globalFeedCache[cacheKey].validPosts;
       total = globalFeedCache[cacheKey].total;
     } else {
       // Get today's prompt ID for boosting
       const todayPrompt = getTodayPrompt();
 
+      // Build match filter based on type
+      let matchFilter: Record<string, unknown> = {};
+      if (type === "feed") {
+        // Feed shows everything
+        matchFilter = {};
+      } else if (type === "reflections") {
+        matchFilter.promptId = { $exists: true, $ne: null, $nin: ["", null] };
+      }
+
       // Intelligent Feed Algorithm: Balance recency and engagement
       // Recent posts get priority, but quality content rises to the top
       const [populatedPosts, totalCount] = await Promise.all([
         Post.aggregate([
+          { $match: matchFilter },
           {
             $addFields: {
               // MS to Hours
@@ -74,20 +85,18 @@ export async function GET(req: NextRequest) {
                           10 // Base score to ensure new posts surface
                         ]
                       },
-                      "$promptBoost" // Apply prompt boost multiplier
+                      { $ifNull: ["$promptBoost", 1] } // Apply prompt boost multiplier
                     ]
                   },
-                  { $pow: [{ $add: ["$ageInHours", 1] }, 1.1] } // Maintain gravity at 1.1 for freshness
+                  { $pow: [{ $add: [{ $ifNull: ["$ageInHours", 0] }, 1] }, 1.1] }
                 ]
               }
             }
           },
           { $sort: { feedScore: -1, createdAt: -1 } },
-          { $skip: skip },
-          { $limit: limit },
           {
             $lookup: {
-              from: "users",
+              from: User.collection.name,
               localField: "userId",
               foreignField: "_id",
               as: "userId"
@@ -104,11 +113,20 @@ export async function GET(req: NextRequest) {
             }
           }
         ]),
-        Post.estimatedDocumentCount()
+        Post.countDocuments(matchFilter)
       ]);
 
-      validPosts = (populatedPosts as unknown as PostType[]).filter((p) => p.userId);
+      validPosts = (populatedPosts as unknown as PostType[]).filter((p) => p.userId && typeof p.userId === 'object' && 'name' in p.userId);
       total = totalCount;
+
+      // Fallback: Ensure we always have content even if aggregation is sparse
+      if (validPosts.length === 0 && totalCount > 0) {
+        const fallbackPosts = await Post.find(matchFilter)
+          .sort({ createdAt: -1 })
+          .populate("userId", "name image firebaseId username")
+          .lean();
+        validPosts = fallbackPosts as unknown as PostType[];
+      }
 
       globalFeedCache[cacheKey] = {
         timestamp: now,
@@ -117,7 +135,7 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const hasMore = total > skip + validPosts.length;
+    const hasMore = false;
 
     // 2. Fetch User Specific Data (Likes/Saves) in parallel if logged in
     let likedPostIds: Set<string> = new Set();
@@ -152,7 +170,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { posts: enrichedPosts, hasMore, total },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          // Prevent browser/CDN from caching — always fetch fresh from server
+          "Cache-Control": "no-store, must-revalidate",
+        },
+      }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

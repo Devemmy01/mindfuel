@@ -685,7 +685,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
                 {/* Live Preview Area */}
                 <div
-                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[160px] mb-6 transition-all duration-300"
+                  className={`relative w-full rounded-2xl shadow-card overflow-hidden min-h-[160px] mb-2 transition-all duration-300 ${
+                    editText.length > 450 ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30" :
+                    editText.length > 400 ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20" :
+                    "border border-black/5 dark:border-white/5"
+                  }`}
                   style={{
                     background:
                       editBg.type === "gradient" ? editBg.value : editBg.value,
@@ -702,10 +706,25 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                     className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-8 pb-14 text-[18px] scrollbar-dark relative z-10"
                     style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
-                    maxLength={300}
+                    maxLength={500}
                     autoFocus
                   />
                   <CardWatermark color={editBg.text} />
+                </div>
+                <div className="flex items-center justify-between mb-6">
+                  {editText.length > 0 && (
+                    <span className={`text-[12px] font-semibold transition-colors ${
+                      editText.length > 500 ? "text-rose-500" :
+                      editText.length > 450 ? "text-rose-500/70" :
+                      editText.length > 400 ? "text-yellow-500/70" :
+                      "text-muted-foreground/60"
+                    }`}>
+                      {editText.length}/500 characters
+                    </span>
+                  )}
+                  {editText.length > 500 && (
+                    <p className="text-[12px] text-rose-500 font-semibold">Over limit by {editText.length - 500}</p>
+                  )}
                 </div>
 
                 {/* Tools Toolbar */}

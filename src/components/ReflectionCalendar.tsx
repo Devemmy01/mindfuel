@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { format, subDays, eachDayOfInterval, eachMonthOfInterval, subMonths } from "date-fns";
 import { PostType } from "@/types";
 
@@ -11,6 +11,8 @@ interface ReflectionCalendarProps {
 }
 
 export default function ReflectionCalendar({ posts, className = "" }: ReflectionCalendarProps) {
+  const [hoveredDay, setHoveredDay] = React.useState<{ day: Date; count: number; x: number; y: number } | null>(null);
+
   // Generate the last 365 days for a full year view
   const days = useMemo(() => {
     const today = new Date();
@@ -27,6 +29,15 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
     });
     return map;
   }, [posts]);
+
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to the end (most recent days) on mount
+  React.useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollLeft = containerRef.current.scrollWidth;
+    }
+  }, [days]);
 
   return (
     <div className={`w-full overflow-hidden ${className}`}>
@@ -47,9 +58,39 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
         </div>
       </div>
 
-      <div className="relative bg-white/[0.01] border border-white/5 rounded-2xl p-4">
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-1.5 min-w-max" style={{ display: 'grid', gridTemplateRows: 'repeat(7, 1fr)', gridAutoFlow: 'column' }}>
+      <div className="relative bg-white/[0.01] border border-white/5 rounded-2xl p-4 min-h-[160px]">
+        {/* Persistent Tooltip Area above the scroll area */}
+        <div className="h-8 mb-2 flex items-center justify-center">
+          <AnimatePresence>
+            {hoveredDay ? (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full flex items-center gap-2"
+              >
+                <span className="text-[11px] font-bold text-green-500">
+                  {hoveredDay.count} {hoveredDay.count === 1 ? 'reflection' : 'reflections'}
+                </span>
+                <span className="text-[11px] text-white/40">•</span>
+                <span className="text-[11px] font-medium text-white/70">
+                  {format(hoveredDay.day, "MMM d, yyyy")}
+                </span>
+              </motion.div>
+            ) : (
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.3 }}
+                className="text-[10px] font-medium text-white uppercase tracking-widest"
+              >
+                Hover to explore
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div ref={containerRef} className="overflow-x-auto no-scrollbar scroll-smooth pt-2">
+          <div className="flex gap-1.5 min-w-max pb-2" style={{ display: 'grid', gridTemplateRows: 'repeat(7, 1fr)', gridAutoFlow: 'column' }}>
             {days.map((day) => {
               const dateKey = format(day, "yyyy-MM-dd");
               const count = postDates.get(dateKey) || 0;
@@ -76,35 +117,26 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
                   key={dateKey}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  whileHover={{ scale: 1.3, zIndex: 10, transition: { duration: 0.1 } }}
-                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-[3px] ${bgColor} border ${borderColor} ${shadow} transition-all cursor-pointer relative group`}
-                >
-                  {/* Custom Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-[100]">
-                    <div className="bg-[#0c0c0c] border border-white/10 px-2 py-1 rounded-md shadow-xl whitespace-nowrap">
-                      <p className="text-[10px] font-bold text-white">
-                        {count} {count === 1 ? 'reflection' : 'reflections'}
-                      </p>
-                      <p className="text-[9px] text-white/50">{format(day, "MMM d, yyyy")}</p>
-                    </div>
-                    <div className="w-2 h-2 bg-popover border-r border-b border-border rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2" />
-                  </div>
-                </motion.div>
+                  whileHover={{ scale: 1.25, zIndex: 10 }}
+                  onMouseEnter={() => setHoveredDay({ day, count, x: 0, y: 0 })}
+                  onMouseLeave={() => setHoveredDay(null)}
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-[3px] ${bgColor} border ${borderColor} ${shadow} transition-all cursor-pointer relative`}
+                />
               );
             })}
           </div>
-        </div>
-        
-        {/* Month labels */}
-        <div className="flex justify-between mt-4 px-2">
-          {eachMonthOfInterval({
-            start: subMonths(new Date(), 11),
-            end: new Date()
-          }).map((month) => (
-            <span key={month.toString()} className="text-[10px] font-black text-white/20 uppercase tracking-tighter">
-              {format(month, "MMM")}
-            </span>
-          ))}
+
+          {/* Month labels inside scrollable container for alignment */}
+          <div className="flex gap-[4%] mt-2 px-2 min-w-max opacity-40">
+            {eachMonthOfInterval({
+              start: subMonths(new Date(), 11),
+              end: new Date()
+            }).map((month) => (
+              <span key={month.toString()} className="text-[10px] font-black text-white uppercase tracking-tighter w-10">
+                {format(month, "MMM")}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

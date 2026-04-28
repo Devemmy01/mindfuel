@@ -23,6 +23,9 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  showSignInModal: boolean;
+  openSignInModal: () => void;
+  closeSignInModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,6 +86,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+
+  const openSignInModal = useCallback(() => setShowSignInModal(true), []);
+  const closeSignInModal = useCallback(() => setShowSignInModal(false), []);
 
   // Function to fetch user profile from MongoDB
   const fetchUserProfile = async (firebaseId: string) => {
@@ -196,7 +203,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, login, logout, refreshProfile }}
+      value={{ 
+        user, 
+        profile, 
+        loading, 
+        login, 
+        logout, 
+        refreshProfile,
+        showSignInModal,
+        openSignInModal,
+        closeSignInModal
+      }}
     >
       {children}
     </AuthContext.Provider>

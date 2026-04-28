@@ -61,6 +61,38 @@ export function updateStreak(
 }
 
 /**
+ * Check and potentially decay a streak if the user has missed days.
+ * To be called when fetching a user profile.
+ * @returns The corrected streak count
+ */
+export function decayStreak(
+  lastReflectionDate: Date | string | undefined,
+  currentStreak: number
+): number {
+  if (!lastReflectionDate || currentStreak === 0) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const lastDate = new Date(lastReflectionDate);
+  lastDate.setHours(0, 0, 0, 0);
+
+  const isToday = lastDate.getTime() === today.getTime();
+  const isYesterday = lastDate.getTime() === yesterday.getTime();
+
+  // Streak is only valid if the last reflection was today or yesterday
+  if (isToday || isYesterday) {
+    return currentStreak;
+  }
+
+  // Otherwise, the streak is broken
+  return 0;
+}
+
+/**
  * Format streak count for display
  * @param streakDays - Number of consecutive days
  * @returns Formatted string with fire emoji and count

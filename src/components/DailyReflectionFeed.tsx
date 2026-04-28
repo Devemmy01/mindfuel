@@ -92,8 +92,13 @@ export default function DailyReflectionFeed({
           <motion.div
             key={post._id}
             initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.3 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-10px" }}
+            transition={{ 
+              delay: i * 0.05, 
+              duration: 0.4,
+              ease: [0.21, 0.47, 0.32, 0.98]
+            }}
           >
             <PostCard post={post} isHighlighted={true} />
           </motion.div>

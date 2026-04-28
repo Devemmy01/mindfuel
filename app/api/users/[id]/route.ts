@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
+import { decayStreak } from "@/lib/streakUtils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,12 +12,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    const user = await User.findOne({ firebaseId }).lean();
-    if (!user) {
+    const userDoc = await User.findOne({ firebaseId });
+    if (!userDoc) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ user }, { status: 200 });
+    // Check for streak decay
+    const currentStreak = userDoc.streakDays || 0;
+    const correctedStreak = decayStreak(userDoc.lastReflectionDate, currentStreak);
+
+    if (correctedStreak !== currentStreak) {
+      userDoc.streakDays = correctedStreak;
+      await userDoc.save();
+    }
+
+    return NextResponse.json({ user: userDoc.toObject() }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

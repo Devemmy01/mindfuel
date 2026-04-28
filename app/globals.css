@@ -162,21 +162,21 @@
 
 /* Dark mode scrollbar for modals */
 .scrollbar-dark {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(220 9% 30%) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: hsl(220 9% 40%) transparent;
 }
 .scrollbar-dark::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 .scrollbar-dark::-webkit-scrollbar-track {
   background: transparent;
 }
 .scrollbar-dark::-webkit-scrollbar-thumb {
-  background-color: hsl(220 9% 30%);
+  background-color: hsl(220 9% 40%);
   border-radius: 99px;
 }
 .scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(220 9% 40%);
+  background-color: hsl(220 9% 50%);
 }
 
 /* Hide scrollbar */

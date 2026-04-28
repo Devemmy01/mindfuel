@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
@@ -19,6 +19,7 @@ import {
   Eye,
   Sparkles,
   Smile,
+  RefreshCw,
 } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +34,7 @@ import { fontOptions, getFontById } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
 import InteractionBar from "@/components/InteractionBar";
 import { format } from "date-fns";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -57,7 +59,7 @@ export default function PostDetailPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, openSignInModal } = useAuth();
   const { showToast } = useToast();
   const [post, setPost] = useState<PostType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -206,6 +208,28 @@ export default function PostDetailPage() {
         .catch(() => {});
     }
   }, [post, user]);
+
+  // Pull-to-refresh: reload this post
+  const loadPost = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/posts/${id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPost(data.post);
+      setLikesCount(data.post?.likesCount || 0);
+      setCommentsCount(data.post?.commentsCount || 0);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
+    onRefresh: loadPost,
+  });
 
   const handleDelete = async () => {
     if (!user || !post || user.uid !== post.userId.firebaseId) return;
@@ -391,7 +415,7 @@ export default function PostDetailPage() {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
+    <div ref={containerRef} className="flex flex-col w-full min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-4">
@@ -410,7 +434,20 @@ export default function PostDetailPage() {
             </p>
           </div>
         </div>
-        <div className="relative" ref={menuRef}>
+        <div className="flex items-center gap-1">
+          {/* Mobile refresh button */}
+          <button
+            onClick={loadPost}
+            aria-label="Refresh post"
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale text-muted-foreground"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${
+                isPullRefreshing || loading ? "animate-spin" : ""
+              }`}
+            />
+          </button>
+          <div className="relative" ref={menuRef}>
           <button 
             onClick={() => setShowMenu(!showMenu)}
             className="p-2 rounded-xl hover:bg-secondary/60 transition-colors text-muted-foreground"
@@ -437,7 +474,14 @@ export default function PostDetailPage() {
               ) : (
                 <>
                   <button
-                    onClick={() => { setIsNoteModalOpen(true); setShowMenu(false); }}
+                    onClick={() => { 
+                      if (!user) {
+                        openSignInModal();
+                      } else {
+                        setIsNoteModalOpen(true); 
+                      }
+                      setShowMenu(false); 
+                    }}
                     className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
                   >
                     <Edit className="w-4 h-4" /> Private Note
@@ -464,8 +508,37 @@ export default function PostDetailPage() {
               )}
             </div>
           )}
+          </div>
         </div>
       </header>
+
+      {/* Pull-to-refresh indicator */}
+      <AnimatePresence>
+        {(pullDistance > 8 || isPullRefreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            className="fixed top-16 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          >
+            <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-brand-green ${
+                  isPullRefreshing ? "animate-spin" : ""
+                }`}
+                style={{
+                  transform: isPullRefreshing
+                    ? undefined
+                    : `rotate(${Math.min(pullDistance * 3, 280)}deg)`,
+                }}
+              />
+              {isPullRefreshing && (
+                <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Post content */}
       <article className="flex flex-col border-b border-border">
@@ -664,7 +737,11 @@ export default function PostDetailPage() {
               <div className="p-6">
                 {/* Preview Card */}
                 <div 
-                  className="relative w-full rounded-2xl shadow-card overflow-hidden border border-black/5 dark:border-white/5 min-h-[160px] mb-6 transition-all duration-300"
+                  className={`relative w-full rounded-2xl shadow-card overflow-hidden min-h-[160px] mb-2 transition-all duration-300 ${
+                    editText.length > 450 ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30" :
+                    editText.length > 400 ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20" :
+                    "border border-black/5 dark:border-white/5"
+                  }`}
                   style={{ background: editBg.type === "gradient" ? editBg.value : editBg.value, color: editBg.text }}
                 >
                   <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
@@ -676,10 +753,25 @@ export default function PostDetailPage() {
                     className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
                     style={{ color: editBg.text, fontFamily: editFont.family }}
                     rows={4}
-                    maxLength={300}
+                    maxLength={500}
                     autoFocus
                   />
                   <CardWatermark color={editBg.text} />
+                </div>
+                <div className="flex items-center justify-between mb-6">
+                  {editText.length > 0 && (
+                    <span className={`text-[12px] font-semibold transition-colors ${
+                      editText.length > 500 ? "text-rose-500" :
+                      editText.length > 450 ? "text-rose-500/70" :
+                      editText.length > 400 ? "text-yellow-500/70" :
+                      "text-muted-foreground/60"
+                    }`}>
+                      {editText.length}/500 characters
+                    </span>
+                  )}
+                  {editText.length > 500 && (
+                    <p className="text-[12px] text-rose-500 font-semibold">Over limit by {editText.length - 500}</p>
+                  )}
                 </div>
 
                 {/* Tools Toolbar */}

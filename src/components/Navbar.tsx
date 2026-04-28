@@ -9,7 +9,7 @@ import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal, Bell } from
 import NotificationsList, { AppNotification } from "./NotificationsList";
 
 export default function Navbar() {
-  const { user, profile, login, logout } = useAuth();
+  const { user, profile, logout, openSignInModal } = useAuth();
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -134,12 +134,12 @@ export default function Navbar() {
             />
 
             <Image
-              src="/logo.png"
+              src="/maskable-icon.png"
               alt="MindFuel"
               width={48}
               height={48}
               priority
-              className="mx-auto object-contain rounded-full flex-shrink-0 md:block xl:hidden"
+              className="mx-auto object-contain rounded-full flex-shrink-0 hidden md:block xl:hidden"
             />
             
           </Link>
@@ -208,6 +208,12 @@ export default function Navbar() {
                 <Link
                   key={href}
                   href={href}
+                  onClick={(e) => {
+                    if (pathname === href && href === "/") {
+                      e.preventDefault();
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
                   target="_self"
                   aria-current={isActive ? "page" : undefined}
                   className="w-full flex justify-center xl:justify-start outline-none"
@@ -264,7 +270,7 @@ export default function Navbar() {
           <div className="mt-auto w-full flex justify-center xl:justify-start relative">
             {!user ? (
               <button
-                onClick={login}
+                onClick={openSignInModal}
                 aria-label="Sign in with Google"
                 className="flex items-center justify pl-3 gap-3 px py-3 rounded-2xl bg-foreground text-background font-bold text-[14px] hover:opacity-90 transition-opacity w-full shadow-sm outline-none"
               >
@@ -357,6 +363,12 @@ export default function Navbar() {
           {/* Feed */}
           <Link
             href="/"
+            onClick={(e) => {
+              if (pathname === "/") {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
             target="_self"
             aria-label="Home"
             aria-current={pathname === "/" ? "page" : undefined}
@@ -476,7 +488,7 @@ export default function Navbar() {
             </Link>
           ) : (
             <button
-              onClick={login}
+              onClick={openSignInModal}
               aria-label="Sign in"
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >

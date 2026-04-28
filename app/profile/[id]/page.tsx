@@ -8,10 +8,11 @@ import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
 const profileTabs = ["Posts", "Liked", "Saved"] as const;
 type ProfileTab = (typeof profileTabs)[number];
@@ -124,6 +125,36 @@ export default function DynamicProfilePage() {
     if (profileId) fetchData();
   }, [profileId, activeTab, currentUser, isOwnProfile, profile?.image, profile?.name]);
 
+  const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      setLoading(true);
+      setPosts([]);
+      // Re-run the fetch by toggling a dummy state — just reload current tab
+      const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
+      try {
+        let postsData: PostType[] = [];
+        if (activeTab === "Saved") {
+          const res = await fetch(`/api/saves?userId=${profileId}${currentUserQuery}`);
+          const data = await res.json();
+          postsData = (data.saves || []).map((s: { postId: PostType }) => s.postId).filter(Boolean);
+        } else if (activeTab === "Liked") {
+          const res = await fetch(`/api/posts?userId=${profileId}&type=liked${currentUserQuery}`);
+          const data = await res.json();
+          postsData = data.posts || [];
+        } else {
+          const res = await fetch(`/api/posts?userId=${profileId}${currentUserQuery}`);
+          const data = await res.json();
+          postsData = data.posts || [];
+        }
+        setPosts(postsData);
+      } catch (err) {
+        console.error("Pull refresh failed", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !profileUser) return;
@@ -204,7 +235,7 @@ export default function DynamicProfilePage() {
   const joinedDate = new Date(profileUser.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
-    <div className="flex flex-col w-full min-h-screen relative">
+    <div ref={containerRef} className="flex flex-col w-full min-h-screen relative">
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm overflow-hidden">
@@ -292,16 +323,58 @@ export default function DynamicProfilePage() {
             </p>
           </div>
         </div>
-        {isOwnProfile && (
+        <div className="flex items-center gap-1">
+          {/* Mobile refresh */}
           <button
-            onClick={() => logout()}
-            className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 hover:text-destructive transition-colors press-scale"
-            title="Sign Out"
+            onClick={() => { setPosts([]); setLoading(true); }}
+            aria-label="Refresh profile"
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <RefreshCw
+              className={`w-4 h-4 text-muted-foreground ${
+                isPullRefreshing || loading ? "animate-spin" : ""
+              }`}
+            />
           </button>
-        )}
+          {isOwnProfile && (
+            <button
+              onClick={() => logout()}
+              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 hover:text-destructive transition-colors press-scale"
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+            </button>
+          )}
+        </div>
       </header>
+
+      {/* Pull-to-refresh indicator */}
+      <AnimatePresence>
+        {(pullDistance > 8 || isPullRefreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            className="fixed top-16 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          >
+            <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-brand-green ${
+                  isPullRefreshing ? "animate-spin" : ""
+                }`}
+                style={{
+                  transform: isPullRefreshing
+                    ? undefined
+                    : `rotate(${Math.min(pullDistance * 3, 280)}deg)`,
+                }}
+              />
+              {isPullRefreshing && (
+                <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative">
         <div className="w-full h-28 sm:h-36 bg-brand-green flex items-center justify-center border-b border-border/30 overflow-hidden relative">
@@ -457,9 +530,31 @@ export default function DynamicProfilePage() {
           <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 p-3" : "flex flex-col"}>
             {posts.map((post, i) => (
               viewMode === "list" ? (
-                <motion.div key={post._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}><PostCard post={post} /></motion.div>
+                <motion.div 
+                  key={post._id} 
+                  initial={{ opacity: 0, y: 16 }} 
+                  whileInView={{ opacity: 1, y: 0 }} 
+                  viewport={{ once: true, margin: "-10px" }}
+                  transition={{ 
+                    delay: Math.min(i * 0.04, 0.3),
+                    duration: 0.4,
+                    ease: [0.21, 0.47, 0.32, 0.98]
+                  }}
+                >
+                  <PostCard post={post} />
+                </motion.div>
               ) : (
-                <motion.div key={post._id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }}>
+                <motion.div 
+                  key={post._id} 
+                  initial={{ opacity: 0, scale: 0.9 }} 
+                  whileInView={{ opacity: 1, scale: 1 }} 
+                  viewport={{ once: true, margin: "-10px" }}
+                  transition={{ 
+                    delay: Math.min(i * 0.03, 0.3),
+                    duration: 0.4,
+                    ease: [0.21, 0.47, 0.32, 0.98]
+                  }}
+                >
                   <Link href={`/post/${post._id}`} className="block aspect-square relative group">
                     <div className="absolute inset-0 rounded-2xl overflow-hidden shadow-soft border border-border/50 p-4 flex items-center justify-center text-center" 
                       style={{ 

@@ -56,6 +56,13 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           <Link href="https://mind-fuel.app" style={button}>
             Go to Feed
           </Link>
+          <Text style={spacer}>or</Text>
+          <Link 
+            href={`https://mind-fuel.app/tip/download?text=${encodeURIComponent(tip)}`} 
+            style={secondaryButton}
+          >
+            Download as Image
+          </Link>
         </Section>
         
         <Text style={footer}>
@@ -160,7 +167,25 @@ const button = {
   fontWeight: 'bold',
   textDecoration: 'none',
   display: 'inline-block',
+  marginBottom: '10px',
+};
+
+const secondaryButton = {
+  backgroundColor: 'transparent',
+  color: '#00bf63',
+  padding: '12px 32px',
+  borderRadius: '100px',
+  fontSize: '14px',
+  fontWeight: 'bold',
+  textDecoration: 'underline',
+  display: 'inline-block',
   marginBottom: '40px',
+};
+
+const spacer = {
+  fontSize: '12px',
+  color: '#94a3b8',
+  margin: '8px 0',
 };
 
 const footer = {

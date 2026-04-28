@@ -85,7 +85,7 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
   }
 
   return (
-    <div className="flex flex-col w-full h-[350px] overflow-y-auto scrollbar-hide">
+    <div className="flex flex-col w-full md:h-[350px] overflow-y-auto scrollbar-hide">
       {notifications.map((notification) => {
         if (!notification.postId || !notification.sender) return null;
 

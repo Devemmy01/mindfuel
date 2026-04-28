@@ -24,7 +24,7 @@ const CommentSchema = new Schema(
     content: {
       type: String,
       required: [true, "Comment content is required"],
-      maxlength: [200, "Comments cannot exceed 200 characters"],
+      maxlength: [500, "Comments cannot exceed 500 characters"],
     },
     likesCount: {
       type: Number,

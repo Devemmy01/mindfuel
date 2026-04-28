@@ -1,16 +1,12 @@
+
 import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
-import { AuthProvider } from "@/providers/AuthProvider";
-import Navbar from "@/components/Navbar";
-import SearchUsers from "@/components/SearchUsers";
-import MindfulSaves from "@/components/MindfulSaves";
-import MindfulTip from "@/components/MindfulTip";
-import { ToastProvider } from "@/providers/ToastProvider";
-import InstallPWA from "@/components/InstallPWA";
+import { ClientProviders } from "@/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
+import InstallPWA from "@/components/InstallPWA";
+import LayoutContent from "@/components/LayoutContent";
 
 // Google Fonts for card font picker
 const CARD_FONTS_URL =
@@ -171,6 +167,7 @@ function JsonLd() {
   );
 }
 
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -185,7 +182,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         {/* Load card fonts */}
-        <link href={CARD_FONTS_URL} rel="stylesheet" />
+        <link href={CARD_FONTS_URL} rel="stylesheet" crossOrigin="anonymous" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <JsonLd />
@@ -194,65 +191,13 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <ToastProvider>
-            {/* Top accent line */}
-            <div className="brand-accent-line" />
-
-            <div className="min-h-screen bg-background text-foreground selection:bg-brand-green/20 flex justify-center">
-              <div className="flex w-full max-w-[1280px] relative">
-                {/* ── Left Sidebar (Navbar) ── */}
-                <Navbar />
-
-                {/* ── Main Feed Column ── */}
-                <main className="flex-grow w-full min-w-0 md:max-w-[600px] md:border-x md:border-border min-h-[100dvh]">
-                  {children}
-                </main>
-
-                {/* ── Right Rail (lg+) ── */}
-                <aside className="hidden lg:flex flex-col w-[350px] shrink-0 sticky top-0 h-screen py-6 pl-8 pr-4 overflow-y-auto no-scrollbar scroll-smooth">
-                  {/* Search */}
-                  <SearchUsers />
-
-                  {/* Mindful Tip */}
-                  <MindfulTip />
-
-                  {/* Saved Reflections */}
-                  <MindfulSaves />
-
-                  {/* Subdued Footer */}
-                  <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-4">
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-                        <Link
-                          href={`/${l.toLowerCase()}`}
-                          key={l}
-                          className="text-[11px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-70 hover:opacity-100"
-                        >
-                          {l}
-                        </Link>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <p className="text-[13px] font-bold text-muted-foreground opacity-50 tracking-wide pt-1">
-                        MindFuel - a{" "}
-                        <a
-                          href="http://lumynhq.studio"
-                          className="text-brand-green underline"
-                        >
-                          Lumyn
-                        </a>{" "}
-                        product.
-                      </p>
-                    </div>
-                  </footer>
-                </aside>
-              </div>
-            </div>
-            <InstallPWA />
-            <Analytics />
-          </ToastProvider>
-        </AuthProvider>
+        <ClientProviders>
+          {/* Top accent line */}
+          <div className="brand-accent-line" />
+          <LayoutContent>{children}</LayoutContent>
+          <InstallPWA />
+          <Analytics />
+        </ClientProviders>
       </body>
     </html>
   );

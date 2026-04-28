@@ -7,22 +7,22 @@ import Toast from "@/components/ui/Toast";
 type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastContextType {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: React.ReactNode, type?: ToastType, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [toast, setToast] = useState<{ message: string; type: ToastType; id: number } | null>(null);
+  const [toast, setToast] = useState<{ message: React.ReactNode; type: ToastType; id: number } | null>(null);
 
-  const showToast = useCallback((message: string, type: ToastType = "info") => {
+  const showToast = useCallback((message: React.ReactNode, type: ToastType = "info", duration: number = 3000) => {
     const id = Date.now();
     setToast({ message, type, id });
     
-    // Auto-hide after 3 seconds
+    // Auto-hide after specified duration
     setTimeout(() => {
       setToast((current) => (current?.id === id ? null : current));
-    }, 3000);
+    }, duration);
   }, []);
 
   return (

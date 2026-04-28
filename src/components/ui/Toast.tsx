@@ -7,7 +7,7 @@ import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastProps {
-  message: string;
+  message: React.ReactNode;
   type: ToastType;
   onClose: () => void;
 }
@@ -31,9 +31,9 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
       className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl ${bgStyles} min-w-[280px] max-w-[400px]`}
     >
       <div className="flex-shrink-0">{icons[type]}</div>
-      <p className="flex-1 text-[13.5px] font-medium tracking-tight text-foreground/90 leading-tight">
+      <div className="flex-1 text-[13.5px] font-medium tracking-tight text-foreground/90 leading-tight">
         {message}
-      </p>
+      </div>
       <button
         onClick={onClose}
         className="p-1 -mr-1.5 rounded-full hover:bg-secondary/60 text-muted-foreground transition-colors"

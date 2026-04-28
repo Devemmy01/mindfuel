@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import PostCard from "@/components/PostCard";
-import { Bookmark, Loader2, LayoutGrid, List } from "lucide-react";
+import { Bookmark, Loader2, LayoutGrid, List, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { SaveType } from "@/types";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
 // Category filters removed as requested
 
@@ -60,22 +61,27 @@ export default function CollectionsPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  useEffect(() => {
-    if (user) {
-      const fetchSaves = async () => {
-        try {
-          const res = await fetch(`/api/saves?userId=${user.uid}`);
-          const data = await res.json();
-          setSaves(data.saves || []);
-        } catch (err) {
-          console.error("Fetch saves failed", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchSaves();
+  const fetchSaves = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/saves?userId=${user.uid}`);
+      const data = await res.json();
+      setSaves(data.saves || []);
+    } catch (err) {
+      console.error("Fetch saves failed", err);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user) fetchSaves();
+  }, [user, fetchSaves]);
+
+  const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
+    onRefresh: fetchSaves,
+  });
 
   if (authLoading)
     return (
@@ -106,7 +112,35 @@ export default function CollectionsPage() {
     );
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
+    <div ref={containerRef} className="relative flex flex-col w-full min-h-screen">
+
+      {/* Pull-to-refresh indicator */}
+      <AnimatePresence>
+        {(pullDistance > 8 || isPullRefreshing) && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            className="fixed top-16 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          >
+            <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-brand-green ${
+                  isPullRefreshing ? "animate-spin" : ""
+                }`}
+                style={{
+                  transform: isPullRefreshing
+                    ? undefined
+                    : `rotate(${Math.min(pullDistance * 3, 280)}deg)`,
+                }}
+              />
+              {isPullRefreshing && (
+                <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60 px-4 py-3">
@@ -118,6 +152,18 @@ export default function CollectionsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Mobile refresh */}
+            <button
+              onClick={() => fetchSaves()}
+              aria-label="Refresh bookmarks"
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-muted-foreground ${
+                  isPullRefreshing ? "animate-spin" : ""
+                }`}
+              />
+            </button>
             {/* View toggle */}
             <button
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}

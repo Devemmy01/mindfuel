@@ -33,7 +33,7 @@ export default function InteractionBar({
   showViews = true,
   children,
 }: InteractionBarProps) {
-  const { user } = useAuth();
+  const { user, openSignInModal } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -53,7 +53,7 @@ export default function InteractionBar({
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      showToast("Sign in to like this thought", "warning");
+      openSignInModal();
       return;
     }
 
@@ -85,7 +85,7 @@ export default function InteractionBar({
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      showToast("Sign in to save this thought", "warning");
+      openSignInModal();
       return;
     }
 
