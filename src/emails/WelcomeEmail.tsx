@@ -22,10 +22,22 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
 }) => {
   return (
     <Html>
-      <Head />
+      <Head>
+        <style>{`
+          @media (prefers-color-scheme: dark) {
+            .main { background-color: #000000 !important; }
+            .container { background-color: #0a0a0a !important; }
+            .h1 { color: #ffffff !important; }
+            .text { color: #a1a1aa !important; }
+            .boxCard { background-color: #111111 !important; border-color: #222222 !important; }
+            .listItem { color: #d1d1d6 !important; }
+            .footer { color: #52525b !important; }
+          }
+        `}</style>
+      </Head>
       <Preview>Welcome to MindFuel, {name}!</Preview>
-      <Body style={main}>
-        <Container style={container}>
+      <Body style={main} className="main">
+        <Container style={container} className="container">
           <Section style={logoContainer}>
             <Img
               src="https://mind-fuel.app/logoDarkbg.png"
@@ -36,28 +48,28 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
             />
           </Section>
 
-          <Heading style={h1}>
+          <Heading style={h1} className="h1">
             Welcome to your{" "}
             <span style={{ color: "#00bf63" }}>intentional</span> space.
           </Heading>
 
-          <Text style={text}>
+          <Text style={text} className="text">
             Hi {name}, we&apos;re thrilled to have you here. MindFuel was built
             for thinkers like you—a place to share reflections, curations, and
             ideas without the noise.
           </Text>
 
-          <Section style={boxCard}>
+          <Section style={boxCard} className="boxCard">
             <Text style={boxTitle}>Getting Started</Text>
-            <Text style={listItem}>
+            <Text style={listItem} className="listItem">
               <strong>Share your first thought:</strong> Use the card creator
               to design a beautiful reflection.
             </Text>
-            <Text style={listItem}>
+            <Text style={listItem} className="listItem">
               🔖 <strong>Save for later:</strong> Bookmark thoughts that
               resonate with you.
             </Text>
-            <Text style={listItem}>
+            <Text style={listItem} className="listItem">
               🌿 <strong>Stay mindful:</strong> Look out for our fresh daily
               tips every morning.
             </Text>
@@ -69,7 +81,7 @@ export const WelcomeEmail: React.FC<Readonly<WelcomeEmailProps>> = ({
 
           <Hr style={hr} />
 
-          <Text style={footer}>
+          <Text style={footer} className="footer">
             MindFuel &bull; a Lumyn product
             <br />
             <Link href="https://mind-fuel.app/privacy" style={footerLink}>

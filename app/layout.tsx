@@ -7,24 +7,8 @@ import { ClientProviders } from "@/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
 import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
+import OfflineNotice from "@/components/OfflineNotice";
 
-// Google Fonts for card font picker
-const CARD_FONTS_URL =
-  "https://fonts.googleapis.com/css2?" +
-  "family=Playfair+Display:wght@400;600;700;900" +
-  "&family=Lora:wght@400;600;700" +
-  "&family=Raleway:wght@400;600;700;800" +
-  "&family=Montserrat:wght@400;600;700;800" +
-  "&family=Space+Grotesk:wght@400;600;700" +
-  "&family=DM+Serif+Display:ital@0;1" +
-  "&family=Cormorant+Garamond:wght@400;600;700" +
-  "&family=Merriweather:wght@400;700;900" +
-  "&family=Poppins:wght@400;600;700;800" +
-  "&family=Crimson+Text:wght@400;600;700" +
-  "&family=Josefin+Sans:wght@400;600;700" +
-  "&family=Abril+Fatface" +
-  "&family=Dancing+Script:wght@400;600;700" +
-  "&display=swap";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -181,8 +165,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        {/* Load card fonts */}
-        <link href={CARD_FONTS_URL} rel="stylesheet" crossOrigin="anonymous" />
+        {/* Inter is loaded via next/font — no extra stylesheet needed */}
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <JsonLd />
@@ -196,6 +179,7 @@ export default function RootLayout({
           <div className="brand-accent-line" />
           <LayoutContent>{children}</LayoutContent>
           <InstallPWA />
+          <OfflineNotice />
           <Analytics />
         </ClientProviders>
       </body>

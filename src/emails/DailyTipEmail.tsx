@@ -21,57 +21,68 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   name,
   tip,
 }) => (
-  <Html>
-    <Head />
-    <Preview>Your Daily Mindful Tip, {name}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Section style={logoContainer}>
-          <Img
-            src="https://mind-fuel.app/logoDarkbg.png"
-            width="160"
-            height="auto"
-            alt="MindFuel"
-            style={logo}
-          />
-        </Section>
-        
-        <Text style={greeting}>
-          Good Morning, {name}
-        </Text>
+    <Html>
+      <Head>
+        <style>{`
+          @media (prefers-color-scheme: dark) {
+            .main { background-color: #000000 !important; }
+            .tipCard { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
+            .h1 { color: #ffffff !important; }
+            .subtext { color: #a1a1aa !important; }
+            .spacer { color: #52525b !important; }
+            .footer { color: #52525b !important; }
+          }
+        `}</style>
+      </Head>
+      <Preview>Your Daily Mindful Tip, {name}</Preview>
+      <Body style={main} className="main">
+        <Container style={container}>
+          <Section style={logoContainer}>
+            <Img
+              src="https://mind-fuel.app/logoDarkbg.png"
+              width="160"
+              height="auto"
+              alt="MindFuel"
+              style={logo}
+            />
+          </Section>
+          
+          <Text style={greeting}>
+            Good Morning, {name}
+          </Text>
 
-        <Section style={tipCard}>
-          <Text style={quoteMark}>&ldquo;</Text>
-          <Heading style={h1}>
-            {tip}
-          </Heading>
-          <Text style={quoteMarkRight}>&rdquo;</Text>
-        </Section>
-        
-        <Text style={subtext}>
-          Stay intentional today. Take a breath, fuel your mind, and share what inspires you.
-        </Text>
+          <Section style={tipCard} className="tipCard">
+            <Text style={quoteMark}>&ldquo;</Text>
+            <Heading style={h1} className="h1">
+              {tip}
+            </Heading>
+            <Text style={quoteMarkRight}>&rdquo;</Text>
+          </Section>
+          
+          <Text style={subtext} className="subtext">
+            Stay intentional today. Take a breath, fuel your mind, and share what inspires you.
+          </Text>
 
-        <Section style={center}>
-          <Link href="https://mind-fuel.app" style={button}>
-            Go to Feed
-          </Link>
-          <Text style={spacer}>or</Text>
-          <Link 
-            href={`https://mind-fuel.app/tip/download?text=${encodeURIComponent(tip)}`} 
-            style={secondaryButton}
-          >
-            Download as Image
-          </Link>
-        </Section>
-        
-        <Text style={footer}>
-          You received this daily mindful tip from MindFuel.<br />
-          Don&apos;t want these? <Link href="https://mind-fuel.app/settings" style={footerLink}>Unsubscribe</Link>.
-        </Text>
-      </Container>
-    </Body>
-  </Html>
+          <Section style={center}>
+            <Link href="https://mind-fuel.app" style={button}>
+              Go to Feed
+            </Link>
+            <Text style={spacer} className="spacer">or</Text>
+            <Link 
+              href={`https://mind-fuel.app/tip/download?text=${encodeURIComponent(tip)}`} 
+              style={secondaryButton}
+            >
+              Download as Image
+            </Link>
+          </Section>
+          
+          <Text style={footer} className="footer">
+            You received this daily mindful tip from MindFuel.<br />
+            Don&apos;t want these? <Link href="https://mind-fuel.app/settings" style={footerLink}>Unsubscribe</Link>.
+          </Text>
+        </Container>
+      </Body>
+    </Html>
 );
 
 export default DailyTipEmail;

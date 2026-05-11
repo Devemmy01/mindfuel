@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Quote, RefreshCw } from "lucide-react";
+import { Quote, RefreshCw } from "lucide-react";
 
 const quotes = [
   { text: "Be present in all things and thankful for all things.", author: "Maya Angelou" },
@@ -14,14 +14,17 @@ const quotes = [
 ];
 
 const DailyFuel: React.FC = () => {
-  const [quote, setQuote] = useState(quotes[0]);
-  const [isRotating, setIsRotating] = useState(false);
+  const getInitialQuote = () => {
+    const today = new Date();
+    const dayOfYear = Math.floor(
+      (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    return quotes[dayOfYear % quotes.length];
+  };
 
-  useEffect(() => {
-    // Pick a random quote on mount
-    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-    setQuote(randomQuote);
-  }, []);
+  const [quote, setQuote] = useState(getInitialQuote());
+  const [isRotating, setIsRotating] = useState(false);
 
   const handleRefresh = () => {
     setIsRotating(true);
@@ -43,7 +46,7 @@ const DailyFuel: React.FC = () => {
       
       <div className="flex items-center justify-between mb-5 relative z-10">
         <div className="inline-flex items-center gap-2.5 bg-brand-green/20 px-3.5 py-1.5 rounded-full">
-          <Sparkles className="w-3 h-3 text-brand-green fill-brand-green/20" />
+          <div className="w-3 h-3 rounded-full bg-brand-green/50" />
           <p className="text-[10px] font-black text-brand-green tracking-[0.18em] uppercase">Daily Fuel</p>
         </div>
         <button 

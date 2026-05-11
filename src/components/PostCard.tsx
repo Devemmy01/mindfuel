@@ -4,10 +4,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
-  MessageCircle,
-  Bookmark,
-  Share2,
-  CheckCircle2,
   MoreHorizontal,
   Link as LinkIcon,
   Twitter,
@@ -15,12 +11,11 @@ import {
   Trash2,
   Edit,
   X,
-  Sparkles,
   Loader2,
-  Smile,
+  Share2,
+  MessageCircle,
+  Repeat2,
 } from "lucide-react";
-import dynamic from "next/dynamic";
-import { Theme } from "emoji-picker-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -28,36 +23,17 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { PostType } from "@/types";
 import { Download } from "lucide-react";
-import { backgroundOptions } from "@/lib/backgrounds";
-import { getFontById, fontOptions } from "@/lib/fonts";
-import { CardWatermark } from "@/components/CardCreator";
 import InteractionBar from "@/components/InteractionBar";
+import QuotedPostPreview from "@/components/QuotedPostPreview";
+import DownloadCardModal from "@/components/DownloadCardModal";
+import EditPostModal from "@/components/EditPostModal";
 
-// Dynamic import heavy libraries for code splitting
-const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-[280px] h-[320px] bg-secondary/50 rounded-2xl animate-pulse" />
-  ),
-});
+// EmojiPicker removal from here as it is now in EditPostModal
 
 interface PostCardProps {
   post: PostType;
   isHighlighted?: boolean;
 }
-
-const isColorLight = (hex: string) => {
-  if (!hex || !hex.startsWith("#")) return true;
-  const c = hex.substring(1);
-  const rgb = parseInt(c, 16);
-  const r = (rgb >> 16) & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = (rgb >> 0) & 0xff;
-  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luma > 160;
-};
-
-// backgroundOptions imported from lib
 
 const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   const { user } = useAuth();
@@ -65,108 +41,48 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   const router = useRouter();
 
   const [isEditing, setIsEditing] = useState(false);
-
-  // Extract prompt prefix and reflection text from saved combined string
-  const getParsedData = React.useCallback(() => {
-    if (!post.promptId) return { prefix: null, text: post.text };
-    const text = post.text;
-    // Extract: 'Reflecting on: "..."' allowing flexible spacing/newlines after
-    const match = text.match(/^(Reflecting on: "[^"]+")\s*([\s\S]*)$/);
-    if (match) {
-      return { prefix: match[1], text: match[2].trimStart() };
-    }
-    return { prefix: null, text: text };
-  }, [post.promptId, post.text]);
-
-  const parsedData = React.useMemo(() => getParsedData(), [getParsedData]);
-  const promptPrefix = parsedData.prefix;
-  const [editText, setEditText] = useState(parsedData.text);
-
-  React.useEffect(() => {
-    if (isEditing) {
-      setEditText(parsedData.text);
-    }
-  }, [isEditing, parsedData.text]);
-
-  const [editBg, setEditBg] = useState(() => {
-    const foundBg = backgroundOptions.find(
-      (o) => o.value === post.backgroundStyle.value,
-    );
-    if (foundBg) return foundBg;
-    return {
-      id: "custom",
-      name: "Custom Color",
-      type: "color",
-      value: post.backgroundStyle.value,
-      text: isColorLight(post.backgroundStyle.value) ? "#171717" : "#ffffff",
-    };
-  });
-  const [editFont, setEditFont] = useState(
-    getFontById(post.fontFamily ?? "inter"),
-  );
-  const [isUpdating, setIsUpdating] = useState(false);
-
+  const [isHidden, setIsHidden] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [privateNote, setPrivateNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
-  const [showShareMenu, setShowShareMenu] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [imgError, setImgError] = useState(false);
 
-  const shareMenuRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  // Edit state
+  const getParsedText = () => {
+    if (!post.promptId) return post.text;
+    const match = post.text.match(/^Reflecting on: "[^"]+"\s*([\s\S]*)$/);
+    return match ? match[1].trimStart() : post.text;
+  };
+  const promptPrefix = post.promptId
+    ? (post.text.match(/^(Reflecting on: "[^"]+")/)?.[1] ?? null)
+    : null;
+
   const menuRef = useRef<HTMLDivElement>(null);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
   const viewFetched = useRef(false);
-
-  const editTextAreaRef = useRef<HTMLTextAreaElement>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setShowMenu(false);
       if (
         shareMenuRef.current &&
         !shareMenuRef.current.contains(e.target as Node)
-      ) {
+      )
         setShowShareMenu(false);
-      }
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(e.target as Node)
-      ) {
-        setShowEmojiPicker(false);
-      }
     };
-    if (showShareMenu || showMenu || showEmojiPicker)
+    if (showMenu || showShareMenu)
       document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showShareMenu, showMenu, showEmojiPicker]);
-
-  const onEmojiClick = (emojiData: { emoji: string }) => {
-    const cursor = editTextAreaRef.current?.selectionStart ?? editText.length;
-    const updated =
-      editText.slice(0, cursor) + emojiData.emoji + editText.slice(cursor);
-    setEditText(updated);
-    setShowEmojiPicker(false);
-    setTimeout(() => {
-      if (editTextAreaRef.current) {
-        editTextAreaRef.current.focus();
-        const pos = cursor + emojiData.emoji.length;
-        editTextAreaRef.current.setSelectionRange(pos, pos);
-      }
-    }, 0);
-  };
+  }, [showMenu, showShareMenu]);
 
   useEffect(() => {
     if (!viewFetched.current) {
       viewFetched.current = true;
-      // Fire-and-forget view tracking with requestIdleCallback for performance
-      const trackView = () => {
+      const track = () => {
         fetch(`/api/posts/${post._id}/view`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -174,27 +90,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
         }).catch(() => {});
       };
       if ("requestIdleCallback" in window) {
-        requestIdleCallback(trackView);
+        requestIdleCallback(track);
       } else {
-        setTimeout(trackView, 200);
+        setTimeout(track, 200);
       }
     }
   }, [post._id, user?.uid]);
 
-  // Note: isLiked and isSaved are now provided directly by the batched /api/posts/feed endpoint
-  // We no longer manually fetch them per-card to eliminate the N+1 API waterfall.
-
-  const handleShareClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowShareMenu((p) => !p);
-  };
+  // onEmojiClick removed as it is now in EditPostModal
 
   const copyLink = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigator.clipboard.writeText(`${window.location.origin}/post/${post._id}`);
-    showToast("Link copied to clipboard", "success");
+    showToast("Link copied!", "success");
     setShowShareMenu(false);
     setShowMenu(false);
   };
@@ -203,114 +112,42 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
     e.preventDefault();
     e.stopPropagation();
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(
-      `Thought on MindFuel by ${post.userId.name}:`,
-    );
     window.open(
-      `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`,
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:`)}&url=${encodeURIComponent(url)}`,
       "_blank",
     );
     setShowShareMenu(false);
-    setShowMenu(false);
   };
 
   const shareToWhatsApp = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const url = `${window.location.origin}/post/${post._id}`;
-    const text = encodeURIComponent(
-      `Thought on MindFuel by ${post.userId.name}:\n${url}`,
+    window.open(
+      `https://api.whatsapp.com/send?text=${encodeURIComponent(`Thought on MindFuel by ${post.userId.name}:\n${url}`)}`,
+      "_blank",
     );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
     setShowShareMenu(false);
-    setShowMenu(false);
-  };
-
-  const downloadCard = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!cardRef.current) return;
-    setIsDownloading(true);
-    try {
-      // Dynamic import html-to-image only when needed (~50KB)
-      const { toPng } = await import("html-to-image");
-      await new Promise((r) => setTimeout(r, 300));
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        quality: 1,
-        pixelRatio: 3,
-        skipFonts: true,
-      });
-      const link = document.createElement("a");
-      link.download = `mindfuel-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-      showToast("Downloading the card...");
-      setShowShareMenu(false);
-      setShowMenu(false);
-    } catch (err) {
-      console.error("Download failed", err);
-    } finally {
-      setIsDownloading(false);
-    }
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user || user.uid !== post.userId.firebaseId) return;
-    if (!confirm("Are you sure you want to delete this thought?")) return;
-
+    if (!confirm("Delete this thought?")) return;
     try {
       const res = await fetch(`/api/posts/${post._id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.uid }),
       });
-      if (res.ok) {
-        window.location.reload();
-      }
+      if (res.ok) window.location.reload();
     } catch (err) {
-      console.error("Delete failed", err);
+      console.error(err);
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      !user ||
-      user.uid !== post.userId.firebaseId ||
-      !editText.trim() ||
-      isUpdating
-    )
-      return;
-    setIsUpdating(true);
-    try {
-      const res = await fetch(`/api/posts/${post._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.uid,
-          text: promptPrefix ? `${promptPrefix}\n\n${editText}` : editText,
-          backgroundStyle: {
-            id: editBg.id,
-            type: editBg.type,
-            value: editBg.value,
-            text: editBg.text,
-          },
-          fontFamily: editFont.id,
-        }),
-      });
-      if (res.ok) {
-        setIsEditing(false);
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error("Update failed", err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  // Edit modal is now handled by EditPostModal component
 
   const handleSaveNote = async () => {
     if (!user || isSavingNote) return;
@@ -326,7 +163,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
         showToast("Private note saved", "success");
       }
     } catch (err) {
-      console.error("Failed to save note", err);
+      console.error(err);
     } finally {
       setIsSavingNote(false);
     }
@@ -336,30 +173,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
     e.preventDefault();
     e.stopPropagation();
     if (
-      confirm(
-        "Report this reflection? It will be hidden from your feed and the admin will be notified.",
+      !confirm(
+        "Report this reflection? It will be hidden and the admin notified.",
       )
-    ) {
-      setIsHidden(true);
-      setShowMenu(false);
-
-      try {
-        await fetch("/api/reports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ postId: post._id, userId: user?.uid }),
-        });
-        showToast("Post reported to admin", "warning");
-      } catch (err) {
-        console.error("Report failed", err);
-      }
+    )
+      return;
+    setIsHidden(true);
+    setShowMenu(false);
+    try {
+      await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post._id, userId: user?.uid }),
+      });
+      showToast("Post reported", "warning");
+    } catch (err) {
+      console.error(err);
     }
   };
 
   if (isHidden) return null;
-
-
-  const textColor = post.backgroundStyle.text || "#ffffff";
 
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
     addSuffix: false,
@@ -367,500 +200,301 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
     .replace("about ", "")
     .replace("less than a minute", "now");
 
+  const handle =
+    post.userId.username || post.userId.name.replace(/\s+/g, "").toLowerCase();
+
   return (
     <>
       <motion.article
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        whileTap={{ scale: 0.995 }}
         onClick={() => router.push(`/post/${post._id}`)}
-        className={`flex flex-row px-4 py-4 border-b transition-all cursor-pointer group outline-none ${
+        className={`flex flex-col border-b cursor-pointer group transition-colors ${
           isHighlighted
-            ? "bg-gradient-to-r from-brand-green/5 to-transparent border-brand-green/30 hover:bg-gradient-to-r hover:from-brand-green/8"
+            ? "border-brand-green/20 hover:bg-brand-green/[0.03]"
             : "border-border hover:bg-secondary/20"
         }`}
       >
-        <div className="mr-3 flex-shrink-0 pt-0.5">
-          <Link
-            href={`/profile/${post.userId.firebaseId}`}
-            onClick={(e) => e.stopPropagation()}
-            className="block outline-none press-scale"
-          >
-            {post.userId.image &&
-            !post.userId.image.startsWith("#") &&
-            !imgError ? (
-              <Image
-                src={post.userId.image}
-                alt={post.userId.name}
-                width={40}
-                height={40}
-                onError={() => setImgError(true)}
-                className="w-10 h-10 rounded-full bg-secondary object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
-              />
-            ) : (
-              <div
-                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-[13px] font-bold text-white"
-                style={{
-                  backgroundColor: "#0a0a0a",
-                }}
-              >
-                {post.userId.name?.[0]?.toUpperCase()}
-              </div>
-            )}
-          </Link>
-        </div>
+        {post.isRepost && post.repostedBy && (
+          <div className="flex gap-1.5 text-white/50 text-[13px] font-semibold px-4 pt-2.5 pb-0 ml-10">
+            <Repeat2 className="w-4 h-4" strokeWidth={2.5} />
+            <Link
+              href={`/profile/${post.repostedBy.firebaseId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="hover:underline"
+            >
+              {post.repostedBy.firebaseId === user?.uid
+                ? "You reposted"
+                : `${post.repostedBy.name} reposted`}
+            </Link>
+          </div>
+        )}
 
-        <div className="flex flex-col w-full min-w-0">
-          <div className="flex items-center justify-between w-full mb-1">
-            <div className="flex gap-4 min-w-0">
-              <div className="flex flex-col">
+        <div
+          className={`flex px-4 ${post.isRepost && post.repostedBy ? "-mt-2 md:mt-0 pb-3.5" : "py-3.5"}`}
+        >
+          {/* Avatar */}
+          <div className="mr-3 flex-shrink-0 pt-0.5">
+            <Link
+              href={`/profile/${post.userId.firebaseId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="block press-scale outline-none"
+            >
+              {post.userId.image &&
+              !post.userId.image.startsWith("#") &&
+              !imgError ? (
+                <Image
+                  src={post.userId.image}
+                  alt={post.userId.name}
+                  width={40}
+                  height={40}
+                  onError={() => setImgError(true)}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
+                />
+              ) : (
+                <div
+                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-[14px] font-bold text-white"
+                  style={{ backgroundColor: "#1a1a2e" }}
+                >
+                  {post.userId.name?.[0]?.toUpperCase()}
+                </div>
+              )}
+            </Link>
+          </div>
+
+          {/* Content column */}
+          <div className="flex flex-col flex-1 min-w-0">
+            {/* Name row */}
+            <div className="flex items-start justify-between mb-1">
+              <div className="md:flex md:flex-wrap gap-x-1.5 min-w-0 flex-1 mr-2 mt-0 md:mt-[10px]">
                 <Link
                   href={`/profile/${post.userId.firebaseId}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="font-bold text-[14px] text-foreground hover:underline whitespace-nowrap max-w-[120px] sm:max-w-[160px]"
+                  className="font-bold text-[15px] hover:underline break-words"
                 >
                   {post.userId.name}
                 </Link>
-                {post.isSponsored && (
-                  <CheckCircle2
-                    className="w-[14px] h-[14px] text-brand-green flex-shrink-0"
-                    fill="currentColor"
-                    strokeWidth={0}
-                  />
-                )}
-                <Link
-                  href={`/profile/${post.userId.firebaseId}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-muted-foreground text-[13px] -mt-4 sm:mt-0 max-w-[80px] hover:text-foreground transition-colors"
-                >
-                  @
-                  {post.userId.username ||
-                    post.userId.name.replace(/\s+/g, "").toLowerCase()}
-                </Link>
-              </div>
-              <span className="text-muted-foreground text-[13px] flex-shrink-0">
-                ·
-              </span>
-              <span className="text-muted-foreground text-[13px] flex-shrink-0 whitespace-nowrap">
-                {timeAgo}
-              </span>
-            </div>
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowMenu(!showMenu);
-                }}
-                aria-label="Post options"
-                aria-expanded={showMenu}
-                className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-              >
-                <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-40 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                  {user?.uid === post.userId.firebaseId ? (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsEditing(true);
-                          setShowMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" /> Edit
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors border-t border-border/50"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsNoteModalOpen(true);
-                          setShowMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" /> Private Note
-                      </button>
-                      <button
-                        onClick={copyLink}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                      >
-                        <LinkIcon className="w-4 h-4" /> Copy Link
-                      </button>
-                      <button
-                        onClick={downloadCard}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
-                      >
-                        <Download className="w-4 h-4" /> Download
-                      </button>
-                      <button
-                        onClick={handleReport}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" /> Report
-                      </button>
-                    </>
+                <div className="flex gap-1 pb-3 md:pb-0 shrink-0">
+                  <span className="text-muted-foreground text-[14px]">
+                    @{handle}
+                  </span>
+                  <span className="text-muted-foreground text-[14px]">
+                    ·
+                  </span>
+                  <span className="text-muted-foreground text-[14px] whitespace-nowrap">
+                    {timeAgo}
+                  </span>
+                  {post.isSponsored && (
+                    <span className="brand-pill ml-1 shrink-0">Promoted</span>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {post.isSponsored && (
-            <span className="brand-pill mb-2 self-start">Promoted</span>
-          )}
-
-          <div
-            ref={cardRef}
-            className={`thought-card relative ${isDownloading ? "!rounded-none !border-none min-w-[380px] aspect-[4/5] flex flex-col justify-center" : "rounded-2xl border border-black/5 dark:border-white/5"} overflow-hidden mb-2.5`}
-            style={{ background: post.backgroundStyle.value, color: textColor }}
-          >
-            {/* Texture overlays */}
-            <div
-              className={`absolute inset-0 ${isDownloading ? "!rounded-none" : "rounded-2xl"} ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none`}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
-
-            {/* Inner glow vignette */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
-            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.03] transition-colors pointer-events-none" />
-
-            {/* Grouped content for centered alignment */}
-            <div
-              className={`relative z-10 w-full pt-10 ${isDownloading ? "flex flex-col items-start px-8 py-4" : ""}`}
-            >
-              {/* Decorative quote */}
-              <span
-                className={
-                  isDownloading
-                    ? "relative mb-1 block text-[64px] font-black opacity-[0.08]"
-                    : "thought-card-quote -ml-1"
-                }
-                style={{ color: textColor, fontFamily: "'Georgia', serif" }}
-              >
-                &ldquo;
-              </span>
-
-              <div
-                className={`relative ${isDownloading ? "px-0" : "px-6 md:px-8"} pt-4 pb-14 transition-all`}
-                style={{
-                  fontFamily: getFontById(post.fontFamily ?? "inter").family,
-                }}
-              >
-                {promptPrefix && (
-                  <div 
-                    className={`mb-4 italic opacity-80 ${isDownloading ? "text-[20px] sm:text-[24px]" : "text-[15px] sm:text-[17px]"}`}
-                    style={{ color: textColor === "#171717" ? "rgba(0,0,0,0.6)" : "#f5f5f5" }}
-                  >
-                    {promptPrefix}
-                  </div>
-                )}
-                <p
-                  className={`relative ${isDownloading ? "text-[22px] sm:text-[26px]" : "text-[16px] sm:text-[18px]"} font-semibold leading-[1.45] tracking-tight whitespace-pre-wrap break-words drop-shadow-sm`}
-                >
-                  {editText}
-                </p>
               </div>
-            </div>
-            <CardWatermark color={textColor} isVisible={isDownloading} />
-          </div>
 
-          <div className="flex items-center w-full mt-3 px-1">
-            <InteractionBar
-              postId={post._id}
-              initialLikes={post.likesCount}
-              initialViews={post.views}
-              initialComments={post.commentsCount || 0}
-              initialIsLiked={post.isLiked ?? false}
-              initialIsSaved={post.isSaved ?? false}
-            >
-              <div className="flex items-center relative" ref={shareMenuRef}>
+              {/* ⋯ Menu */}
+              <div className="relative flex-shrink-0" ref={menuRef}>
                 <button
-                  onClick={handleShareClick}
-                  aria-label="Share"
-                  aria-expanded={showShareMenu}
-                  className="flex items-center group/btn transition-colors hover:text-blue-500 outline-none"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowMenu((p) => !p);
+                  }}
+                  aria-label="Post options"
+                  className="p-1.5 -mr-1 rounded-full text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors"
                 >
-                  <div className="p-2 rounded-full group-hover/btn:bg-blue-500/10 transition-colors">
-                    <Share2
-                      className={`w-[18px] h-[18px] ${showShareMenu ? "text-blue-500" : ""}`}
-                      strokeWidth={1.75}
-                    />
-                  </div>
+                  <MoreHorizontal className="w-4 h-4" />
                 </button>
-
-                {showShareMenu && (
-                  <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in flex flex-col">
-                    <button
-                      onClick={copyLink}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <LinkIcon className="w-4 h-4 text-muted-foreground" />{" "}
-                      Copy Link
-                    </button>
-                    <button
-                      onClick={shareToX}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to X
-                    </button>
-                    <button
-                      onClick={shareToWhatsApp}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors border-b border-border/50"
-                    >
-                      <MessageCircle className="w-4 h-4 text-[#25D366]" /> Share
-                      to WhatsApp
-                    </button>
-                    <button
-                      onClick={downloadCard}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
-                    >
-                      <Download className="w-4 h-4 text-brand-green" /> Download
-                      Image
-                    </button>
+                {showMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in">
+                    {user?.uid === post.userId.firebaseId ? (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsEditing(true);
+                            setShowMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" /> Edit
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors border-t border-border/50"
+                        >
+                          <Trash2 className="w-4 h-4" /> Delete
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsNoteModalOpen(true);
+                            setShowMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" /> Private Note
+                        </button>
+                        <button
+                          onClick={copyLink}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                        >
+                          <LinkIcon className="w-4 h-4" /> Copy Link
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsDownloadOpen(true);
+                            setShowMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium hover:bg-secondary/60 transition-colors border-b border-border/50"
+                        >
+                          <Download className="w-4 h-4" /> Download Card
+                        </button>
+                        <button
+                          onClick={handleReport}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/5 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" /> Report
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
-            </InteractionBar>
+            </div>
+
+            {/* Prompt prefix */}
+            {promptPrefix && (
+              <p className="text-[13px] text-muted-foreground italic mb-1">
+                {promptPrefix}
+              </p>
+            )}
+
+            {/* Post text */}
+            <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words mb-3">
+              {getParsedText()}
+            </p>
+
+            {/* Attached image */}
+            {post.imageUrl && (
+              <div
+                className="mb-3 rounded-2xl overflow-hidden border border-border max-h-[320px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Image
+                  src={post.imageUrl}
+                  alt="Post image"
+                  width={600}
+                  height={400}
+                  className="w-full object-cover max-h-[320px]"
+                />
+              </div>
+            )}
+
+
+
+            {/* Quoted post */}
+            {post.quotedPostId && (
+              <QuotedPostPreview post={post.quotedPost} />
+            )}
+
+            {/* Action bar */}
+            <div className="flex items-center w-full mt-1">
+              <InteractionBar
+                postId={post._id}
+                initialLikes={post.likesCount}
+                initialViews={post.views}
+                initialComments={post.commentsCount || 0}
+                initialIsLiked={post.isLiked ?? false}
+                initialIsSaved={post.isSaved ?? false}
+                initialIsReposted={post.isReposted ?? false}
+                initialReposts={post.repostCount ?? 0}
+              >
+                {/* Share dropdown */}
+                <div className="relative flex items-center" ref={shareMenuRef}>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowShareMenu((p) => !p);
+                    }}
+                    aria-label="Share"
+                    className="flex items-center group/btn transition-colors hover:text-brand-green outline-none"
+                  >
+                    <div className="p-1.5 sm:p-2 rounded-full group-hover/btn:bg-brand-green/10 transition-colors">
+                      <Share2
+                        className={`w-[16px] h-[16px] sm:w-[18px] sm:h-[18px] ${showShareMenu ? "text-brand-green" : ""}`}
+                        strokeWidth={1.75}
+                      />
+                    </div>
+                  </button>
+                  {showShareMenu && (
+                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-popover popover-solid border border-border rounded-xl shadow-card py-1 z-50 animate-scale-in">
+                      <button
+                        onClick={copyLink}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                      >
+                        <LinkIcon className="w-4 h-4 text-muted-foreground" />{" "}
+                        Copy Link
+                      </button>
+                      <button
+                        onClick={shareToX}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                      >
+                        <Twitter className="w-4 h-4 text-[#1DA1F2]" /> Share to
+                        X
+                      </button>
+                      <button
+                        onClick={shareToWhatsApp}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors border-b border-border/50"
+                      >
+                        <MessageCircle className="w-4 h-4 text-[#25D366]" />{" "}
+                        Share to WhatsApp
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDownloadOpen(true);
+                          setShowShareMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                      >
+                        <Download className="w-4 h-4 text-brand-green" />{" "}
+                        Download Card
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </InteractionBar>
+            </div>
           </div>
         </div>
       </motion.article>
 
-      <AnimatePresence>
-        {isEditing && (
-          <motion.div
-            key="edit-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Edit thought"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsEditing(false);
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
-                <h3 className="text-[17px] font-bold tracking-tight">
-                  Edit Thought
-                </h3>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  aria-label="Close edit"
-                  className="p-2 hover:bg-secondary/60 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" aria-hidden="true" />
-                </button>
-              </div>
-              <div className="p-6">
-                {promptPrefix && (
-                  <div className="mb-4 px-4 py-3 bg-secondary/50 border border-border/50 rounded-xl shadow-sm">
-                    <p className="text-[14px] text-foreground/90 font-medium">
-                      {promptPrefix}
-                    </p>
-                  </div>
-                )}
+      {/* Download Card Modal */}
+      <DownloadCardModal
+        post={post}
+        isOpen={isDownloadOpen}
+        onClose={() => setIsDownloadOpen(false)}
+      />
 
-                {/* Live Preview Area */}
-                <div
-                  className={`relative w-full rounded-2xl shadow-card overflow-hidden min-h-[160px] mb-2 transition-all duration-300 ${
-                    editText.length > 450 ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30" :
-                    editText.length > 400 ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20" :
-                    "border border-black/5 dark:border-white/5"
-                  }`}
-                  style={{
-                    background:
-                      editBg.type === "gradient" ? editBg.value : editBg.value,
-                    color: editBg.text,
-                  }}
-                >
-                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
+      {/* Edit Modal */}
+      <EditPostModal
+        post={post}
+        isOpen={isEditing}
+        onClose={() => setIsEditing(false)}
+        onSave={() => {
+          // No need to reload, SWR mutate inside EditPostModal handles it
+        }}
+      />
 
-                  <textarea
-                    ref={editTextAreaRef}
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-8 pb-14 text-[18px] scrollbar-dark relative z-10"
-                    style={{ color: editBg.text, fontFamily: editFont.family }}
-                    rows={4}
-                    maxLength={500}
-                    autoFocus
-                  />
-                  <CardWatermark color={editBg.text} />
-                </div>
-                <div className="flex items-center justify-between mb-6">
-                  {editText.length > 0 && (
-                    <span className={`text-[12px] font-semibold transition-colors ${
-                      editText.length > 500 ? "text-rose-500" :
-                      editText.length > 450 ? "text-rose-500/70" :
-                      editText.length > 400 ? "text-yellow-500/70" :
-                      "text-muted-foreground/60"
-                    }`}>
-                      {editText.length}/500 characters
-                    </span>
-                  )}
-                  {editText.length > 500 && (
-                    <p className="text-[12px] text-rose-500 font-semibold">Over limit by {editText.length - 500}</p>
-                  )}
-                </div>
-
-                {/* Tools Toolbar */}
-                <div className="flex flex-col gap-4 mb-6">
-                  <div className="flex items-center justify-between gap-3">
-                    {/* Emoji / Font */}
-                    <div
-                      className="flex items-center gap-3 relative"
-                      ref={emojiPickerRef}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setShowEmojiPicker((p) => !p)}
-                        className={`p-2 rounded-xl transition-colors shrink-0 ${showEmojiPicker ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary"}`}
-                        title="Add emoji"
-                      >
-                        <Smile className="w-5 h-5" strokeWidth={2} />
-                      </button>
-
-                      <AnimatePresence>
-                        {showEmojiPicker && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50"
-                          >
-                            <EmojiPicker
-                              onEmojiClick={onEmojiClick}
-                              theme={Theme.AUTO}
-                              width={280}
-                              height={320}
-                            />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right pb-1">
-                        {fontOptions.map((font) => (
-                          <button
-                            key={font.id}
-                            onClick={() => setEditFont(font)}
-                            className={`shrink-0 px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-all ${
-                              editFont.id === font.id
-                                ? "bg-brand-green text-white"
-                                : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-                            }`}
-                            style={{ fontFamily: font.family }}
-                          >
-                            {font.label}
-                          </button>
-                        ))}
-                        <div className="w-6 shrink-0" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Themes / Backgrounds */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 pl-1">
-                      Theme
-                    </span>
-                    <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 mask-gradient-right">
-                      {/* Custom Color Picker */}
-                      <div className="relative flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border hover:scale-105 transition-all shadow-sm">
-                        <input
-                          type="color"
-                          value={
-                            editBg.id === "custom" ? editBg.value : "#00bf63"
-                          }
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEditBg({
-                              id: "custom",
-                              name: "Custom Color",
-                              type: "color",
-                              value: val,
-                              text: isColorLight(val) ? "#171717" : "#ffffff",
-                            });
-                          }}
-                          className="absolute inset-[-10px] w-12 h-12 cursor-pointer opacity-0 z-10"
-                          title="Pick a custom color"
-                        />
-                        {editBg.id === "custom" ? (
-                          <div
-                            className="w-full h-full"
-                            style={{ backgroundColor: editBg.value }}
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] opacity-90" />
-                        )}
-                      </div>
-
-                      <div className="w-px h-6 bg-border mx-1 flex-shrink-0" />
-
-                      {backgroundOptions.map((option) => (
-                        <button
-                          key={option.id}
-                          onClick={() => setEditBg(option)}
-                          className={`w-10 h-10 sm:w-8 sm:h-8 rounded-full transition-all flex-shrink-0 ${editBg.id === option.id && editBg.id !== "custom" ? "scale-110 ring-2 ring-brand-green ring-offset-2 ring-offset-background" : "opacity-75 hover:opacity-100 hover:scale-105"}`}
-                          style={{ background: option.value }}
-                          title={option.name}
-                        />
-                      ))}
-                      <div className="w-6 shrink-0" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="flex-[1] py-3.5 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleUpdate}
-                    disabled={isUpdating || !editText.trim()}
-                    className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2 relative overflow-hidden group"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full duration-1000 -translate-x-full transition-transform" />
-                    {isUpdating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Private Note Modal */}
       <AnimatePresence>
         {isNoteModalOpen && (
           <motion.div
@@ -868,15 +502,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Private note"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsNoteModalOpen(false);
-            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsNoteModalOpen(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -886,21 +513,19 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
-                <h3 className="text-[17px] font-bold tracking-tight text-brand-green">
+                <h3 className="text-[17px] font-bold text-brand-green">
                   Private Note
                 </h3>
                 <button
                   onClick={() => setIsNoteModalOpen(false)}
-                  aria-label="Close note"
                   className="p-2 hover:bg-secondary/60 rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5" aria-hidden="true" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6">
                 <p className="text-[13px] text-muted-foreground mb-4">
-                  Reflect on this thought. This note is only visible to you and
-                  will save the reflection to your library.
+                  Reflect on this thought. Visible only to you.
                 </p>
                 <textarea
                   value={privateNote}
@@ -913,20 +538,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setIsNoteModalOpen(false)}
-                    className="flex-1 py-3 bg-secondary/60 text-foreground font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
+                    className="flex-1 py-3 bg-secondary/60 font-bold rounded-2xl hover:bg-secondary transition-all press-scale"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveNote}
                     disabled={isSavingNote || !privateNote.trim()}
-                    className="flex-[2] py-3 bg-brand-green text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
+                    className="flex-[2] py-3 bg-[#00a855] text-white font-bold rounded-2xl disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2"
                   >
                     {isSavingNote ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Bookmark className="w-4 h-4" />
-                    )}
+                    ) : null}
                     Save Note
                   </button>
                 </div>

@@ -20,25 +20,25 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
     warning: <AlertCircle className="w-4 h-4 text-amber-400" />,
   };
 
-  const bgStyles = "bg-popover/80 backdrop-blur-md border border-border shadow-2xl";
+  const bgStyles = "bg-popover/95 backdrop-blur-xl border border-white/10 shadow-2xl";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-      className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl ${bgStyles} min-w-[280px] max-w-[400px]`}
+      transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+      className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-4 py-2.5 rounded-full ${bgStyles} w-fit max-w-[90vw] md:max-w-[400px]`}
     >
       <div className="flex-shrink-0">{icons[type]}</div>
-      <div className="flex-1 text-[13.5px] font-medium tracking-tight text-foreground/90 leading-tight">
+      <div className="text-[14px] font-semibold text-foreground/90 whitespace-nowrap px-1">
         {message}
       </div>
       <button
         onClick={onClose}
-        className="p-1 -mr-1.5 rounded-full hover:bg-secondary/60 text-muted-foreground transition-colors"
+        className="p-1 -mr-1.5 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors ml-1"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
     </motion.div>
   );

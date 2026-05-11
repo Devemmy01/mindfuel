@@ -12,19 +12,19 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 
-interface CommentEmailProps {
+interface QuoteEmailProps {
   authorName: string;
-  commenterName: string;
-  commentContent: string;
-  postText: string;
+  quoterName: string;
+  quoteText: string;
+  originalPostText: string;
   postLink: string;
 }
 
-export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
+export const QuoteEmail: React.FC<Readonly<QuoteEmailProps>> = ({
   authorName,
-  commenterName,
-  commentContent,
-  postText,
+  quoterName,
+  quoteText,
+  originalPostText,
   postLink,
 }) => (
   <Html>
@@ -33,12 +33,12 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         @media (prefers-color-scheme: dark) {
           .main { background-color: #000000 !important; }
           .text { color: #a1a1aa !important; }
-          .commentBox { background-color: #0a0a0a !important; border-color: #00bf63 !important; }
-          .commentText { color: #d1d1d6 !important; }
+          .quoteBox { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
+          .quoteContent { color: #ffffff !important; }
         }
       `}</style>
     </Head>
-    <Preview>{commenterName} commented on your post</Preview>
+    <Preview>{quoterName} quoted your thought</Preview>
     <Body style={main} className="main">
       <Container style={container}>
         <Section style={logoContainer}>
@@ -52,25 +52,25 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         </Section>
 
         <Text style={text} className="text">
-          Hi {authorName}, <strong>{commenterName}</strong> just shared a
-          thought on your post:
+          Hi {authorName}, <strong>{quoterName}</strong> just quoted your thought!
         </Text>
 
-        <Section style={commentBox} className="commentBox">
-          <Text style={commentText} className="commentText">&quot;{commentContent}&quot;</Text>
+        <Section style={quoteBox} className="quoteBox">
+          <Text style={quoteLabel}>{quoterName}&apos;s Commentary</Text>
+          <Text style={quoteContent} className="quoteContent">{quoteText}</Text>
         </Section>
 
         <Section style={postPreview}>
-          <Text style={postPreviewLabel}>Your Post</Text>
+          <Text style={postPreviewLabel}>Your Original Post</Text>
           <Text style={postPreviewText}>
-            {postText.length > 100
-              ? postText.substring(0, 100) + "..."
-              : postText}
+            {originalPostText.length > 100
+              ? originalPostText.substring(0, 100) + "..."
+              : originalPostText}
           </Text>
         </Section>
 
         <Link href={postLink} style={button}>
-          Reply to Comment
+          View Interaction
         </Link>
 
         <Hr style={hr} />
@@ -79,7 +79,7 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
   </Html>
 );
 
-export default CommentEmail;
+export default QuoteEmail;
 
 const main = {
   backgroundColor: "#ffffff",
@@ -112,19 +112,30 @@ const text = {
   marginBottom: "24px",
 };
 
-const commentBox = {
-  borderLeft: "4px solid #00bf63",
-  padding: "8px 24px",
-  backgroundColor: "#f9fafb",
-  borderRadius: "0 16px 16px 0",
-  marginBottom: "24px",
+const quoteBox = {
+  padding: "20px",
+  borderRadius: "20px",
+  backgroundColor: "#f1f5f9",
+  color: "#171717",
+  marginBottom: "16px",
+  border: "1px solid #e2e8f0",
 };
 
-const commentText = {
+const quoteLabel = {
+  fontSize: "12px",
+  fontWeight: "700",
+  opacity: "0.6",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.05em",
+  marginBottom: "8px",
+  marginTop: "0",
+};
+
+const quoteContent = {
   fontSize: "16px",
-  fontStyle: "italic",
-  color: "#475569",
+  fontWeight: "500",
   margin: "0",
+  lineHeight: "1.5",
 };
 
 const postPreview = {
@@ -136,20 +147,21 @@ const postPreview = {
 };
 
 const postPreviewLabel = {
-  fontSize: "14px",
-  fontWeight: "600",
+  fontSize: "12px",
+  fontWeight: "700",
   opacity: "0.6",
   textTransform: "uppercase" as const,
   letterSpacing: "0.05em",
-  marginBottom: "12px",
+  marginBottom: "8px",
   marginTop: "0",
 };
 
 const postPreviewText = {
-  fontSize: "16px",
-  fontWeight: "500",
+  fontSize: "14px",
+  fontWeight: "400",
   margin: "0",
   lineHeight: "1.5",
+  opacity: "0.9",
 };
 
 const button = {

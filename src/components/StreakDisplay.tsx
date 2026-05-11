@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Info, Flame, Sparkles, X } from "lucide-react";
+import { Info, Flame, X } from "lucide-react";
 import { getStreakMilestoneMessage } from "@/lib/streakUtils";
 
 interface StreakDisplayProps {
@@ -106,7 +106,7 @@ export default function StreakDisplay({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <Sparkles size={12} />
+            <Flame size={12} />
             {milestone}
           </motion.p>
         )}

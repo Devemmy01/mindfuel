@@ -79,7 +79,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 {/* Features List */}
                 <div className="w-full space-y-4 mb-10 text-left px-2">
                   <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80">
+                    <p className="text-[13px] text-foreground/80 text-center">
                       <span className="font-bold text-foreground">
                         Personalized Feed.
                       </span>{" "}
@@ -87,7 +87,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80">
+                    <p className="text-[13px] text-foreground/80 text-center">
                       <span className="font-bold text-foreground">
                         Save Thoughts.
                       </span>{" "}

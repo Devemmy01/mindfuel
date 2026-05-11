@@ -4,6 +4,7 @@ import Post from "@/models/post";
 import User from "@/models/user";
 import Like, { ILike } from "@/models/like";
 import Save, { ISave } from "@/models/save";
+import Repost from "@/models/repost";
 import { PostType } from "@/types";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 
@@ -116,7 +117,24 @@ export async function GET(req: NextRequest) {
         Post.countDocuments(matchFilter)
       ]);
 
-      validPosts = (populatedPosts as unknown as PostType[]).filter((p) => p.userId && typeof p.userId === 'object' && 'name' in p.userId);
+      // Populate quoted posts for the aggregated results
+      const populatedWithQuotes = await Post.populate(populatedPosts, [
+        {
+          path: "quotedPostId",
+          populate: [
+            { path: "userId", select: "name username image firebaseId" },
+            { 
+              path: "quotedPostId", 
+              populate: { path: "userId", select: "name username image firebaseId" }
+            }
+          ]
+        }
+      ]);
+
+      validPosts = (populatedWithQuotes as PostType[]).map(p => {
+        const item = p as unknown as { toObject?: () => PostType };
+        return item.toObject ? item.toObject() : p;
+      }).filter((p) => p.userId && typeof p.userId === 'object' && 'name' in p.userId);
       total = totalCount;
 
       // Fallback: Ensure we always have content even if aggregation is sparse
@@ -124,6 +142,16 @@ export async function GET(req: NextRequest) {
         const fallbackPosts = await Post.find(matchFilter)
           .sort({ createdAt: -1 })
           .populate("userId", "name image firebaseId username")
+          .populate({
+            path: "quotedPostId",
+            populate: [
+              { path: "userId", select: "name username image firebaseId" },
+              { 
+                path: "quotedPostId", 
+                populate: { path: "userId", select: "name username image firebaseId" }
+              }
+            ]
+          })
           .lean();
         validPosts = fallbackPosts as unknown as PostType[];
       }
@@ -137,9 +165,10 @@ export async function GET(req: NextRequest) {
 
     const hasMore = false;
 
-    // 2. Fetch User Specific Data (Likes/Saves) in parallel if logged in
+    // 2. Fetch User Specific Data (Likes/Saves/Reposts) in parallel if logged in
     let likedPostIds: Set<string> = new Set();
     let savedPostIds: Set<string> = new Set();
+    let repostedPostIds: Set<string> = new Set();
 
     if (firebaseId && validPosts.length > 0) {
       const userDoc = await User.findOne({ firebaseId }).select("_id").lean() as { _id: string } | null;
@@ -147,26 +176,56 @@ export async function GET(req: NextRequest) {
       if (userDoc) {
         const postIds = validPosts.map((p) => p._id);
 
-        const [likedDocs, savedDocs] = await Promise.all([
+        const [likedDocs, savedDocs, repostedDocs] = await Promise.all([
           Like.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<Pick<ILike, "postId">[]>,
           Save.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<Pick<ISave, "postId">[]>,
+          Repost.find({ userId: userDoc._id, postId: { $in: postIds } })
+            .select("postId")
+            .lean() as unknown as Promise<{ postId: { toString(): string } }[]>,
         ]);
 
         likedPostIds = new Set(likedDocs.map((l) => l.postId.toString()));
         savedPostIds = new Set(savedDocs.map((s) => s.postId.toString()));
+        repostedPostIds = new Set(repostedDocs.map((r) => r.postId.toString()));
       }
     }
 
-    // Attach user-specific data to each post
-    const enrichedPosts = validPosts.map((post) => ({
-      ...post,
-      isLiked: likedPostIds.has(post._id.toString()),
-      isSaved: savedPostIds.has(post._id.toString()),
-    }));
+    // Attach user-specific data to each post and map quotedPostId to quotedPost
+    const enrichedPosts = validPosts.map((post) => {
+      const p = post as unknown as PostType & { quotedPostId: unknown };
+      let quotedPostData = undefined;
+
+      // Check if it's a quote post (field exists)
+      if (p.quotedPostId !== undefined && p.quotedPostId !== null) {
+        if (typeof p.quotedPostId === "object" && p.quotedPostId !== null) {
+          const quotedDoc = p.quotedPostId as unknown as PostType & { toObject?: () => PostType };
+          const finalDoc = quotedDoc.toObject ? quotedDoc.toObject() : quotedDoc;
+          
+          quotedPostData = {
+            ...finalDoc,
+            quotedPost: finalDoc.quotedPostId as unknown as PostType,
+          };
+        } else {
+          // It's just an ID string or null, meaning population failed or target deleted
+          quotedPostData = null;
+        }
+      } else if (p.quotedPostId === null) {
+        // Explicitly set to null by Mongoose population (target deleted)
+        quotedPostData = null;
+      }
+
+      return {
+        ...post,
+        quotedPost: quotedPostData,
+        isLiked: likedPostIds.has(post._id.toString()),
+        isSaved: savedPostIds.has(post._id.toString()),
+        isReposted: repostedPostIds.has(post._id.toString()),
+      };
+    });
 
     return NextResponse.json(
       { posts: enrichedPosts, hasMore, total },

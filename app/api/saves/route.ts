@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import Save from "@/models/save";
-import User from "@/models/user";
+import User, { IUser } from "@/models/user";
 import Like from "@/models/like";
+import Post from "@/models/post";
+import { PostType } from "@/types";
+import { createNotification } from "@/lib/notifications";
+import { Types } from "mongoose";
 
 // GET /api/saves?userId=... - Fetch saved posts for a user
 export async function GET(req: NextRequest) {
@@ -15,7 +19,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    const user = await User.findOne({ firebaseId });
+    const user = (await User.findOne({ firebaseId })) as IUser | null;
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -32,7 +36,19 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .populate({
         path: "postId",
-        populate: { path: "userId", select: "name username image firebaseId" }
+        populate: [
+          { path: "userId", select: "name username image firebaseId" },
+          {
+            path: "quotedPostId",
+            populate: [
+              { path: "userId", select: "name username image firebaseId" },
+              { 
+                path: "quotedPostId", 
+                populate: { path: "userId", select: "name username image firebaseId" }
+              }
+            ]
+          }
+        ]
       })
       .lean();
     
@@ -53,12 +69,31 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const enrichedSaves = (saves as Array<{ postId?: { _id: { toString(): string } } }>).map((save) => {
+    const enrichedSaves = (saves as Array<{ postId?: PostType }>).map((save) => {
       if (!save.postId) return save;
+      
+      const p = save.postId as unknown as PostType & { quotedPostId: unknown };
+      let quotedPostData = undefined;
+
+      if (p.quotedPostId !== undefined && p.quotedPostId !== null) {
+        if (typeof p.quotedPostId === "object" && p.quotedPostId !== null) {
+          const quotedDoc = p.quotedPostId as PostType;
+          quotedPostData = {
+            ...quotedDoc,
+            quotedPost: (quotedDoc as unknown as { quotedPostId: PostType }).quotedPostId,
+          };
+        } else {
+          quotedPostData = null;
+        }
+      } else if (p.quotedPostId === null) {
+        quotedPostData = null;
+      }
+
       return {
         ...save,
         postId: {
           ...save.postId,
+          quotedPost: quotedPostData,
           isLiked: likedPostIds.has(save.postId._id.toString()),
           isSaved: savedPostIds.has(save.postId._id.toString())
         }
@@ -88,7 +123,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await User.findOne({ firebaseId });
+    const user = (await User.findOne({ firebaseId })) as IUser | null;
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -107,6 +142,24 @@ export async function POST(req: NextRequest) {
         collectionId: collectionId || null,
         note: note || "",
       });
+
+      // Notify post author
+      try {
+        const post = await Post.findById(postId);
+        if (post && post.userId && post.userId.toString() !== (user?._id as unknown as string).toString()) {
+          await createNotification({
+            recipientId: post.userId as unknown as string,
+            senderId: user._id as unknown as string,
+            type: "save",
+            postId: new Types.ObjectId(postId),
+            message: `${user.name} saved your thought to their library`,
+            url: `/post/${postId}`
+          });
+        }
+      } catch (notifErr) {
+        console.error("Save notification failed:", notifErr);
+      }
+
       return NextResponse.json({ saved: true, save }, { status: 201 });
     }
   } catch (error: unknown) {

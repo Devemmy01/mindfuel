@@ -83,12 +83,18 @@ export default function DynamicProfilePage() {
             const statsData = await statsRes.json();
             const userPosts = statsData.posts || [];
             setAllUserPosts(userPosts);
-            setOwnPostCount(userPosts.length);
+            
+            // Only count original posts for profile stats, not reposts
+            const originalUserPosts = userPosts.filter((p: PostType) => 
+              p.userId?.firebaseId === profileId || p.userId?._id === userData.user._id
+            );
+            
+            setOwnPostCount(originalUserPosts.length);
             setOwnLikesCount(
-              userPosts.reduce(
-                (acc: number, p: { likesCount: number }) => acc + p.likesCount,
+              originalUserPosts.reduce(
+                (acc: number, p: { likesCount: number }) => acc + (p.likesCount || 0),
                 0
-              ) || 0
+              )
             );
           }
         }
@@ -99,18 +105,18 @@ export default function DynamicProfilePage() {
         const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
         
         if (activeTab === "Saved") {
-          const res = await fetch(`/api/saves?userId=${profileId}${currentUserQuery}`);
+          const res = await fetch(`/api/saves?userId=${profileId}&limit=1000${currentUserQuery}`);
           const data = await res.json();
           // Transform saves to posts
           postsData = (data.saves || [])
             .map((s: { postId: PostType }) => s.postId)
             .filter(Boolean);
         } else if (activeTab === "Liked") {
-          const res = await fetch(`/api/posts?userId=${profileId}&type=liked${currentUserQuery}`);
+          const res = await fetch(`/api/posts?userId=${profileId}&type=liked&limit=1000${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         } else {
-          const res = await fetch(`/api/posts?userId=${profileId}${currentUserQuery}`);
+          const res = await fetch(`/api/posts?userId=${profileId}&limit=1000${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         }
@@ -134,15 +140,15 @@ export default function DynamicProfilePage() {
       try {
         let postsData: PostType[] = [];
         if (activeTab === "Saved") {
-          const res = await fetch(`/api/saves?userId=${profileId}${currentUserQuery}`);
+          const res = await fetch(`/api/saves?userId=${profileId}&limit=1000${currentUserQuery}`);
           const data = await res.json();
           postsData = (data.saves || []).map((s: { postId: PostType }) => s.postId).filter(Boolean);
         } else if (activeTab === "Liked") {
-          const res = await fetch(`/api/posts?userId=${profileId}&type=liked${currentUserQuery}`);
+          const res = await fetch(`/api/posts?userId=${profileId}&type=liked&limit=1000${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         } else {
-          const res = await fetch(`/api/posts?userId=${profileId}${currentUserQuery}`);
+          const res = await fetch(`/api/posts?userId=${profileId}&limit=1000${currentUserQuery}`);
           const data = await res.json();
           postsData = data.posts || [];
         }
@@ -568,6 +574,12 @@ export default function DynamicProfilePage() {
                 </motion.div>
               )
             ))}
+            
+            {/* End of feed indicator */}
+            <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-40">
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
+              <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;ve reached the end</p>
+            </div>
           </div>
         ) : (
           <div className="py-24 text-center px-6">

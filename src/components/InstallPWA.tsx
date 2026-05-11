@@ -101,9 +101,7 @@ export default function InstallPWA() {
             <div className="absolute inset-0 bg-gradient-to-br from-brand-green/5 to-transparent pointer-events-none -z-10" />
 
             {/* App icon */}
-            <div className="h-16 w-16 md:h-14 md:w-14 bg-gradient-to-br from-gray-900 to-black rounded-2xl flex-shrink-0 flex items-center justify-center shadow-lg overflow-hidden border border-white/10 mx-auto md:mx-0">
-              <Image src="/logo.png" alt="MindFuel" width={40} height={40} className="w-10 h-10 object-contain" />
-            </div>
+            <Image src="/icon-192.png" alt="MindFuel" width={50} height={55} className="w-10 h-10 object-contain" />
 
             <div className="flex-1 text-center md:text-left w-full">
               <h3 className="font-bold text-[18px] md:text-[16px] leading-tight mb-1 tracking-tight">

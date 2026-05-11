@@ -2,19 +2,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
+import { PostType } from "@/types";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectToDB();
     const { id } = await params;
 
-    const post = await Post.findById(id)
+    const postRaw = (await Post.findById(id)
       .populate("userId", "name username image firebaseId")
-      .lean();
+      .populate({
+        path: "quotedPostId",
+        populate: [
+          { path: "userId", select: "name username image firebaseId" },
+          { 
+            path: "quotedPostId", 
+            populate: { path: "userId", select: "name username image firebaseId" }
+          }
+        ]
+      })
+      .lean()) as PostType | null;
 
-    if (!post) {
+    if (!postRaw) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
+
+    const post = {
+      ...postRaw,
+      quotedPost:
+        postRaw.quotedPostId !== undefined && postRaw.quotedPostId !== null
+          ? {
+              ...(postRaw.quotedPostId as unknown as PostType),
+              quotedPost: (postRaw.quotedPostId as unknown as PostType).quotedPostId,
+            }
+          : postRaw.quotedPostId === null
+            ? null
+            : undefined,
+    };
 
     return NextResponse.json({ post }, { status: 200 });
   } catch (error: unknown) {
@@ -91,6 +115,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     // Check ownership
     if (post.userId.toString() !== user._id.toString()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // If it's a quote, decrement repostCount of original post
+    if (post.quotedPostId) {
+      await Post.findByIdAndUpdate(post.quotedPostId, { $inc: { repostCount: -1 } });
     }
 
     // Delete related data

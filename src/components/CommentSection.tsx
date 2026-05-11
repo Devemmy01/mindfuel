@@ -425,7 +425,7 @@ const CommentSection: React.FC<{
                   ref={inputRef}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="What's on your mind? Share a reflection..."
+                  placeholder="What's on your mind?"
                   rows={1}
                   className="w-full bg-transparent border-none outline-none resize-none text-[15px] placeholder:text-muted-foreground/40 leading-relaxed font-medium min-h-[54px] max-h-[160px] scrollbar-hide py-1"
                   onKeyDown={(e) => {

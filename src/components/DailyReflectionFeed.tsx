@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PostCard from "./PostCard";
 import { PostType } from "@/types";
-import { Sparkles, Flame } from "lucide-react";
+import { Flame } from "lucide-react";
 
 interface DailyReflectionFeedProps {
   allPosts: PostType[];
@@ -59,7 +59,7 @@ export default function DailyReflectionFeed({
         className="bg-secondary/20 border border-border/30 rounded-2xl p-6 mb-6 text-center"
       >
         <div className="w-12 h-12 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-3">
-          <Sparkles className="w-5 h-5 text-brand-green" />
+          <div className="w-5 h-5 rounded-full bg-brand-green/50" />
         </div>
         <p className="text-sm text-muted-foreground">
           Be the first to share your reflection

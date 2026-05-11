@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, X, Brain, Users, Zap, Quote } from "lucide-react";
+import { ArrowRight, X, Brain, Users, Zap, Quote } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getTodayPrompt, DailyPrompt } from "@/lib/dailyPrompts";
@@ -24,7 +24,7 @@ const getSteps = (): OnboardingStep[] => {
       title: "MindFuel",
       description: "A calm space for meaningful reflections and thoughtful connection.",
       subtitle: "Free from noise. Full of purpose.",
-      icon: <Sparkles className="w-8 h-8" />,
+      icon: <Brain className="w-8 h-8" />,
       theme: "from-brand-green/20 to-emerald-500/10",
     },
     {

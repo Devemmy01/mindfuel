@@ -1,3 +1,16 @@
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface Poll {
+  options: PollOption[];
+  endsAt: string;
+  totalVotes: number;
+  votedOptionId?: string; // set client-side per user
+}
+
 export interface PostType {
   _id: string;
   text: string;
@@ -11,7 +24,9 @@ export interface PostType {
   views: number;
   likesCount: number;
   commentsCount?: number;
+  repostCount?: number;
   isSponsored?: boolean;
+  imageUrl?: string;
   backgroundStyle: {
     text: string;
     type: "color" | "gradient" | string;
@@ -19,9 +34,19 @@ export interface PostType {
   };
   fontFamily?: string;
   promptId?: string;
+  poll?: Poll;
+  quotedPostId?: string;
+  quotedPost?: PostType; // populated
+  isRepost?: boolean;
+  repostedBy?: {
+    name: string;
+    username?: string;
+    firebaseId: string;
+  };
   createdAt: string;
   isLiked?: boolean;
   isSaved?: boolean;
+  isReposted?: boolean;
 }
 
 export interface ProfileUser {

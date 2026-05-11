@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useState } from "react";
 import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json()).then((data) => data.posts || []);
 
 // Skeleton card
 function SkeletonCard() {
@@ -33,63 +36,34 @@ function SkeletonCard() {
 export default function FeedClient() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("feed");
-  
-  // Simplify state to remove pagination logic
-  const [feedPosts, setFeedPosts] = useState<PostType[]>([]);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const isFetchingFeed = useRef(false);
 
-  const [reflectionPosts, setReflectionPosts] = useState<PostType[]>([]);
-  const [reflectionLoading, setReflectionLoading] = useState(false);
-  const isFetchingReflections = useRef(false);
+  const userIdParam = user?.uid ? `&userId=${user.uid}` : "";
+  const feedUrl = `/api/posts/feed?type=feed${userIdParam}`;
+  const reflectionsUrl = `/api/posts/feed?type=reflections${userIdParam}`;
 
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Computed values based on active tab
-  const posts = activeTab === "feed" ? feedPosts : reflectionPosts;
-  const loading = activeTab === "feed" ? feedLoading : reflectionLoading;
-
-  const fetchPosts = useCallback(async (type: "feed" | "reflections", isRefresh = false) => {
-    const isFeed = type === "feed";
-    const isFetchingRef = isFeed ? isFetchingFeed : isFetchingReflections;
-    
-    if (isFetchingRef.current && !isRefresh) return;
-    isFetchingRef.current = true;
-
-    const setLoading = isFeed ? setFeedLoading : setReflectionLoading;
-    const setPosts = isFeed ? setFeedPosts : setReflectionPosts;
-
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
+  const { data: feedPosts, isLoading: feedLoading, mutate: mutateFeed } = useSWR<PostType[]>(
+    feedUrl,
+    fetcher,
+    { 
+      revalidateOnFocus: false, 
+      dedupingInterval: 60000,
+      keepPreviousData: true
     }
+  );
 
-    try {
-      const userId = user?.uid ? `&userId=${user.uid}` : "";
-      const bustParam = isRefresh ? "&bust=1" : "";
-      
-      const res = await fetch(`/api/posts/feed?type=${type}${userId}${bustParam}`);
-      if (!res.ok) throw new Error("Fetch failed");
-      const data = await res.json();
-
-      setPosts(data.posts || []);
-    } catch (err) {
-      console.error(`Failed to fetch ${type} posts`, err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      isFetchingRef.current = false;
+  const { data: reflectionPosts, isLoading: reflectionLoading, mutate: mutateReflections } = useSWR<PostType[]>(
+    reflectionsUrl,
+    fetcher,
+    { 
+      revalidateOnFocus: false, 
+      dedupingInterval: 60000,
+      keepPreviousData: true
     }
-  }, [user]);
+  );
 
-  // Initial fetch and tab-switching fetch
-  useEffect(() => {
-    const currentPosts = activeTab === "feed" ? feedPosts : reflectionPosts;
-    if (currentPosts.length === 0) {
-      fetchPosts(activeTab);
-    }
-  }, [activeTab, fetchPosts, feedPosts, reflectionPosts]);
+  const posts = activeTab === "feed" ? (feedPosts || []) : (reflectionPosts || []);
+  const loading = activeTab === "feed" ? (!feedPosts && feedLoading) : (!reflectionPosts && reflectionLoading);
+  const refreshing = false;
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -103,54 +77,15 @@ export default function FeedClient() {
     }
   };
 
-  const hasHydrated = useRef(false);
-  const lastUserId = useRef<string | undefined>(undefined);
-  const lastFetchTime = useRef<number>(Date.now());
-
-  // Handle user hydration and auth state changes
-  useEffect(() => {
-    if (!user) {
-      if (hasHydrated.current && lastUserId.current) {
-        // User logged out
-        lastUserId.current = undefined;
-        fetchPosts("feed", true);
-        fetchPosts("reflections", true);
-      }
-      return;
-    }
-
-    if (user.uid !== lastUserId.current) {
-      hasHydrated.current = true;
-      lastUserId.current = user.uid;
-
-      // Always refresh if the user state changes to ensure we have the correct liked/saved statuses
-      // and fresh content for the authenticated state.
-      fetchPosts("feed", true);
-      fetchPosts("reflections", true);
-    }
-  }, [user, fetchPosts]);
-
-  // Visibility-based auto-refresh: if user comes back after 2+ min, quietly reload feed
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const elapsed = Date.now() - lastFetchTime.current;
-        if (elapsed > 2 * 60 * 1000) { // 2 minutes
-          lastFetchTime.current = Date.now();
-          fetchPosts(activeTab, true);
-        }
-      } else {
-        // Record when we left
-        lastFetchTime.current = Date.now();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [fetchPosts, activeTab]);
-
   // Pull-to-refresh
   const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
-    onRefresh: () => fetchPosts(activeTab, true),
+    onRefresh: async () => {
+      if (activeTab === "feed") {
+        await mutateFeed();
+      } else {
+        await mutateReflections();
+      }
+    },
   });
 
   return (
@@ -199,7 +134,10 @@ export default function FeedClient() {
             />
           </div>
           <button
-            onClick={() => fetchPosts(activeTab, true)}
+            onClick={() => {
+              if (activeTab === "feed") mutateFeed();
+              else mutateReflections();
+            }}
             aria-label="Refresh feed"
             className="w-9 h-9 flex items-center md:hidden justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
           >
@@ -254,7 +192,7 @@ export default function FeedClient() {
             animate={{ opacity: 1 }}
           >
             {activeTab === "reflections" ? (
-              <div className="px-4 pt-4">
+              <div className="px- pt-4">
                 <DailyReflectionPrompt responseCount={posts.length} />
                 <div className="mt-4">
                   {posts.map((post, i) => (
@@ -294,8 +232,12 @@ export default function FeedClient() {
               </>
             )}
 
-            {/* No more pagination! Just the end of the list indicator */}
-            <div className="h-20 w-full" />
+            {/* End of list indicator */}
+            <div className="py-16 flex flex-col items-center justify-center opacity-40">
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
+              <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;re all caught up</p>
+            </div>
+            <div className="h-6 w-full" />
           </motion.div>
         ) : (
           <motion.div
@@ -305,7 +247,7 @@ export default function FeedClient() {
             className="px-4 py-20 flex flex-col items-center justify-center space-y-5 text-center"
           >
             <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-brand-green" aria-hidden="true" />
+              <div className="w-8 h-8 rounded-full bg-brand-green/50" aria-hidden="true" />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold">

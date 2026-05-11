@@ -7,7 +7,7 @@ import { Types } from "mongoose";
 interface NotificationParams {
   recipientId: string | Types.ObjectId;
   senderId: string | Types.ObjectId;
-  type: "like" | "comment" | "reply";
+  type: "like" | "comment" | "reply" | "repost" | "quote" | "save";
   postId: string | Types.ObjectId;
   commentId?: string | Types.ObjectId;
   message: string;
@@ -48,8 +48,19 @@ export async function createNotification({
       recipient.pushSubscriptions &&
       recipient.pushSubscriptions.length > 0
     ) {
+      const getTitle = () => {
+        switch (type) {
+          case "like": return "New Like";
+          case "comment": return "New Comment";
+          case "repost": return "New Repost";
+          case "quote": return "New Quote";
+          case "save": return "New Save";
+          default: return "New Interaction";
+        }
+      };
+
       const payload = JSON.stringify({
-        title: type === "like" ? "New Like" : "New Comment",
+        title: getTitle(),
         body: message,
         icon: "/logo.png",
         url: url

@@ -12,18 +12,16 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 
-interface CommentEmailProps {
+interface RepostEmailProps {
   authorName: string;
-  commenterName: string;
-  commentContent: string;
+  reposterName: string;
   postText: string;
   postLink: string;
 }
 
-export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
+export const RepostEmail: React.FC<Readonly<RepostEmailProps>> = ({
   authorName,
-  commenterName,
-  commentContent,
+  reposterName,
   postText,
   postLink,
 }) => (
@@ -33,12 +31,10 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         @media (prefers-color-scheme: dark) {
           .main { background-color: #000000 !important; }
           .text { color: #a1a1aa !important; }
-          .commentBox { background-color: #0a0a0a !important; border-color: #00bf63 !important; }
-          .commentText { color: #d1d1d6 !important; }
         }
       `}</style>
     </Head>
-    <Preview>{commenterName} commented on your post</Preview>
+    <Preview>{reposterName} reposted your thought</Preview>
     <Body style={main} className="main">
       <Container style={container}>
         <Section style={logoContainer}>
@@ -52,13 +48,8 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         </Section>
 
         <Text style={text} className="text">
-          Hi {authorName}, <strong>{commenterName}</strong> just shared a
-          thought on your post:
+          Hi {authorName}, <strong>{reposterName}</strong> just reposted your thought!
         </Text>
-
-        <Section style={commentBox} className="commentBox">
-          <Text style={commentText} className="commentText">&quot;{commentContent}&quot;</Text>
-        </Section>
 
         <Section style={postPreview}>
           <Text style={postPreviewLabel}>Your Post</Text>
@@ -70,7 +61,7 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
         </Section>
 
         <Link href={postLink} style={button}>
-          Reply to Comment
+          View Post
         </Link>
 
         <Hr style={hr} />
@@ -79,7 +70,7 @@ export const CommentEmail: React.FC<Readonly<CommentEmailProps>> = ({
   </Html>
 );
 
-export default CommentEmail;
+export default RepostEmail;
 
 const main = {
   backgroundColor: "#ffffff",
@@ -110,21 +101,6 @@ const text = {
   fontSize: "18px",
   lineHeight: "1.6",
   marginBottom: "24px",
-};
-
-const commentBox = {
-  borderLeft: "4px solid #00bf63",
-  padding: "8px 24px",
-  backgroundColor: "#f9fafb",
-  borderRadius: "0 16px 16px 0",
-  marginBottom: "24px",
-};
-
-const commentText = {
-  fontSize: "16px",
-  fontStyle: "italic",
-  color: "#475569",
-  margin: "0",
 };
 
 const postPreview = {

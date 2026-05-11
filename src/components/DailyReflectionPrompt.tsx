@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { getTodayPrompt, DailyPrompt } from "@/lib/dailyPrompts";
+import { getTodayPrompt } from "@/lib/dailyPrompts";
 
 interface DailyReflectionPromptProps {
   responseCount?: number;
@@ -13,36 +13,16 @@ interface DailyReflectionPromptProps {
 export default function DailyReflectionPrompt({
   responseCount = 0,
 }: DailyReflectionPromptProps) {
-  const [prompt, setPrompt] = useState<DailyPrompt | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const prompt = getTodayPrompt();
 
-  useEffect(() => {
-    try {
-      const todayPrompt = getTodayPrompt();
-      setPrompt(todayPrompt);
-    } catch (err) {
-      console.error("Failed to get daily prompt", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  if (isLoading || !prompt) {
-    return (
-      <div className="bg-gradient-to-br from-brand-green/10 to-brand-green/5 border border-brand-green/20 rounded-2xl p-6 mb-6 animate-pulse">
-        <div className="h-6 bg-brand-green/20 rounded-full w-32 mb-4" />
-        <div className="h-8 bg-brand-green/20 rounded-full w-full mb-4" />
-        <div className="h-4 bg-brand-green/10 rounded-full w-48" />
-      </div>
-    );
-  }
+  if (!prompt) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-secondary/40 border border-border/50 rounded-2xl p-4 md:p-6 mb-6 overflow-hidden relative group shadow-sm"
+      className="bg-secondary/40 border border-border/50 rounded-2xl mx-4 p-4 md:p-6 mb-6 overflow-hidden relative group shadow-sm"
     >
       {/* Decorative elements */}
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-foreground/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
