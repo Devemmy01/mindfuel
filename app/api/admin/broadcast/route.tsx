@@ -48,28 +48,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No users to email" });
     }
 
-    // 3. Send emails
-    const results = await Promise.all(
-      targetUsers.map(async (user) => {
-        try {
-          return await resend.emails.send({
-            from: "MindFuel <updates@mind-fuel.app>",
-            to: user.email,
-            subject: `New on MindFuel: ${updateTitle}`,
-            react: (
-              <UpdateEmail
-                userName={user.name}
-                updateTitle={updateTitle}
-                updateDetails={updateDetails}
-              />
-            ) as React.ReactElement,
-          });
-        } catch (err) {
-          console.error(`Failed to send to ${user.email}:`, err);
-          return null;
+    // 3. Send emails sequentially to respect rate limits and properly check errors
+    const results = [];
+    for (const user of targetUsers) {
+      try {
+        const response = await resend.emails.send({
+          from: "MindFuel <updates@mind-fuel.app>",
+          to: user.email,
+          subject: `New on MindFuel: ${updateTitle}`,
+          react: (
+            <UpdateEmail
+              userName={user.name}
+              updateTitle={updateTitle}
+              updateDetails={updateDetails}
+            />
+          ) as React.ReactElement,
+        });
+        
+        if (response.error) {
+          console.error(`Failed to send to ${user.email}:`, response.error);
+          results.push(null);
+        } else {
+          results.push(response.data);
         }
-      })
-    );
+      } catch (err) {
+        console.error(`Exception sending to ${user.email}:`, err);
+        results.push(null);
+      }
+      // Delay 100ms to avoid rate limits
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 
     const successCount = results.filter((r) => r !== null).length;
 
