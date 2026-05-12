@@ -3,6 +3,7 @@ import { Schema, model, models, Document, Types } from "mongoose";
 export interface IComment extends Document {
   userId: Types.ObjectId;
   postId: Types.ObjectId;
+  parentId?: Types.ObjectId;
   content: string;
   likesCount: number;
   createdAt: Date;
@@ -20,6 +21,11 @@ const CommentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Post",
       required: true,
+    },
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null,
     },
     content: {
       type: String,

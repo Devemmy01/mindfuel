@@ -64,14 +64,12 @@ const QuotedPostPreview: React.FC<QuotedPostPreviewProps> = ({
         </div>
       </div>
       <div
-        className="px-3 py-3 m-2 mt-1 rounded-xl text-[14px] leading-relaxed"
+        className="px-3 py-3 m-2 mt-1 rounded-xl text-[14px] leading-relaxed bg-secondary/30"
         style={{
-          background: post.backgroundStyle?.value || "#0a0a0a",
-          color: post.backgroundStyle?.text || "#ffffff",
           fontFamily: getFontById(post.fontFamily ?? "inter").family,
         }}
       >
-        <p className="line-clamp-3">{post.text}</p>
+        <p className="line-clamp-3 text-foreground/90">{post.text}</p>
       </div>
     </div>
   );

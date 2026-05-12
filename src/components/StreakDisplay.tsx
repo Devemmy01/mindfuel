@@ -112,67 +112,99 @@ export default function StreakDisplay({
         )}
       </div>
 
-      {/* Info Popover */}
+      {/* Info Modal / Popover */}
       <AnimatePresence>
         {showInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute z-[100] left-0 mt-3 w-72 bg-popover popover-solid border border-border shadow-2xl rounded-2xl p-5 overflow-hidden"
-          >
-            {/* Background decorative element */}
-            <div className="absolute -top-12 -right-12 w-24 h-24 bg-brand-green/10 rounded-full blur-2xl" />
-            
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-brand-green/10 flex items-center justify-center">
-                    <Flame size={18} className="text-brand-green" />
-                  </div>
-                  <h4 className="font-bold text-[15px]">Reflection Streak</h4>
-                </div>
-                <button 
-                  onClick={() => setShowInfo(false)}
-                  className="p-1 hover:bg-secondary rounded-md transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              
-              <div className="space-y-3">
-                <p className="text-[13px] text-foreground/80 leading-relaxed">
-                  Your streak reflects your consistency in daily mindfulness. 
-                  <span className="font-bold text-brand-green"> Share a thought every day</span> to keep the flame alive!
-                </p>
-                
-                <div className="bg-secondary/40 rounded-xl p-3 border border-border/50">
-                  <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">How it works</h5>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2 text-[12px]">
-                      <div className="mt-1 w-1 h-1 rounded-full bg-brand-green shrink-0" />
-                      <span>Reflect today to increase your streak.</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-[12px]">
-                      <div className="mt-1 w-1 h-1 rounded-full bg-brand-green shrink-0" />
-                      <span>Missing a single day resets it to zero.</span>
-                    </li>
-                  </ul>
-                </div>
+          <>
+            {/* Mobile Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowInfo(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] md:hidden"
+            />
 
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="flex -space-x-1">
-                    {[3, 7, 30].map((m) => (
-                      <div key={m} className="w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center text-[9px] font-bold" title={`${m} day milestone`}>
-                        {m}
-                      </div>
-                    ))}
+            <motion.div
+              initial={{ 
+                opacity: 0, 
+                y: window.innerWidth < 768 ? 100 : 10, 
+                scale: window.innerWidth < 768 ? 1 : 0.95 
+              }}
+              animate={{ 
+                opacity: 1, 
+                y: 0, 
+                scale: 1 
+              }}
+              exit={{ 
+                opacity: 0, 
+                y: window.innerWidth < 768 ? 100 : 10, 
+                scale: window.innerWidth < 768 ? 1 : 0.95 
+              }}
+              className={`
+                z-[9999] overflow-hidden
+                ${window.innerWidth < 768 
+                  ? "fixed bottom-0 left-0 right-0 rounded-t-[32px] p-6 pb-10 bg-white dark:bg-[#0f171a] border-t border-border/40 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]" 
+                  : "absolute left-0 mt-3 w-72 bg-popover popover-solid border border-border shadow-2xl rounded-2xl p-5"
+                }
+              `}
+            >
+              {/* Background decorative element */}
+              <div className="absolute -top-12 -right-12 w-24 h-24 bg-brand-green/10 rounded-full blur-2xl" />
+              
+              {/* Mobile handle */}
+              <div className="md:hidden w-12 h-1.5 bg-border/40 rounded-full mx-auto mb-6" />
+
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4 md:mb-3">
+                  <div className="flex items-center gap-3 md:gap-2">
+                    <div className="w-10 h-10 md:w-8 md:h-8 rounded-xl md:rounded-lg bg-brand-green/10 flex items-center justify-center">
+                      <Flame size={window.innerWidth < 768 ? 22 : 18} className="text-brand-green" />
+                    </div>
+                    <h4 className="font-bold text-[18px] md:text-[15px]">Reflection Streak</h4>
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">Unlock milestone badges</span>
+                  <button 
+                    onClick={() => setShowInfo(false)}
+                    className="p-2 md:p-1 hover:bg-secondary rounded-xl md:rounded-md transition-colors"
+                  >
+                    <X size={window.innerWidth < 768 ? 20 : 14} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4 md:space-y-3">
+                  <p className="text-[15px] md:text-[13px] text-foreground/80 leading-relaxed">
+                    Your streak reflects your consistency in daily mindfulness. 
+                    <span className="font-bold text-brand-green"> Share a thought every day</span> to keep the flame alive!
+                  </p>
+                  
+                  <div className="bg-secondary/40 rounded-2xl md:rounded-xl p-4 md:p-3 border border-border/50">
+                    <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 md:mb-1.5">How it works</h5>
+                    <ul className="space-y-3 md:space-y-2">
+                      <li className="flex items-start gap-3 md:gap-2 text-[14px] md:text-[12px]">
+                        <div className="mt-1.5 md:mt-1 w-1.5 h-1.5 md:w-1 md:h-1 rounded-full bg-brand-green shrink-0" />
+                        <span>Reflect today to increase your streak.</span>
+                      </li>
+                      <li className="flex items-start gap-3 md:gap-2 text-[14px] md:text-[12px]">
+                        <div className="mt-1.5 md:mt-1 w-1.5 h-1.5 md:w-1 md:h-1 rounded-full bg-brand-green shrink-0" />
+                        <span>Missing a single day resets it to zero.</span>
+                      </li>
+                    </ul>
+                  </div>
+  
+                  <div className="flex items-center gap-3 md:gap-2 pt-1">
+                    <div className="flex -space-x-1.5 md:-space-x-1">
+                      {[3, 7, 30].map((m) => (
+                        <div key={m} className="w-8 h-8 md:w-6 md:h-6 rounded-full bg-background border border-border flex items-center justify-center text-[10px] md:text-[9px] font-bold" title={`${m} day milestone`}>
+                          {m}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[13px] md:text-[11px] text-muted-foreground font-medium">Unlock milestone badges</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

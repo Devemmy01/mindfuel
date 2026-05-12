@@ -68,11 +68,13 @@ export interface CommentType {
   _id: string;
   userId: ProfileUser;
   postId: string;
+  parentId?: string | null;
   content: string;
   likesCount: number;
   createdAt: string;
   updatedAt: string;
   isLiked?: boolean;
+  replies?: CommentType[];
 }
 
 export interface CommentLikeType {

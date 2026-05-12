@@ -1,53 +1,58 @@
-import { Metadata } from 'next'
-import { connectToDB } from '@/utils/database'
-import Post from '@/models/post'
+import { Metadata } from "next";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mind-fuel.app";
+interface PostPageProps {
+  params: Promise<{ id: string }>;
+}
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+async function getPost(id: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mind-fuel.app';
   try {
-    await connectToDB();
-    const post = await Post.findById(id).populate('userId', 'name').lean() as { text: string; createdAt: Date; userId: { name: string } } | null;
-    
-    if (!post) {
-      return { title: 'Post Not Found | MindFuel' }
-    }
-
-    const truncate = (str: string, len: number) => str.length > len ? str.slice(0, len) + "…" : str;
-    const title = `${post.userId.name}: "${truncate(post.text, 80)}" | MindFuel`;
-    const description = `${post.userId.name} shared a thought on MindFuel: "${truncate(post.text, 150)}"`;
-    const postUrl = `${baseUrl}/post/${id}`;
-
-    return {
-      title,
-      description,
-      openGraph: {
-        title,
-        description,
-        type: "article",
-        url: postUrl,
-        publishedTime: post.createdAt.toISOString(),
-        authors: [post.userId.name],
-        images: [
-          {
-            url: `${baseUrl}/post/${id}/opengraph-image`,
-            width: 1200,
-            height: 630,
-            alt: `Thought by ${post.userId.name} on MindFuel`,
-          },
-        ],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-        images: [`${baseUrl}/post/${id}/opengraph-image`],
-      }
-    }
+    const res = await fetch(`${baseUrl}/api/posts/${id}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
   } catch {
-    return { title: 'Thought | MindFuel' }
+    return null;
   }
+}
+
+export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const data = await getPost(id);
+  
+  if (!data || !data.post) {
+    return {
+      title: "Reflection | MindFuel",
+      description: "Read this mindful reflection on MindFuel.",
+    };
+  }
+
+  const post = data.post;
+  const authorName = post.userId?.name || "Someone";
+  const excerpt = post.text.slice(0, 160).replace(/Reflecting on: "[^"]+"\s*/, "") + "...";
+
+  return {
+    title: `${authorName}'s Reflection | MindFuel`,
+    description: excerpt,
+    openGraph: {
+      title: `${authorName}'s Reflection on MindFuel`,
+      description: excerpt,
+      type: "article",
+      images: [
+        {
+          url: post.imageUrl || "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `${authorName}'s Reflection`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${authorName}'s Reflection | MindFuel`,
+      description: excerpt,
+      images: [post.imageUrl || "/og-image.png"],
+    },
+  };
 }
 
 export default function PostLayout({ children }: { children: React.ReactNode }) {

@@ -10,59 +10,95 @@ import { resend } from "@/lib/resend";
 import { CommentEmail } from "@/emails/CommentEmail";
 import React from "react";
 import { createNotification } from "@/lib/notifications";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 
-// GET /api/posts/[id]/comments - Fetch comments for a post
+// GET /api/posts/[id]/comments - Fetch all comments + replies flat
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectToDB();
-    const { id: postId } = await params;
+    const { id: postIdStr } = await params;
     const firebaseId = req.nextUrl.searchParams.get("userId");
+    
+    // Explicitly cast to ObjectId to ensure query matches
+    const postId = new Types.ObjectId(postIdStr);
+
     let user = null;
     if (firebaseId) {
       user = await User.findOne({ firebaseId });
     }
 
-    const comments = (await Comment.find({ postId })
-      .sort({ createdAt: -1 })
+    // Fetch ALL comments for the post (top-level + replies), oldest first
+    // Use $or to find both string and ObjectId formats for maximum compatibility
+    const query = { 
+      $or: [
+        { postId: postIdStr },
+        { postId: postId }
+      ]
+    };
+
+    const comments = (await Comment.find(query)
+      .sort({ createdAt: 1 })
       .populate("userId", "name image firebaseId username")
       .lean()) as unknown as CommentType[];
 
     // Filter out comments where userId is null (deleted users)
     const validComments = comments.filter((c) => c.userId);
 
-    // Self-healing sync: Ensure post.commentsCount matches actual valid comments
-    // Using fire-and-forget or background update to avoid blocking response
+    // Explicitly serialize every field to ensure consistency
+    const serializedComments = validComments.map(c => ({
+      _id: c._id.toString(),
+      postId: c.postId.toString(),
+      parentId: c.parentId ? c.parentId.toString() : null,
+      content: c.content,
+      likesCount: c.likesCount || 0,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      userId: {
+        _id: c.userId._id.toString(),
+        name: c.userId.name,
+        image: c.userId.image,
+        firebaseId: c.userId.firebaseId,
+        username: c.userId.username || c.userId.name.replace(/\s+/g, "").toLowerCase()
+      }
+    }));
+
+    console.log(`[GET Comments] Post: ${postIdStr}, Serialized: ${serializedComments.length}`);
+
+    // Self-healing sync: only top-level comments count toward commentsCount
+    const topLevelCount = serializedComments.filter((c) => !c.parentId).length;
+    
     Post.updateOne(
-      { _id: postId, commentsCount: { $ne: validComments.length } },
-      { $set: { commentsCount: validComments.length } }
+      { _id: postId, commentsCount: { $ne: topLevelCount } },
+      { $set: { commentsCount: topLevelCount } }
     ).catch(err => console.error("Comment count sync failed:", err));
 
-    // If user is logged in, check which comments they liked
+    // If user is logged in, attach like status
     if (user) {
       const commentLikes = await CommentLike.find({
         userId: user._id,
-        commentId: { $in: validComments.map((c) => c._id) },
+        commentId: { $in: serializedComments.map((c) => new mongoose.Types.ObjectId(c._id)) },
       });
       const likedCommentIds = new Set(
         commentLikes.map((l) => l.commentId.toString()),
       );
 
-      const commentsWithLikeStatus = validComments.map((c) => ({
+      const commentsWithLikeStatus = serializedComments.map((c) => ({
         ...c,
-        isLiked: likedCommentIds.has(c._id.toString()),
+        isLiked: likedCommentIds.has(c._id),
       }));
+      
       return NextResponse.json(
         { comments: commentsWithLikeStatus },
         { status: 200 },
       );
     }
 
-    return NextResponse.json({ comments: validComments }, { status: 200 });
+    return NextResponse.json({ comments: serializedComments }, { status: 200 });
   } catch (error: unknown) {
+    console.error("[GET Comments Error]:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
@@ -72,15 +108,17 @@ export async function GET(
   }
 }
 
-// POST /api/posts/[id]/comments - Create a comment
+// POST /api/posts/[id]/comments - Create a comment or reply
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectToDB();
-    const { id: postId } = await params;
-    const { userId: firebaseId, content } = await req.json();
+    const { id: postIdStr } = await params;
+    const { userId: firebaseId, content, parentId } = await req.json();
+
+    const postId = new Types.ObjectId(postIdStr);
 
     if (!firebaseId || !content) {
       return NextResponse.json(
@@ -94,7 +132,19 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Banned words filtering (Basic)
+    // Validate parentId and enforce 1-level nesting
+    let parentComment = null;
+    let resolvedParentId: string | null = parentId || null;
+
+    if (parentId) {
+      parentComment = await Comment.findById(parentId).populate("userId", "name email firebaseId");
+      if (!parentComment) {
+        return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
+      }
+      resolvedParentId = parentComment._id.toString();
+    }
+
+    // Basic content filtering
     const bannedWords = ["scam", "spam", "hate", "violence"];
     const filteredContent = content
       .split(" ")
@@ -106,28 +156,64 @@ export async function POST(
     const comment = await Comment.create({
       userId: user._id,
       postId,
+      parentId: resolvedParentId || null,
       content: filteredContent,
     });
 
-    // Increment commentsCount on the post
-    await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
+    // Only top-level comments increment commentsCount
+    if (!resolvedParentId) {
+      await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
+    }
 
     const populatedComment = await Comment.findById(comment._id)
       .populate("userId", "name image firebaseId username")
       .lean();
 
-    // Notify post author
+    // ── Notifications ──
     try {
       const post = await Post.findById(postId);
-      if (
-        post &&
-        post.userId &&
-        post.userId.toString() !== user._id.toString()
-      ) {
-        const author = (await User.findById(post.userId)) as IUser | null;
 
+      if (resolvedParentId && parentComment) {
+        // Notify the PARENT COMMENT AUTHOR when someone replies to their comment
+        const parentAuthorId = parentComment.userId?._id ?? parentComment.userId;
+        if (parentAuthorId.toString() !== user._id.toString()) {
+          await createNotification({
+            recipientId: parentAuthorId,
+            senderId: user._id,
+            type: "comment",
+            postId: new Types.ObjectId(postId),
+            commentId: comment._id,
+            message: `${user.name} replied: "${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}"`,
+            url: `/post/${postId}`,
+          });
+
+          const parentAuthor = (await User.findById(parentAuthorId)) as IUser | null;
+          if (parentAuthor?.email && parentAuthor.preferences?.notifications !== false) {
+            try {
+              await resend.emails.send({
+                from: "MindFuel <noreply@mind-fuel.app>",
+                to: parentAuthor.email,
+                subject: `${user.name} replied to your reflection`,
+                headers: { "X-Entity-Ref-ID": `${postId}-reply-${comment._id}` },
+                react: (
+                  <CommentEmail
+                    authorName={parentAuthor.name}
+                    commenterName={user.name}
+                    commentContent={filteredContent}
+                    postText={post?.text || ""}
+                    postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${postId}`}
+                  />
+                ) as React.ReactElement,
+              });
+            } catch (emailErr) {
+              console.error("Reply email failed:", emailErr);
+            }
+          }
+        }
+      } else if (post && post.userId && post.userId.toString() !== user._id.toString()) {
+        // Notify POST AUTHOR for top-level comments
+        const author = (await User.findById(post.userId)) as IUser | null;
         if (author) {
-          // 1. In-App & Push Notification
           try {
             await createNotification({
               recipientId: post.userId,
@@ -136,13 +222,12 @@ export async function POST(
               postId: new Types.ObjectId(postId),
               commentId: comment._id,
               message: `${user.name}: ${filteredContent.substring(0, 50)}${filteredContent.length > 50 ? "..." : ""}`,
-              url: `/post/${postId}`
+              url: `/post/${postId}`,
             });
           } catch (notifErr) {
             console.error("In-app/Push notification failed:", notifErr);
           }
 
-          // 2. Email Notification
           if (author.email && author.preferences?.notifications !== false) {
             try {
               const { error } = await resend.emails.send({
@@ -151,7 +236,7 @@ export async function POST(
                 subject: `${user.name} commented on your thought`,
                 headers: {
                   "X-Entity-Ref-ID": `${postId}-${comment._id}`,
-                  "importance": "high"
+                  "importance": "high",
                 },
                 react: (
                   <CommentEmail
@@ -163,10 +248,7 @@ export async function POST(
                   />
                 ) as React.ReactElement,
               });
-
-              if (error) {
-                console.error("Resend comment email error:", error);
-              }
+              if (error) console.error("Resend comment email error:", error);
             } catch (emailErr) {
               console.error("Comment email failed (exception):", emailErr);
             }

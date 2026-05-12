@@ -185,7 +185,7 @@ const CardCreator: React.FC = () => {
         showToast(
           <span className="flex items-center gap-1.5 whitespace-nowrap">
             Post created.{" "}
-            <Link href={`/post/${postId}`} className="font-bold underline hover:text-brand-green">View</Link>
+            {/* <Link href={`/post/${postId}`} className="font-bold underline hover:text-brand-green">View</Link> */}
           </span>,
           "success", 5000
         );

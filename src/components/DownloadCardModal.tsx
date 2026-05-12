@@ -167,8 +167,8 @@ export default function DownloadCardModal({
 
                   {/* 3. Bottom Right Pill */}
                   <div className="px-6 pb-5 flex justify-end z-20">
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 px-2 py-1 rounded-full">
-                      <span className="text-[12px] font-bold tracking-widest lowercase opacity-80">
+                    <div className="bg-black/20 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full">
+                      <span className="text-[12px] font-black tracking-widest lowercase text-white">
                         mind-fuel.app
                       </span>
                     </div>

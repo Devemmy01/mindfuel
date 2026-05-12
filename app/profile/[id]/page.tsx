@@ -8,18 +8,22 @@ import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
+import { useToast } from "@/providers/ToastProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const profileTabs = ["Posts", "Liked", "Saved"] as const;
 type ProfileTab = (typeof profileTabs)[number];
 
 export default function DynamicProfilePage() {
   const { id: profileId } = useParams() as { id: string };
-  const { user: currentUser, loading: authLoading, profile, logout } = useAuth();
+  const { user: currentUser, loading: authLoading, profile, logout, openSignInModal } = useAuth();
+  const { showToast } = useToast();
+  const { subscribeUser, isSubscribing } = usePushNotifications();
   const router = useRouter();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
@@ -79,19 +83,18 @@ export default function DynamicProfilePage() {
             setEditBio(userData.user.bio || "");
             setEditImage(userData.user.image || "");
 
-            const statsRes = await fetch(`/api/posts?userId=${profileId}`);
+            const statsRes = await fetch(`/api/posts?userId=${profileId}&limit=1000`);
             const statsData = await statsRes.json();
             const userPosts = statsData.posts || [];
             setAllUserPosts(userPosts);
-            
-            // Only count original posts for profile stats, not reposts
-            const originalUserPosts = userPosts.filter((p: PostType) => 
-              p.userId?.firebaseId === profileId || p.userId?._id === userData.user._id
-            );
-            
-            setOwnPostCount(originalUserPosts.length);
+
+            // Count all thoughts: original posts, reposts, and quotes
+            setOwnPostCount(userPosts.length);
+
+            // Likes only from own posts + quote reposts (not plain reposts)
+            const ownAndQuotePosts = userPosts.filter((p: PostType) => !p.isRepost);
             setOwnLikesCount(
-              originalUserPosts.reduce(
+              ownAndQuotePosts.reduce(
                 (acc: number, p: { likesCount: number }) => acc + (p.likesCount || 0),
                 0
               )
@@ -382,6 +385,24 @@ export default function DynamicProfilePage() {
         )}
       </AnimatePresence>
 
+      {/* Guest Welcome Banner - Only for non-logged in users */}
+      {!currentUser && !authLoading && (
+        <div className="bg-brand-green/10 border-b border-brand-green/20 px-4 py-3 flex items-center justify-between sticky top-0 z-50 backdrop-blur-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center">
+              <Image src="/icon-192.png" width={20} height={20} alt="MindFuel" className="brightness-0 invert" />
+            </div>
+            <div>
+              <p className="text-[13px] font-bold leading-none">MindFuel</p>
+              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Share your reflections daily</p>
+            </div>
+          </div>
+          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-white text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
+            Join Now
+          </button>
+        </div>
+      )}
+
       <div className="relative">
         <div className="w-full h-28 sm:h-36 bg-brand-green flex items-center justify-center border-b border-border/30 overflow-hidden relative">
           <Image 
@@ -392,6 +413,37 @@ export default function DynamicProfilePage() {
             className="opacity-90 drop-shadow-sm select-none pointer-events-none" 
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10" />
+          
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            {isOwnProfile && (
+              <button
+                onClick={subscribeUser}
+                disabled={isSubscribing}
+                className={`p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95 ${isSubscribing ? "opacity-50 cursor-not-allowed" : ""}`}
+                title="Enable Daily Notifications"
+              >
+                {isSubscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Bell className="w-4 h-4" />
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                if (navigator.share) {
+                  navigator.share({ title: `${profileUser.name} on MindFuel`, url });
+                } else {
+                  navigator.clipboard.writeText(url);
+                  showToast("Profile link copied!", "success");
+                }
+              }}
+              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <div className="absolute left-4 -bottom-14">
           <button

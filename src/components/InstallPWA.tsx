@@ -8,19 +8,22 @@ import Image from "next/image";
 
 function isIOS(): boolean {
   if (typeof window === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const nav = window.navigator as any;
+  const isIPadOS = nav.platform === "MacIntel" && nav.maxTouchPoints > 1;
+  return (/iPad|iPhone|iPod/.test(navigator.userAgent) || isIPadOS) && !nav.MSStream;
 }
 
 function isInStandaloneMode(): boolean {
   if (typeof window === "undefined") return false;
+  const nav = window.navigator as any;
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as any).standalone === true
+    nav.standalone === true
   );
 }
 
 const DISMISS_KEY = "mindfuel_pwa_dismiss";
-const DISMISS_DAYS = 7;
+const DISMISS_DAYS = 1; // Show again after 24 hours if dismissed
 
 export default function InstallPWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -41,24 +44,21 @@ export default function InstallPWA() {
       if (daysSinceDismiss < DISMISS_DAYS) return;
     }
 
-    // iOS detection
+    // iOS detection - show prompt after a short delay
     if (isIOS()) {
-      setTimeout(() => setShowIOSPrompt(true), 3000);
-      return;
+      const timer = setTimeout(() => setShowIOSPrompt(true), 2000);
+      return () => clearTimeout(timer);
     }
 
     // Android/Chrome install prompt
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setTimeout(() => setShowInstallPrompt(true), 3000);
+      setTimeout(() => setShowInstallPrompt(true), 2000);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-    };
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstallClick = async () => {
@@ -85,58 +85,51 @@ export default function InstallPWA() {
     <AnimatePresence>
       {showPrompt && (
         <motion.div
-          initial={{ opacity: 0, y: 60, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 60, scale: 0.95 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-50 md:w-96 bg-white dark:bg-[#111827] border border-border shadow-2xl rounded-3xl overflow-hidden isolate"
-          role="dialog"
-          aria-label="Install MindFuel app"
+          initial={{ opacity: 0, y: 100 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 100 }}
+          className="fixed bottom-20 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-[9999] md:w-[400px]"
         >
-          {/* Green accent top bar */}
-          <div className="h-1 w-full bg-gradient-to-r from-brand-green/60 via-brand-green to-brand-green/60" />
+          <div className="bg-white dark:bg-[#0f171a] border border-border/60 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-[28px] overflow-hidden p-1.5 backdrop-blur-xl">
+            <div className="p-4 flex gap-4 items-center relative">
+              {/* App icon */}
+              <div className="w-12 h-12 rounded-2xl bg-brand-green/10 flex items-center justify-center shrink-0 overflow-hidden border border-brand-green/20">
+                <Image src="/icon-192.png" alt="MindFuel" width={48} height={48} className="w-full h-full object-cover" />
+              </div>
 
-          <div className="p-5 flex flex-col md:flex-row gap-4 items-center md:items-start relative">
-            {/* Subtle bg glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-green/5 to-transparent pointer-events-none -z-10" />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-[16px] leading-tight mb-0.5">Install MindFuel</h3>
+                <p className="text-[13px] text-muted-foreground leading-snug">
+                  {showIOSPrompt 
+                    ? "Add to home screen for the full experience."
+                    : "Experience mindfulness with our native-like app."}
+                </p>
+              </div>
 
-            {/* App icon */}
-            <Image src="/icon-192.png" alt="MindFuel" width={50} height={55} className="w-10 h-10 object-contain" />
+              <button onClick={handleDismiss} className="p-2 text-muted-foreground/60 hover:text-foreground transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            <div className="flex-1 text-center md:text-left w-full">
-              <h3 className="font-bold text-[18px] md:text-[16px] leading-tight mb-1 tracking-tight">
-                Get MindFuel App
-              </h3>
-              <p className="text-[14px] md:text-[13px] text-muted-foreground leading-snug mb-4">
-                {showIOSPrompt
-                  ? "Install MindFuel on your iPhone for the best experience."
-                  : "Add to your home screen for quick access and a native-like experience."}
-              </p>
-
+            <div className="px-4 pb-4">
               {showIOSPrompt ? (
-                <div className="flex items-center justify-center md:justify-start gap-2 text-[13px] text-muted-foreground bg-secondary/40 rounded-xl px-4 py-3">
+                <div className="bg-secondary/30 rounded-2xl p-3.5 flex items-center justify-center gap-3 text-[13px] font-medium border border-border/40">
                   <span>Tap</span>
-                  <Share className="w-4 h-4 text-blue-500" />
-                  <span>then &quot;Add to Home Screen&quot;</span>
+                  <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-lg flex items-center justify-center shadow-sm">
+                    <Share className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <span>then</span>
+                  <span className="bg-white/50 dark:bg-white/10 px-2 py-1 rounded-md text-[12px] font-bold">Add to Home Screen</span>
                 </div>
               ) : (
                 <button
                   onClick={handleInstallClick}
-                  className="w-full bg-[#00a855] hover:bg-[#00a855]/90 text-white font-bold py-3.5 md:py-2.5 rounded-xl text-[14px] md:text-[13px] transition-colors press-scale flex items-center justify-center gap-2 shadow-brand-sm"
+                  className="w-full bg-brand-green hover:bg-brand-green/90 text-white font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  <Download className="w-[18px] h-[18px] md:w-4 md:h-4" /> Install App
+                  <Download className="w-4 h-4" /> Install Now
                 </button>
               )}
             </div>
-
-            {/* Close button */}
-            <button
-              onClick={handleDismiss}
-              aria-label="Dismiss install prompt"
-              className="absolute top-3 right-3 p-1.5 md:p-1 text-muted-foreground hover:bg-secondary/80 rounded-full transition-colors focus:outline-none"
-            >
-              <X className="w-5 h-5 md:w-4 md:h-4" aria-hidden="true" />
-            </button>
           </div>
         </motion.div>
       )}

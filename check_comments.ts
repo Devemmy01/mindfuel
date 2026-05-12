@@ -1,0 +1,1 @@
+import { connectToDB } from "./src/utils/database"; import Comment from "./src/models/comment"; async function run() { await connectToDB(); const count = await Comment.countDocuments({ postId: "6a02e33ba54dcb0cac4ccdea" }); console.log("Comment count:", count); process.exit(0); } run();
