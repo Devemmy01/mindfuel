@@ -17,6 +17,6 @@ jobs:
 
       - name: Trigger Broadcast API
         run: |
-          curl -X POST ${{ secrets.NEXT_PUBLIC_BASE_URL }}/api/admin/broadcast \
+          curl -X POST -L ${{ secrets.NEXT_PUBLIC_BASE_URL }}/api/admin/broadcast \
           -H "Content-Type: application/json" \
-          -d "{\"adminSecret\": \"${{ secrets.ADMIN_SECRET }}\"}"
+          -d '{"adminSecret": "${{ secrets.ADMIN_SECRET }}"}'
