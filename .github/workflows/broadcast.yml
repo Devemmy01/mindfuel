@@ -36,11 +36,21 @@ jobs:
 
       - name: Trigger Broadcast API
         if: steps.check_updates.outputs.changed == 'true'
+        env:
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
         run: |
+          # Strip accidental newlines/spaces from secrets copied into GitHub
+          CLEAN_SECRET=$(echo -n "$ADMIN_SECRET" | tr -d '\n\r ')
+          CLEAN_URL=$(echo -n "$BASE_URL" | tr -d '\n\r ')
+          
+          # Safely construct JSON using jq so it's always valid
+          PAYLOAD=$(jq -n --arg secret "$CLEAN_SECRET" '{adminSecret: $secret}')
+
           RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST -L "${{ secrets.NEXT_PUBLIC_BASE_URL }}/api/admin/broadcast" \
+            -X POST -L "${CLEAN_URL}/api/admin/broadcast" \
             -H "Content-Type: application/json" \
-            -d '{"adminSecret": "${{ secrets.ADMIN_SECRET }}"}')
+            -d "$PAYLOAD")
 
           echo "HTTP Status: $RESPONSE"
           echo "Response body:"
