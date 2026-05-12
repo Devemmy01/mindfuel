@@ -48,43 +48,66 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No users to email" });
     }
 
-    // 3. Send emails sequentially to respect rate limits and properly check errors
+    // 3. Send emails with retry logic and proper rate limiting
+    const MAX_RETRIES = 3;
+    const DELAY_MS = 500; // 500ms between each send to stay within Resend rate limits
+
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
     const results = [];
     for (const user of targetUsers) {
-      try {
-        const response = await resend.emails.send({
-          from: "MindFuel <updates@mind-fuel.app>",
-          to: user.email,
-          subject: `New on MindFuel: ${updateTitle}`,
-          react: (
-            <UpdateEmail
-              userName={user.name}
-              updateTitle={updateTitle}
-              updateDetails={updateDetails}
-            />
-          ) as React.ReactElement,
-        });
-        
-        if (response.error) {
-          console.error(`Failed to send to ${user.email}:`, response.error);
-          results.push(null);
-        } else {
-          results.push(response.data);
+      let sent = false;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const response = await resend.emails.send({
+            from: "MindFuel <updates@mind-fuel.app>",
+            to: user.email,
+            subject: `New on MindFuel: ${updateTitle}`,
+            react: (
+              <UpdateEmail
+                userName={user.name}
+                updateTitle={updateTitle}
+                updateDetails={updateDetails}
+              />
+            ) as React.ReactElement,
+          });
+
+          if (response.error) {
+            console.error(
+              `Attempt ${attempt} failed for ${user.email}:`,
+              response.error
+            );
+            // Exponential backoff before retry
+            if (attempt < MAX_RETRIES) await sleep(DELAY_MS * attempt);
+          } else {
+            results.push(response.data);
+            sent = true;
+            break;
+          }
+        } catch (err) {
+          console.error(`Exception on attempt ${attempt} for ${user.email}:`, err);
+          if (attempt < MAX_RETRIES) await sleep(DELAY_MS * attempt);
         }
-      } catch (err) {
-        console.error(`Exception sending to ${user.email}:`, err);
+      }
+
+      if (!sent) {
+        console.error(`All ${MAX_RETRIES} attempts failed for ${user.email}`);
         results.push(null);
       }
-      // Delay 100ms to avoid rate limits
-      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Always wait between users to respect Resend rate limits
+      await sleep(DELAY_MS);
     }
 
     const successCount = results.filter((r) => r !== null).length;
+    const failCount = results.length - successCount;
 
     return NextResponse.json({
-      message: `Successfully sent ${successCount} emails.`,
+      message: `Successfully sent ${successCount}/${targetUsers.length} emails.${failCount > 0 ? ` ${failCount} failed after retries.` : ""}`,
       mode: testEmail ? "test" : "production",
-      updateSent: updateTitle
+      successCount,
+      failCount,
+      updateSent: updateTitle,
     });
   } catch (error: unknown) {
     console.error("Broadcast Error:", error);

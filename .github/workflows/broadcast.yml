@@ -1,22 +1,56 @@
 name: Broadcast Product Update
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'src/config/updates.json'
+  # Fires when Vercel reports a deployment status change
+  deployment_status:
 
 jobs:
   broadcast:
     runs-on: ubuntu-latest
+
+    # Only run when:
+    # 1. The deployment succeeded
+    # 2. It's the production environment (not preview/dev)
+    # 3. The updates.json file was changed in this commit
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trigger Broadcast API
+      - name: Check if updates.json was modified
+        id: check_updates
         run: |
-          curl -X POST -L ${{ secrets.NEXT_PUBLIC_BASE_URL }}/api/admin/broadcast \
-          -H "Content-Type: application/json" \
-          -d '{"adminSecret": "${{ secrets.ADMIN_SECRET }}"}'
+          git fetch --depth=2
+          if git diff HEAD~1 HEAD --name-only | grep -q 'src/config/updates.json'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for deployment to stabilize
+        if: steps.check_updates.outputs.changed == 'true'
+        run: sleep 30
+
+      - name: Trigger Broadcast API
+        if: steps.check_updates.outputs.changed == 'true'
+        run: |
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST -L "${{ secrets.NEXT_PUBLIC_BASE_URL }}/api/admin/broadcast" \
+            -H "Content-Type: application/json" \
+            -d '{"adminSecret": "${{ secrets.ADMIN_SECRET }}"}')
+
+          echo "HTTP Status: $RESPONSE"
+          echo "Response body:"
+          cat /tmp/response.json
+
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Broadcast failed with status $RESPONSE"
+            exit 1
+          fi
+
+      - name: Skip (updates.json unchanged)
+        if: steps.check_updates.outputs.changed == 'false'
+        run: echo "updates.json was not modified in this deploy — skipping broadcast."
