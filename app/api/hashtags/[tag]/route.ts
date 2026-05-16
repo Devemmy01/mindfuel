@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Hashtag from "@/models/hashtag";
 import PostHashtag from "@/models/postHashtag";
 import Post from "@/models/post";
+import { Types } from "mongoose";
 import { PostType } from "@/types";
 import { normalizeHashtag } from "@/lib/hashtags";
 import User from "@/models/user";
@@ -58,7 +59,9 @@ export async function GET(
       }));
     };
 
-    const hashtagDoc = await Hashtag.findOne({ tag: normalizedTag }).lean();
+    const hashtagDoc = (await Hashtag.findOne({ tag: normalizedTag }).lean()) as
+      | { _id: Types.ObjectId | string; tag?: string; displayTag?: string; postCount?: number; lastUsedAt?: Date }
+      | null;
 
     let total = 0;
     let orderedPosts: PostType[] = [];

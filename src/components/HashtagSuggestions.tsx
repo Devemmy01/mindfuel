@@ -32,6 +32,7 @@ export default function HashtagSuggestions({
   onSelect,
   onHoverIndex,
   recentTags = [],
+  id,
 }: HashtagSuggestionsProps) {
   return (
     <AnimatePresence>
