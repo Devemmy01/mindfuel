@@ -62,21 +62,62 @@ export async function GET(req: NextRequest) {
       errors: [] as string[],
     };
 
+    const MAX_RETRIES = 3;
+    const SEND_DELAY_MS = 500;
+
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const sendDailyTipEmail = async (userEmail: string, userName: string) => {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const response = (await resend.emails.send({
+            from: "MindFuel <daily@mind-fuel.app>",
+            to: userEmail,
+            subject: "Your Daily Fuel is here",
+            react: <DailyTipEmail name={userName || "Friend"} tip={tip} /> as React.ReactElement,
+          })) as unknown;
+
+          // Resend's response typing can be ambiguous; guard access safely.
+          const respObj = response && typeof response === "object" ? (response as Record<string, unknown>) : {};
+          const maybeError = respObj && Object.prototype.hasOwnProperty.call(respObj, "error") ? respObj.error : undefined;
+
+          if (maybeError) {
+            throw new Error(
+              typeof maybeError === "string" ? maybeError : JSON.stringify(maybeError),
+            );
+          }
+
+          return true;
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : "Unknown error";
+
+          if (attempt < MAX_RETRIES) {
+            await sleep(SEND_DELAY_MS * attempt);
+            continue;
+          }
+
+          results.errors.push(`Email error for ${userEmail}: ${message}`);
+          return false;
+        }
+      }
+
+      return false;
+    };
+
     // 3. Process Notifications
     for (const user of users) {
       // EMAIL
       try {
-        await resend.emails.send({
-          from: "MindFuel <daily@mind-fuel.app>",
-          to: user.email,
-          subject: "Your Daily Fuel is here",
-          react: <DailyTipEmail name={user.name || "Friend"} tip={tip} /> as React.ReactElement,
-        });
-        results.emailsSent++;
+        const sent = await sendDailyTipEmail(user.email, user.name || "Friend");
+        if (sent) {
+          results.emailsSent++;
+        }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unknown error";
         results.errors.push(`Email error for ${user.email}: ${message}`);
       }
+
+      await sleep(SEND_DELAY_MS);
 
       // WEB PUSH
       if (user.preferences?.notifications && user.pushSubscriptions?.length > 0) {

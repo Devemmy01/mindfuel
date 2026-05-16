@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
 import { PostType } from "@/types";
+import { syncPostHashtags } from "@/lib/hashtags";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -76,9 +77,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Update fields
+    const previousTags = Array.isArray(post.hashtags) ? post.hashtags : [];
+
     if (text) post.text = text;
     if (backgroundStyle) post.backgroundStyle = backgroundStyle;
     if (fontFamily) post.fontFamily = fontFamily;
+
+    if (text) {
+      post.hashtags = await syncPostHashtags({
+        postId: post._id.toString(),
+        nextText: text,
+        previousTags,
+      });
+    }
 
     await post.save();
 
@@ -115,6 +126,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     // Check ownership
     if (post.userId.toString() !== user._id.toString()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    if (Array.isArray(post.hashtags) && post.hashtags.length > 0) {
+      const Hashtag = (await import("@/models/hashtag")).default;
+      const PostHashtag = (await import("@/models/postHashtag")).default;
+
+      const hashtagDocs = await Hashtag.find({ tag: { $in: post.hashtags } }).select("_id tag").lean();
+
+      await Promise.all([
+        PostHashtag.deleteMany({ postId: post._id }),
+        ...hashtagDocs.map((doc) => Hashtag.updateOne({ _id: doc._id }, { $inc: { postCount: -1 } })),
+      ]);
     }
 
     // If it's a quote, decrement repostCount of original post

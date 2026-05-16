@@ -2,6 +2,7 @@ import { Schema, model, models, Document } from "mongoose";
 
 export interface IPost extends Document {
   text: string;
+  hashtags: string[];
   userId: Schema.Types.ObjectId;
   isSponsored?: boolean;
   views?: number;
@@ -37,6 +38,11 @@ const PostSchema = new Schema(
       type: String,
       required: [true, "Text is required"],
       maxlength: [500, "Post text cannot exceed 500 characters"],
+    },
+    hashtags: {
+      type: [String],
+      default: [],
+      index: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
@@ -127,6 +133,7 @@ const PostSchema = new Schema(
 PostSchema.index({ createdAt: -1 });
 PostSchema.index({ userId: 1, createdAt: -1 });
 PostSchema.index({ likesCount: -1, views: -1, createdAt: -1 });
+PostSchema.index({ hashtags: 1, createdAt: -1 });
 
 const Post = models.Post || model<IPost>("Post", PostSchema);
 

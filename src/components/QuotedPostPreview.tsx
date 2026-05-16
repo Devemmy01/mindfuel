@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getFontById } from "@/lib/fonts";
 import { PostType } from "@/types";
+import HashtagText from "@/components/HashtagText";
 
 interface QuotedPostPreviewProps {
   post?: PostType | null;
@@ -69,7 +70,9 @@ const QuotedPostPreview: React.FC<QuotedPostPreviewProps> = ({
           fontFamily: getFontById(post.fontFamily ?? "inter").family,
         }}
       >
-        <p className="line-clamp-3 text-foreground/90">{post.text}</p>
+        <p className="line-clamp-3 text-foreground/90">
+          <HashtagText text={post.text} />
+        </p>
       </div>
     </div>
   );

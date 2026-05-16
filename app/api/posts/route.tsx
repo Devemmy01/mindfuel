@@ -13,6 +13,7 @@ import { QuoteEmail } from "@/emails/QuoteEmail";
 import { createNotification } from "@/lib/notifications";
 import { IUser } from "@/models/user";
 import { PipelineStage } from "mongoose";
+import { syncPostHashtags } from "@/lib/hashtags";
 
 // GET /api/posts - Fetch feed or user posts
 export async function GET(req: NextRequest) {
@@ -292,6 +293,14 @@ export async function POST(req: NextRequest) {
       repostCount: 0,
     });
 
+    const hashtags = await syncPostHashtags({
+      postId: newPost._id.toString(),
+      nextText: text,
+    });
+
+    newPost.hashtags = hashtags;
+    await newPost.save();
+
     // Update user's reflection streak
     const streakUpdate = updateStreak(
       user.lastReflectionDate,
@@ -327,7 +336,7 @@ export async function POST(req: NextRequest) {
 
              // 2. Email Notification
              if (author.email && author.preferences?.notifications !== false) {
-               await resend.emails.send({
+                 await resend.emails.send({
                  from: "MindFuel <noreply@mind-fuel.app>",
                  to: author.email,
                  subject: `${user.name} quoted your thought`,

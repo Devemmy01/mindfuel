@@ -13,6 +13,8 @@ import { useToast } from "@/providers/ToastProvider";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { PostType } from "@/types";
 import { getFontById } from "@/lib/fonts";
+import { extractHashtags, normalizeHashtag } from "@/lib/hashtags-core";
+import HashtagSuggestions, { HashtagSuggestionItem } from "@/components/HashtagSuggestions";
 
 import QuotedPostPreview from "@/components/QuotedPostPreview";
 
@@ -20,6 +22,55 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
   loading: () => <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />,
 });
+
+const RECENT_HASHTAGS_KEY = "mindfuel_recent_hashtags";
+
+function getHashtagContext(value: string, cursorPosition: number) {
+  const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+  const beforeCursor = value.slice(0, safeCursor);
+  const hashIndex = beforeCursor.lastIndexOf("#");
+
+  if (hashIndex < 0) return null;
+
+  const prefix = beforeCursor.slice(hashIndex + 1);
+  const precedingChar = hashIndex > 0 ? beforeCursor[hashIndex - 1] : "";
+
+  if (precedingChar && /[A-Za-z0-9_]/.test(precedingChar)) return null;
+  if (/\s/.test(prefix)) return null;
+  if (!/^[A-Za-z0-9_]{0,50}$/.test(prefix)) return null;
+
+  return {
+    query: prefix.toLowerCase(),
+    start: hashIndex,
+    end: safeCursor,
+  };
+}
+
+function readRecentHashtags(): string[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(RECENT_HASHTAGS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((tag) => normalizeHashtag(String(tag || "")))
+      .filter(Boolean)
+      .slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentHashtags(tags: string[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(RECENT_HASHTAGS_KEY, JSON.stringify(tags.slice(0, 10)));
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 /** Re-exported for use in DownloadCardModal */
 export function CardWatermark({ color = "#ffffff", isVisible = false }: { color?: string; isVisible?: boolean }) {
@@ -61,6 +112,77 @@ const CardCreator: React.FC = () => {
 
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const hashtagComposerRef = useRef<HTMLDivElement>(null);
+
+  const [recentHashtags, setRecentHashtags] = useState<string[]>([]);
+  const [hashtagSuggestions, setHashtagSuggestions] = useState<HashtagSuggestionItem[]>([]);
+  const [hashtagLoading, setHashtagLoading] = useState(false);
+  const [hashtagActiveIndex, setHashtagActiveIndex] = useState(0);
+  const [hashtagContext, setHashtagContext] = useState<{ query: string; start: number; end: number } | null>(null);
+
+  const persistRecentHashtag = useCallback((tag: string) => {
+    const normalized = normalizeHashtag(tag);
+    if (!normalized) return;
+
+    setRecentHashtags((current) => {
+      const next = [normalized, ...current.filter((item) => item !== normalized)].slice(0, 10);
+      writeRecentHashtags(next);
+      return next;
+    });
+  }, []);
+
+  const updateHashtagContext = useCallback((value: string, cursorPosition: number) => {
+    const context = getHashtagContext(value, cursorPosition);
+    setHashtagContext(context);
+    setHashtagActiveIndex(0);
+  }, []);
+
+  const selectHashtagSuggestion = useCallback((tag: string) => {
+    const normalized = normalizeHashtag(tag);
+    if (!normalized || !hashtagContext) return;
+
+    const nextText = `${text.slice(0, hashtagContext.start)}#${normalized} ${text.slice(hashtagContext.end)}`;
+    const nextCursor = hashtagContext.start + normalized.length + 2;
+
+    setText(nextText);
+    persistRecentHashtag(normalized);
+    setHashtagContext(null);
+    setHashtagSuggestions([]);
+
+    window.requestAnimationFrame(() => {
+      if (textAreaRef.current) {
+        textAreaRef.current.focus();
+        textAreaRef.current.setSelectionRange(nextCursor, nextCursor);
+      }
+    });
+  }, [hashtagContext, persistRecentHashtag, text]);
+
+  const handleHashtagKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!hashtagContext || hashtagSuggestions.length === 0) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHashtagActiveIndex((current) => (current + 1) % hashtagSuggestions.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHashtagActiveIndex((current) => (current - 1 + hashtagSuggestions.length) % hashtagSuggestions.length);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      selectHashtagSuggestion(hashtagSuggestions[hashtagActiveIndex]?.tag || hashtagSuggestions[0].tag);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setHashtagContext(null);
+      setHashtagSuggestions([]);
+    }
+  }, [hashtagActiveIndex, hashtagContext, hashtagSuggestions, selectHashtagSuggestion]);
 
   // Load prompt or quote from URL
   useEffect(() => {
@@ -92,6 +214,62 @@ const CardCreator: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showEmojiPicker]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (hashtagComposerRef.current && !hashtagComposerRef.current.contains(e.target as Node)) {
+        setHashtagContext(null);
+        setHashtagSuggestions([]);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setRecentHashtags(readRecentHashtags());
+  }, []);
+
+  useEffect(() => {
+    const activeQuery = hashtagContext?.query ?? "";
+    if (hashtagContext === null) {
+      setHashtagSuggestions([]);
+      setHashtagLoading(false);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setHashtagLoading(true);
+      try {
+        const endpoint = activeQuery
+          ? `/api/hashtags/search?q=${encodeURIComponent(activeQuery)}&limit=8`
+          : "/api/hashtags/trending?limit=8";
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        const serverSuggestions: HashtagSuggestionItem[] = data.hashtags || [];
+
+        const recentMatches = recentHashtags
+          .filter((tag) => !activeQuery || tag.includes(activeQuery))
+          .map((tag) => ({ tag, displayTag: `#${tag}`, postCount: 0 }));
+
+        const merged = [...recentMatches, ...serverSuggestions]
+          .filter((item, index, array) => array.findIndex((candidate) => candidate.tag === item.tag) === index)
+          .slice(0, 8);
+
+        setHashtagSuggestions(merged);
+      } catch (error) {
+        console.error("Failed to load hashtag suggestions", error);
+        setHashtagSuggestions(
+          recentHashtags.slice(0, 8).map((tag) => ({ tag, displayTag: `#${tag}`, postCount: 0 }))
+        );
+      } finally {
+        setHashtagLoading(false);
+      }
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [hashtagContext, recentHashtags]);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textAreaRef.current) {
@@ -110,6 +288,11 @@ const CardCreator: React.FC = () => {
         textAreaRef.current.setSelectionRange(cursor + emojiData.emoji.length, cursor + emojiData.emoji.length);
       }
     }, 0);
+  };
+
+  const handleTextChange = (value: string, cursorPosition: number) => {
+    setText(value);
+    updateHashtagContext(value, cursorPosition);
   };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,6 +348,9 @@ const CardCreator: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      const hashtags = extractHashtags(displayText);
+      hashtags.forEach((tag) => persistRecentHashtag(tag));
+
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -278,17 +464,34 @@ const CardCreator: React.FC = () => {
             )}
 
             {/* Textarea */}
-            <textarea
-              ref={textAreaRef}
-              id="post-textarea"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={promptQuestion ? "Share your reflection…" : "What's fueling your mind?"}
-              className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none text-[17px] leading-relaxed placeholder:text-muted-foreground/50 min-h-[120px]"
-              rows={4}
-              maxLength={maxChars}
-              autoFocus
-            />
+            <div className="relative" ref={hashtagComposerRef}>
+              <textarea
+                ref={textAreaRef}
+                id="post-textarea"
+                value={text}
+                onChange={(e) => handleTextChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+                onKeyDown={handleHashtagKeyDown}
+                onClick={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                onKeyUp={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                onSelect={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
+                placeholder={promptQuestion ? "Share your reflection…" : "What's fueling your mind?"}
+                className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none text-[17px] leading-relaxed placeholder:text-muted-foreground/50 min-h-[120px]"
+                rows={4}
+                maxLength={maxChars}
+                autoFocus
+              />
+
+              <HashtagSuggestions
+                open={Boolean(hashtagContext)}
+                query={hashtagContext?.query || ""}
+                suggestions={hashtagSuggestions}
+                activeIndex={hashtagActiveIndex}
+                loading={hashtagLoading}
+                onSelect={selectHashtagSuggestion}
+                onHoverIndex={setHashtagActiveIndex}
+                recentTags={recentHashtags}
+              />
+            </div>
             
             {/* Quoted Post Preview */}
             {quotedPost && (

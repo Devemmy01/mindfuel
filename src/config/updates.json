@@ -1,5 +1,12 @@
 [
   {
+    "id": "v2.0.0",
+    "title": "Hashtags + UX Polish",
+    "details": "Hashtags are here — drop #tags in your posts, tap a tag to explore its page, and enjoy smart suggestions and trending picks.",
+    "date": "2026-05-16",
+    "version": "2.0.0"
+  },
+  {
     "id": "v1.2.0",
     "title": "Quotes, Reposts & Premium Sharing.",
     "details": "We've added quotes and reposts, improved image sharing, and a new minimalist card downloader. Share your thoughts more powerfully than ever. ",

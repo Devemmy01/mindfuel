@@ -84,6 +84,9 @@ function Composer({
   const [showEmoji, setShowEmoji] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+  const [pickerStyle, setPickerStyle] = useState<{ left: number; top: number } | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const openTimestamp = useRef<number | null>(null);
 
   useEffect(() => { if (autoFocus) setTimeout(() => inputRef.current?.focus(), 60); }, [autoFocus]);
   useEffect(() => {
@@ -93,9 +96,40 @@ function Composer({
     }
   }, [text]);
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false); };
+    const h = (e: MouseEvent) => {
+      // ignore events that occur immediately after opening (event ordering)
+      if (openTimestamp.current && Date.now() - openTimestamp.current < 200) return;
+      const t = e.target as Node;
+      if (emojiRef.current && emojiRef.current.contains(t)) return;
+      if (pickerRef.current && pickerRef.current.contains(t)) return;
+      setShowEmoji(false);
+      openTimestamp.current = null;
+    };
     if (showEmoji) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, [showEmoji]);
+
+  useEffect(() => {
+    if (!showEmoji) {
+      setPickerStyle(null);
+      return;
+    }
+    const compute = () => {
+      const el = emojiRef.current?.querySelector("button");
+      if (!el) return setPickerStyle(null);
+      const rect = (el as HTMLElement).getBoundingClientRect();
+      const pickerW = 280, pickerH = 320, margin = 8;
+      let left = rect.left + rect.width / 2 - pickerW / 2;
+      left = Math.max(margin, Math.min(window.innerWidth - pickerW - margin, left));
+      let top = rect.top - pickerH - 12;
+      // if not enough space above, place below the button
+      if (top < margin) top = rect.bottom + 12;
+      setPickerStyle({ left, top });
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("orientationchange", compute);
+    return () => { window.removeEventListener("resize", compute); window.removeEventListener("orientationchange", compute); };
   }, [showEmoji]);
 
   const onEmojiClick = (d: { emoji: string }) => {
@@ -131,14 +165,27 @@ function Composer({
         </div>
         <div className="flex items-center justify-between pb-1 pt-1">
           <div className="relative" ref={emojiRef}>
-            <button type="button" onClick={() => setShowEmoji(p => !p)}
+            <button type="button" onClick={() => {
+                setShowEmoji(p => {
+                  const next = !p;
+                  if (next) openTimestamp.current = Date.now(); else openTimestamp.current = null;
+                  return next;
+                });
+              }}
               className="w-8 h-8 flex items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10 transition-all active:scale-90">
               <Smile className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
             <AnimatePresence>
               {showEmoji && (
-                <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute bottom-full mb-3 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border bg-popover">
+                <motion.div ref={pickerRef} initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  style={{
+                    position: "fixed",
+                    left: pickerStyle ? pickerStyle.left : "50%",
+                    top: pickerStyle ? pickerStyle.top : undefined,
+                    transform: pickerStyle ? undefined : "translateX(-50%)",
+                    bottom: pickerStyle ? undefined : 84,
+                  }}
+                  className="z-50 shadow-2xl rounded-2xl overflow-hidden border border-border bg-popover">
                   <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
                 </motion.div>
               )}

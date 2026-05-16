@@ -27,6 +27,7 @@ import InteractionBar from "@/components/InteractionBar";
 import QuotedPostPreview from "@/components/QuotedPostPreview";
 import DownloadCardModal from "@/components/DownloadCardModal";
 import EditPostModal from "@/components/EditPostModal";
+import HashtagText from "@/components/HashtagText";
 
 // EmojiPicker removal from here as it is now in EditPostModal
 
@@ -377,7 +378,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
             {/* Post text */}
             <p className="text-[15px] leading-relaxed text-foreground whitespace-pre-wrap break-words mb-3">
-              {getParsedText()}
+              <HashtagText text={getParsedText()} />
             </p>
 
             {/* Attached image */}

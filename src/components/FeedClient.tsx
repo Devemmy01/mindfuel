@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { ArrowUp, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PostType } from "@/types";
@@ -36,6 +36,7 @@ function SkeletonCard() {
 export default function FeedClient() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("feed");
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const userIdParam = user?.uid ? `&userId=${user.uid}` : "";
   const feedUrl = `/api/posts/feed?type=feed${userIdParam}`;
@@ -64,6 +65,17 @@ export default function FeedClient() {
   const posts = activeTab === "feed" ? (feedPosts || []) : (reflectionPosts || []);
   const loading = activeTab === "feed" ? (!feedPosts && feedLoading) : (!reflectionPosts && reflectionLoading);
   const refreshing = false;
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 520);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -117,6 +129,28 @@ export default function FeedClient() {
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showScrollTop && (
+          <div className="sticky top-24 z-50 flex justify-center pointer-events-none md:top-20">
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ duration: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
+              onClick={scrollToTop}
+              aria-label="Scroll to top"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-[#00a855] px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_14px_35px_rgba(0,168,85,0.35)] backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[#00914a] active:scale-[0.98]"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
+                <ArrowUp className="h-4 w-4" strokeWidth={2.6} />
+              </span>
+              <span className="whitespace-nowrap">Back to top</span>
+            </motion.button>
+          </div>
         )}
       </AnimatePresence>
 
@@ -190,6 +224,7 @@ export default function FeedClient() {
             key={`${activeTab}-content`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="relative"
           >
             {activeTab === "reflections" ? (
               <div className="px- pt-4">

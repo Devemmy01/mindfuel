@@ -14,6 +14,7 @@ export interface Poll {
 export interface PostType {
   _id: string;
   text: string;
+  hashtags?: string[];
   userId: {
     _id: string;
     name: string;
