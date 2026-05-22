@@ -4,6 +4,7 @@ import Post from "@/models/post";
 import User from "@/models/user";
 import { PostType } from "@/types";
 import { syncPostHashtags } from "@/lib/hashtags";
+import { recalculateStreakFromPosts } from "@/lib/streakUtils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -156,6 +157,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       Save.deleteMany({ postId }),
       Comment.deleteMany({ postId }),
     ]);
+
+    // Recalculate user's streak based on remaining posts
+    // Only posts count toward streak, not comments/replies
+    const remainingPosts = await Post.find({ userId: user._id })
+      .select("createdAt")
+      .sort({ createdAt: -1 })
+      .lean() as unknown as Array<{ createdAt: Date }>;
+
+    const postDates = remainingPosts.map((p) => p.createdAt);
+    const streakUpdate = recalculateStreakFromPosts(postDates, user.longestStreak || 0);
+
+    await User.findByIdAndUpdate(user._id, streakUpdate);
 
     return NextResponse.json({ message: "Post deleted successfully" }, { status: 200 });
   } catch (error: unknown) {

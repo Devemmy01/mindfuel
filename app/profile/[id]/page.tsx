@@ -86,7 +86,10 @@ export default function DynamicProfilePage() {
             const statsRes = await fetch(`/api/posts?userId=${profileId}&limit=1000`);
             const statsData = await statsRes.json();
             const userPosts = statsData.posts || [];
-            setAllUserPosts(userPosts);
+            
+            // Filter to only original posts (not reposts) for streak and reflection history
+            const originalPosts = userPosts.filter((p: PostType) => !p.isRepost);
+            setAllUserPosts(originalPosts);
 
             // Count all thoughts: original posts, reposts, and quotes
             setOwnPostCount(userPosts.length);
@@ -138,9 +141,26 @@ export default function DynamicProfilePage() {
     onRefresh: async () => {
       setLoading(true);
       setPosts([]);
-      // Re-run the fetch by toggling a dummy state — just reload current tab
       const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
       try {
+        // Refresh user profile data (including streak)
+        if (profileId) {
+          const userRes = await fetch(`/api/users/${profileId}`);
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            setProfileUser(userData.user);
+            setStreakDays(userData.user.streakDays || 0);
+          }
+
+          // Refresh all user posts for reflection calendar (only original posts, not reposts)
+          const statsRes = await fetch(`/api/posts?userId=${profileId}&limit=1000`);
+          const statsData = await statsRes.json();
+          const userPosts = statsData.posts || [];
+          const originalPosts = userPosts.filter((p: PostType) => !p.isRepost);
+          setAllUserPosts(originalPosts);
+        }
+
+        // Refresh posts in current tab
         let postsData: PostType[] = [];
         if (activeTab === "Saved") {
           const res = await fetch(`/api/saves?userId=${profileId}&limit=1000${currentUserQuery}`);

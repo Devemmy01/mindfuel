@@ -119,3 +119,55 @@ export function getStreakMilestoneMessage(streakDays: number): string | null {
 
   return milestones[streakDays] || null;
 }
+
+/**
+ * Recalculate streak based on user's actual posts
+ * Used when a post is deleted to update streak and lastReflectionDate
+ * @param postDates - Array of post creation dates, sorted newest first
+ * @param longestStreak - User's all-time longest streak (preserved)
+ * @returns Updated streak info (streak may be 0 if no posts or gap exists)
+ */
+export function recalculateStreakFromPosts(
+  postDates: Date[],
+  longestStreak: number
+): {
+  streakDays: number;
+  lastReflectionDate: Date | undefined;
+  longestStreak: number;
+} {
+  if (!postDates || postDates.length === 0) {
+    // No posts left, streak is broken
+    return {
+      streakDays: 0,
+      lastReflectionDate: undefined,
+      longestStreak: longestStreak,
+    };
+  }
+
+  // Get the most recent post date and normalize it
+  const mostRecentPostDate = new Date(postDates[0]);
+  mostRecentPostDate.setHours(0, 0, 0, 0);
+
+  // Create a set of dates (as strings) when the user posted
+  const postDateSet = new Set<string>();
+  postDates.forEach((date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    postDateSet.add(d.toISOString().split("T")[0]);
+  });
+
+  // Calculate streak by going backwards from the most recent post
+  let streakDays = 0;
+  const checkDate = new Date(mostRecentPostDate);
+
+  while (postDateSet.has(checkDate.toISOString().split("T")[0])) {
+    streakDays++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  return {
+    streakDays,
+    lastReflectionDate: mostRecentPostDate,
+    longestStreak: longestStreak,
+  };
+}

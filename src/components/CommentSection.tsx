@@ -208,7 +208,7 @@ function Composer({
 function CommentNode({
   comment, repliesMap, currentUser, level = 0, replyingTo,
   expandedIds, toggleExpand,
-  onLike, onDelete, onReply, onSubmitReply,
+  onLike, onDelete, onReply, onSubmitReply, onEdit, editingId, onToggleEdit,
 }: {
   comment: Comment;
   repliesMap: Map<string, Comment[]>;
@@ -221,11 +221,17 @@ function CommentNode({
   onDelete: (id: string) => void;
   onReply: (c: Comment) => void;
   onSubmitReply: (content: string) => Promise<void>;
+  onEdit: (id: string, content: string) => Promise<void>;
+  editingId: string | null;
+  onToggleEdit: (id: string) => void;
 }) {
   const isExpanded = expandedIds.has(comment._id);
   const replies = repliesMap.get(comment._id) ?? [];
   const hasReplies = replies.length > 0;
   const isReplyingHere = replyingTo?._id === comment._id;
+  const isEditingThis = editingId === comment._id;
+  const [editText, setEditText] = useState(comment.content);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   
   const timeAgo = (d: string) =>
     formatDistanceToNow(new Date(d), { addSuffix: false })
@@ -233,6 +239,16 @@ function CommentNode({
   const username = (u: CommentUser) => u.username || u.name.replace(/\s+/g, "").toLowerCase();
 
   const indentClass = level > 0 ? "ml-3 md:ml-10 border-l border-border/30" : "";
+
+  const handleEditSubmit = async () => {
+    if (!editText.trim()) return;
+    setIsSubmittingEdit(true);
+    try {
+      await onEdit(comment._id, editText);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   return (
     <div className={`${indentClass} group transition-all`}>
@@ -247,9 +263,38 @@ function CommentNode({
             <span className="text-muted-foreground text-[13px] leading-none opacity-70 pt-0.4">{timeAgo(comment.createdAt)}</span>
           </div>
           
-          <p className={`${level === 0 ? "text-[14px]" : "text-[13.5px]"} text-foreground/90 leading-snug -mt-3 md:mt-1.5 whitespace-pre-wrap`}>
-            {comment.content}
-          </p>
+          {!isEditingThis ? (
+            <p className={`${level === 0 ? "text-[14px]" : "text-[13.5px]"} text-foreground/90 leading-snug -mt-3 md:mt-1.5 whitespace-pre-wrap`}>
+              {comment.content}
+            </p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full bg-secondary/50 border border-border/30 rounded-lg p-2 text-[13px] text-foreground resize-none"
+                rows={3}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleEditSubmit}
+                  disabled={isSubmittingEdit}
+                  className="px-3 py-1 bg-brand-green text-white text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
+                >
+                  {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Save"}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditText(comment.content);
+                    onToggleEdit(comment._id);
+                  }}
+                  className="px-3 py-1 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center gap-4 mt-0.5 md:mt-2">
             <div className="flex items-center gap-3">
@@ -260,7 +305,14 @@ function CommentNode({
               </button>
               
               {currentUser?.uid === comment.userId.firebaseId && (
-                <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-rose-500">Delete</button>
+                <>
+                  <button onClick={() => onToggleEdit(comment._id)}
+                    disabled={isSubmittingEdit}
+                    className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-blue-500 transition-colors disabled:opacity-50">
+                    {isEditingThis ? "Cancel Edit" : "Edit"}
+                  </button>
+                  <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-rose-500 transition-colors">Delete</button>
+                </>
               )}
             </div>
             
@@ -314,6 +366,9 @@ function CommentNode({
                 onDelete={onDelete}
                 onReply={onReply}
                 onSubmitReply={onSubmitReply}
+                onEdit={onEdit}
+                editingId={editingId}
+                onToggleEdit={onToggleEdit}
               />
             ))}
           </motion.div>
@@ -335,6 +390,7 @@ const CommentSection: React.FC<{
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -404,6 +460,29 @@ const CommentSection: React.FC<{
       showToast("Reflection deleted", "success");
       onCommentDeleted?.();
     }
+  };
+
+  const handleEdit = async (commentId: string, content: string) => {
+    if (!user) return;
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.uid, content }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setComments(prev =>
+        prev.map(c => (c._id === commentId ? { ...c, content: data.comment.content } : c))
+      );
+      setEditingId(null);
+      showToast("Reflection updated", "success");
+    } else {
+      showToast("Failed to update reflection", "error");
+    }
+  };
+
+  const toggleEditMode = (commentId: string) => {
+    setEditingId(prev => prev === commentId ? null : commentId);
   };
 
   const handleLike = async (commentId: string) => {
@@ -489,6 +568,9 @@ const CommentSection: React.FC<{
               onDelete={handleDelete}
               onReply={handleReply}
               onSubmitReply={handleSubmitReply}
+              onEdit={handleEdit}
+              editingId={editingId}
+              onToggleEdit={toggleEditMode}
             />
           ))}
           {!loading && topLevel.length === 0 && (

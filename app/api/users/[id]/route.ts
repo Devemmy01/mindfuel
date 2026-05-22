@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
-import { decayStreak } from "@/lib/streakUtils";
+import Post from "@/models/post";
+import { decayStreak, recalculateStreakFromPosts } from "@/lib/streakUtils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -17,12 +18,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check for streak decay
-    const currentStreak = userDoc.streakDays || 0;
-    const correctedStreak = decayStreak(userDoc.lastReflectionDate, currentStreak);
+    // Recalculate streak based on actual posts to ensure accuracy
+    const userPosts = await Post.find({ userId: userDoc._id })
+      .select("createdAt")
+      .sort({ createdAt: -1 })
+      .lean() as unknown as Array<{ createdAt: Date }>;
 
-    if (correctedStreak !== currentStreak) {
+    const postDates = userPosts.map((p) => p.createdAt);
+    const streakUpdate = recalculateStreakFromPosts(postDates, userDoc.longestStreak || 0);
+
+    // Check for streak decay and update if needed
+    const currentStreak = streakUpdate.streakDays;
+    const correctedStreak = decayStreak(streakUpdate.lastReflectionDate, currentStreak);
+
+    // Update if streak changed due to decay or recalculation
+    if (correctedStreak !== userDoc.streakDays || streakUpdate.lastReflectionDate?.getTime() !== new Date(userDoc.lastReflectionDate || 0).setHours(0, 0, 0, 0)) {
       userDoc.streakDays = correctedStreak;
+      userDoc.lastReflectionDate = streakUpdate.lastReflectionDate;
+      userDoc.longestStreak = streakUpdate.longestStreak;
       await userDoc.save();
     }
 

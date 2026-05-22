@@ -30,6 +30,7 @@ import { getFontById } from "@/lib/fonts";
 import { CardWatermark } from "@/components/CardCreator";
 import InteractionBar from "@/components/InteractionBar";
 import QuotedPostPreview from "@/components/QuotedPostPreview";
+import HashtagText from "@/components/HashtagText";
 import { format } from "date-fns";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import useSWR from "swr";
@@ -591,7 +592,7 @@ export default function PostDetailPage() {
             </span>
           )}
           <p className="text-[17px] sm:text-[19px] whitespace-pre-wrap leading-relaxed text-foreground">
-            {post.text.replace(/^Reflecting on: "[^"]+"\s*/, "")}
+            <HashtagText text={post.text.replace(/^Reflecting on: "[^"]+"\s*/, "")} />
           </p>
           {post.imageUrl && (
             <div className="mt-4 rounded-2xl overflow-hidden border border-border">

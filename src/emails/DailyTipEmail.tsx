@@ -24,6 +24,9 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
     <Html>
       <Head>
         <style>{`
+          body, table, td, div, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+          table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+          
           @media (prefers-color-scheme: dark) {
             .main { background-color: #000000 !important; }
             .tipCard { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
@@ -32,12 +35,24 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
             .spacer { color: #52525b !important; }
             .footer { color: #52525b !important; }
           }
+
+          @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; max-width: 100% !important; padding: 0 16px !important; }
+            .tipCard { padding: 24px 16px !important; margin-bottom: 24px !important; border-radius: 24px !important; }
+            .h1 { font-size: 18px !important; line-height: 1.4 !important; }
+            .quoteMark { font-size: 32px !important; margin-bottom: 12px !important; }
+            .quoteMarkRight { font-size: 32px !important; margin-top: 12px !important; }
+            .subtext { font-size: 14px !important; margin-bottom: 24px !important; }
+            .button, .secondaryButton { padding: 12px 24px !important; font-size: 13px !important; }
+            .logoContainer { padding: 8px 4px !important; width: 140px !important; margin: 0 auto 24px !important; }
+            .greeting { margin-bottom: 16px !important; }
+          }
         `}</style>
       </Head>
       <Preview>Your Daily Mindful Tip, {name}</Preview>
       <Body style={main} className="main">
-        <Container style={container}>
-          <Section style={logoContainer}>
+        <Container style={container} className="container">
+          <Section style={logoContainer} className="logoContainer">
             <Img
               src="https://mind-fuel.app/logoDarkbg.png"
               width="160"
@@ -47,16 +62,16 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
             />
           </Section>
           
-          <Text style={greeting}>
+          <Text style={greeting} className="greeting">
             Good Morning, {name}
           </Text>
 
           <Section style={tipCard} className="tipCard">
-            <Text style={quoteMark}>&ldquo;</Text>
+            <Text style={quoteMark} className="quoteMark">&ldquo;</Text>
             <Heading style={h1} className="h1">
               {tip}
             </Heading>
-            <Text style={quoteMarkRight}>&rdquo;</Text>
+            <Text style={quoteMarkRight} className="quoteMarkRight">&rdquo;</Text>
           </Section>
           
           <Text style={subtext} className="subtext">
@@ -64,13 +79,14 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           </Text>
 
           <Section style={center}>
-            <Link href="https://mind-fuel.app" style={button}>
+            <Link href="https://mind-fuel.app" style={button} className="button">
               Go to Feed
             </Link>
             <Text style={spacer} className="spacer">or</Text>
             <Link 
               href={`https://mind-fuel.app/tip/download?text=${encodeURIComponent(tip)}`} 
               style={secondaryButton}
+              className="secondaryButton"
             >
               Download as Image
             </Link>
@@ -90,12 +106,13 @@ export default DailyTipEmail;
 const main = {
   backgroundColor: '#f9fafb',
   fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
-  padding: '60px 0',
+  padding: '40px 0',
 };
 
 const container = {
   margin: '0 auto',
-  maxWidth: '480px',
+  maxWidth: '500px',
+  padding: '0 16px',
   textAlign: 'center' as const,
 };
 
@@ -125,7 +142,7 @@ const greeting = {
 const tipCard = {
   backgroundColor: '#ffffff',
   borderRadius: '32px',
-  padding: '48px 32px',
+  padding: '48px 40px',
   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
   marginBottom: '40px',
   border: '1px solid #f1f5f9',
@@ -137,7 +154,7 @@ const quoteMark = {
   marginBottom: '16px',
   lineHeight: '1',
   textAlign: 'left' as const,
-  margin: '0',
+  margin: '0 0 8px 0',
 };
 
 const quoteMarkRight = {
@@ -146,13 +163,13 @@ const quoteMarkRight = {
   marginTop: '16px',
   lineHeight: '1',
   textAlign: 'right' as const,
-  margin: '0',
+  margin: '8px 0 0 0',
 };
 
 const h1 = {
-  fontSize: '24px',
+  fontSize: '28px',
   fontWeight: '700',
-  lineHeight: '1.5',
+  lineHeight: '1.4',
   margin: '0',
   color: '#171717',
   letterSpacing: '-0.02em',
@@ -163,6 +180,7 @@ const subtext = {
   color: '#64748b',
   marginBottom: '32px',
   lineHeight: '1.6',
+  margin: '0 0 32px 0',
 };
 
 const center = {
