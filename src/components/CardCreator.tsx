@@ -15,6 +15,7 @@ import { PostType } from "@/types";
 import { getFontById } from "@/lib/fonts";
 import { extractHashtags, normalizeHashtag } from "@/lib/hashtags-core";
 import HashtagSuggestions, { HashtagSuggestionItem } from "@/components/HashtagSuggestions";
+import MilestoneModal from "@/components/MilestoneModal";
 
 import QuotedPostPreview from "@/components/QuotedPostPreview";
 
@@ -103,6 +104,9 @@ const CardCreator: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [quotedPost, setQuotedPost] = useState<PostType | null>(null);
+  const [pendingMilestones, setPendingMilestones] = useState<Array<{ id: string; label: string; emoji: string; description: string; tier: string }>>([]);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [postAfterMilestone, setPostAfterMilestone] = useState(false);
 
   // Image upload
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -331,16 +335,23 @@ const CardCreator: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const maxChars = 500;
+  const maxChars = 1000;
   const charsCount = text.length;
   const charsRatio = Math.min(charsCount / maxChars, 1);
   const radius = 11;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - charsRatio * circumference;
-  const isNearLimit = maxChars - charsCount <= 40;
+  const isNearLimit = maxChars - charsCount <= 80;
   const isOverLimit = charsCount > maxChars;
 
   const displayText = promptQuestion ? `Reflecting on: "${promptQuestion}"\n\n${text}` : text;
+
+  // Pre-fill from Share Target / URL param
+  const shareText = searchParams.get("share_text") || searchParams.get("text");
+  React.useEffect(() => {
+    if (shareText && !text) setText(shareText.slice(0, maxChars));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareText]);
 
   const handleSubmit = async () => {
     if (!user) { openSignInModal(); return; }
@@ -367,15 +378,17 @@ const CardCreator: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        const postId = data.post._id;
         showToast(
-          <span className="flex items-center gap-1.5 whitespace-nowrap">
-            Post created.{" "}
-            {/* <Link href={`/post/${postId}`} className="font-bold underline hover:text-brand-green">View</Link> */}
-          </span>,
+          <span className="flex items-center gap-1.5 whitespace-nowrap">Post created.</span>,
           "success", 5000
         );
-        router.push("/");
+        if (data.newMilestones && data.newMilestones.length > 0) {
+          setPendingMilestones(data.newMilestones);
+          setShowMilestoneModal(true);
+          setPostAfterMilestone(true);
+        } else {
+          router.push("/");
+        }
       }
     } catch (err) {
       console.error("Post failed", err);
@@ -391,6 +404,17 @@ const CardCreator: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full h-[100dvh] bg-background">
+      {/* Milestone Celebration Modal */}
+      {showMilestoneModal && pendingMilestones.length > 0 && (
+        <MilestoneModal
+          milestones={pendingMilestones}
+          onClose={() => {
+            setShowMilestoneModal(false);
+            if (postAfterMilestone) router.push("/");
+          }}
+        />
+      )}
+
       {/* Header */}
       <header className="glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3 shrink-0 z-10">
         <div className="flex items-center gap-3">
@@ -532,6 +556,7 @@ const CardCreator: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       {/* Bottom toolbar */}
       <div className="shrink-0 border-t border-border glass-strong px-4 py-3 pb-safe flex items-center justify-between">

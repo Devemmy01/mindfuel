@@ -29,5 +29,30 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "New Post",
+      "short_name": "New Post",
+      "description": "Reflect and share a new thought",
+      "url": "/create",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Profile",
+      "short_name": "Profile",
+      "description": "View reflection streak and calendar history",
+      "url": "/profile",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/create",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "share_text",
+      "url": "url"
+    }
+  }
 }

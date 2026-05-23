@@ -28,8 +28,11 @@ import QuotedPostPreview from "@/components/QuotedPostPreview";
 import DownloadCardModal from "@/components/DownloadCardModal";
 import EditPostModal from "@/components/EditPostModal";
 import HashtagText from "@/components/HashtagText";
+import { MILESTONES } from "@/lib/milestones";
 
 // EmojiPicker removal from here as it is now in EditPostModal
+
+const ZEN_MASTER_TOTAL = MILESTONES.length;
 
 interface PostCardProps {
   post: PostType;
@@ -241,25 +244,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               onClick={(e) => e.stopPropagation()}
               className="block press-scale outline-none"
             >
-              {post.userId.image &&
-              !post.userId.image.startsWith("#") &&
-              !imgError ? (
-                <Image
-                  src={post.userId.image}
-                  alt={post.userId.name}
-                  width={40}
-                  height={40}
-                  onError={() => setImgError(true)}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all"
-                />
-              ) : (
-                <div
-                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-[14px] font-bold text-white"
-                  style={{ backgroundColor: "#1a1a2e" }}
-                >
-                  {post.userId.name?.[0]?.toUpperCase()}
-                </div>
-              )}
+              {(() => {
+                const isZenMaster = (post.userId.earnedMilestones?.length ?? 0) >= ZEN_MASTER_TOTAL;
+                const avatarImg = post.userId.image && !post.userId.image.startsWith("#") && !imgError ? (
+                  <Image
+                    src={post.userId.image}
+                    alt={post.userId.name}
+                    width={40}
+                    height={40}
+                    onError={() => setImgError(true)}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full rounded-full bg-secondary flex items-center justify-center text-[14px] font-bold text-white"
+                    style={{ backgroundColor: "#1a1a2e" }}
+                  >
+                    {post.userId.name?.[0]?.toUpperCase()}
+                  </div>
+                );
+
+                if (isZenMaster) {
+                  return (
+                    <div
+                      className="w-10 h-10 rounded-full p-[2px] zen-master-aura"
+                      title="Zen Master — all milestones earned"
+                    >
+                      <div className="w-full h-full rounded-full overflow-hidden">
+                        {avatarImg}
+                      </div>
+                    </div>
+                  );
+                }
+                return <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all">{avatarImg}</div>;
+              })()}
             </Link>
           </div>
 

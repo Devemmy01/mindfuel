@@ -21,6 +21,7 @@ export interface PostType {
     username?: string;
     image: string;
     firebaseId: string;
+    earnedMilestones?: Array<{ id: string; earnedAt: string }>;
   };
   views: number;
   likesCount: number;
@@ -58,6 +59,7 @@ export interface ProfileUser {
   firebaseId: string;
   bio?: string;
   createdAt: string;
+  earnedMilestones?: Array<{ id: string; earnedAt: string }>;
 }
 
 export interface SaveType {

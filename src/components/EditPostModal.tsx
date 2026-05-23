@@ -193,9 +193,9 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
               {/* Live Card Preview + Textarea */}
               <div
                 className={`relative w-full rounded-2xl shadow-card overflow-hidden min-h-[160px] transition-all duration-300 ${
-                  editText.length > 450
+                  editText.length > 950
                     ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30"
-                    : editText.length > 400
+                    : editText.length > 900
                     ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20"
                     : "border border-black/5 dark:border-white/5"
                 }`}
@@ -210,7 +210,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                   className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none font-semibold leading-[1.45] tracking-tight placeholder:opacity-40 px-5 pt-5 pb-14 text-[18px] scrollbar-dark relative z-10"
                   style={{ color: editBg.text, fontFamily: editFont.family }}
                   rows={4}
-                  maxLength={510}
+                  maxLength={1010}
                   autoFocus
                   placeholder="What's on your mind?"
                 />
@@ -221,20 +221,20 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
               <div className="flex items-center justify-between -mt-2 px-1">
                 <span
                   className={`text-[12px] font-semibold transition-colors ${
-                    editText.length > 500
+                    editText.length > 1000
                       ? "text-rose-500"
-                      : editText.length > 450
+                      : editText.length > 950
                       ? "text-rose-500/70"
-                      : editText.length > 400
+                      : editText.length > 900
                       ? "text-yellow-500/70"
                       : "text-muted-foreground/60"
                   }`}
                 >
-                  {editText.length}/500
+                  {editText.length}/1000
                 </span>
-                {editText.length > 500 && (
+                {editText.length > 1000 && (
                   <p className="text-[12px] text-rose-500 font-semibold">
-                    Over limit by {editText.length - 500}
+                    Over limit by {editText.length - 1000}
                   </p>
                 )}
               </div>
@@ -279,7 +279,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                 </button>
                 <button
                   onClick={handleUpdate}
-                  disabled={isUpdating || !editText.trim() || editText.length > 500}
+                  disabled={isUpdating || !editText.trim() || editText.length > 1000}
                   className="flex-[2] py-3.5 text-white font-bold rounded-2xl bg-[#00a855] hover:bg-[#00a855]/80 disabled:opacity-50 transition-all shadow-brand-sm press-scale flex items-center justify-center gap-2 relative overflow-hidden group"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full duration-1000 -translate-x-full transition-transform" />

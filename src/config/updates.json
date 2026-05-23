@@ -1,5 +1,12 @@
 [
   {
+    "id": "v2.1.0",
+    "title": "Onboarding, Milestones, Limits & UI Polish",
+    "details": "We now have a smooth onboarding experience, Milestones and badges are now live, older reflections can backfill missed badges, the post and edit character limit has been raised to 1000 words, the reflection history is brighter, and the app UI has been polished throughout. We also tightened up the MindFuel badge/widget experience for a smoother PWA feel.",
+    "date": "2026-05-23",
+    "version": "2.1.0"
+  },
+  {
     "id": "v2.0.0",
     "title": "Hashtags + UX Polish",
     "details": "Hashtags are here. Browse #tags in your posts, tap a tag to explore its page, and enjoy smart suggestions and trending picks.",

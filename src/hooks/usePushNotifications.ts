@@ -67,18 +67,41 @@ export function usePushNotifications() {
         // WAIT for the Service Worker to be ACTIVE
         // This is crucial to avoid "no active Service Worker" errors
         let retryCount = 0;
-        while (!registration.active && retryCount < 20) {
+        while (!registration.active && retryCount < 30) {
           console.log(`Push: Waiting for SW to activate... (Attempt ${retryCount + 1})`);
-          await new Promise(r => setTimeout(r, 500));
-          registration = await navigator.serviceWorker.getRegistration();
-          if (!registration) break;
+          
+          const worker = registration.installing || registration.waiting;
+          if (worker) {
+            await new Promise<void>((resolve) => {
+              const handler = () => {
+                if (worker.state === "activated" || worker.state === "redundant") {
+                  worker.removeEventListener("statechange", handler);
+                  resolve();
+                }
+              };
+              worker.addEventListener("statechange", handler);
+              setTimeout(resolve, 1000); // 1s safety fallback
+            });
+          } else {
+            await new Promise(r => setTimeout(r, 500));
+          }
+
+          // Refresh registration object using register (which is fast and scope-safe)
+          registration = await navigator.serviceWorker.register(swUrl);
           retryCount++;
         }
 
         if (registration?.active) {
           console.log("Push: Service Worker is now ACTIVE!");
         } else {
-          throw new Error("Service Worker failed to reach active state in time.");
+          // If still not active, check if there's any active registration on the scope
+          const fallbackReg = await navigator.serviceWorker.getRegistration(registration?.scope || "/");
+          if (fallbackReg?.active) {
+            registration = fallbackReg;
+            console.log("Push: Service Worker is active via fallback registration!");
+          } else {
+            throw new Error("Service Worker failed to reach active state in time.");
+          }
         }
       } catch (regError: unknown) {
         console.warn("Push: Worker activation failed", regError);

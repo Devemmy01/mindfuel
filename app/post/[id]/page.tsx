@@ -625,7 +625,7 @@ export default function PostDetailPage() {
           <span className="font-bold text-foreground">
             {fmt(post.repostCount || 0)}
           </span>
-          <span>Quotes</span>
+          <span>Reposts</span>
         </div>
 
         {/* Action bar */}

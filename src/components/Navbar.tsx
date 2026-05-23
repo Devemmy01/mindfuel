@@ -272,9 +272,17 @@ export default function Navbar() {
               <button
                 onClick={openSignInModal}
                 aria-label="Sign in with Google"
-                className="flex items-center justify pl-3 gap-3 px py-3 rounded-2xl bg-foreground text-background font-bold text-[14px] hover:opacity-90 transition-opacity w-full shadow-sm outline-none"
+                className="group relative flex items-center gap-3 pl-3 py-3 rounded-2xl bg-brand-green hover:brightness-110 active:scale-[0.97] text-white font-bold text-[14px] transition-all w-full shadow-[0_4px_18px_rgba(0,191,99,0.35)] outline-none press-scale"
               >
-                <User className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                {/* Subtle pulse ring for discoverability */}
+                <span className="absolute inset-0 rounded-2xl ring-2 ring-brand-green/40 animate-pulse pointer-events-none" />
+                {/* Google 'G' icon */}
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" opacity=".9"/>
+                  <path fill="rgba(255,255,255,0.7)" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="rgba(255,255,255,0.6)" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                  <path fill="rgba(255,255,255,0.8)" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
                 <span className="hidden xl:inline">Sign In with Google</span>
               </button>
             ) : (
@@ -492,10 +500,12 @@ export default function Navbar() {
               aria-label="Sign in"
               className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
             >
-              <div className="transition-all duration-300 flex flex-col items-center justify-center translate-y-[-2px]">
-                <User className="w-[20px] h-[20px] text-muted-foreground group-hover:text-foreground transition-colors" strokeWidth={2} aria-hidden="true" />
+              <div className="relative transition-all duration-300 flex flex-col items-center justify-center translate-y-[-2px]">
+                <User className="w-[20px] h-[20px] text-brand-green transition-colors" strokeWidth={2.5} aria-hidden="true" />
+                {/* Pulsing dot — draws the eye */}
+                <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-brand-green shadow-[0_0_6px_var(--brand-green)] animate-pulse" />
               </div>
-              <span className="absolute bottom-1.5 text-[9px] font-bold text-foreground opacity-100 translate-y-0 transition-opacity">
+              <span className="absolute bottom-1.5 text-[9px] font-black text-brand-green opacity-100 translate-y-0 tracking-wide">
                 Sign In
               </span>
             </button>

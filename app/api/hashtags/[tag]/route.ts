@@ -37,14 +37,14 @@ export async function GET(
 
     const fetchPostsForTag = async () => {
       const fallbackPosts = (await Post.find(fallbackPostFilter)
-        .populate("userId", "name username image firebaseId")
+        .populate("userId", "name username image firebaseId earnedMilestones")
         .populate({
           path: "quotedPostId",
           populate: [
-            { path: "userId", select: "name username image firebaseId" },
+            { path: "userId", select: "name username image firebaseId earnedMilestones" },
             {
               path: "quotedPostId",
-              populate: { path: "userId", select: "name username image firebaseId" },
+              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" },
             },
           ],
         })
@@ -84,14 +84,14 @@ export async function GET(
       if (relationCount > 0) {
         const postIds = relations.map((relation) => relation.postId);
         const postsRaw = (await Post.find({ _id: { $in: postIds } })
-          .populate("userId", "name username image firebaseId")
+          .populate("userId", "name username image firebaseId earnedMilestones")
           .populate({
             path: "quotedPostId",
             populate: [
-              { path: "userId", select: "name username image firebaseId" },
+              { path: "userId", select: "name username image firebaseId earnedMilestones" },
               {
                 path: "quotedPostId",
-                populate: { path: "userId", select: "name username image firebaseId" },
+                populate: { path: "userId", select: "name username image firebaseId earnedMilestones" },
               },
             ],
           })

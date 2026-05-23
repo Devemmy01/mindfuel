@@ -22,6 +22,7 @@ export interface IUser extends Document {
   streakDays: number;
   lastReflectionDate?: Date;
   longestStreak: number;
+  earnedMilestones: Array<{ id: string; earnedAt: Date }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,6 +96,15 @@ const UserSchema = new Schema(
     longestStreak: {
       type: Number,
       default: 0,
+    },
+    earnedMilestones: {
+      type: [
+        {
+          id: { type: String, required: true },
+          earnedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
     },
   },
 

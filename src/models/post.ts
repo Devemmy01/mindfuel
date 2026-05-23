@@ -37,7 +37,7 @@ const PostSchema = new Schema(
     text: {
       type: String,
       required: [true, "Text is required"],
-      maxlength: [500, "Post text cannot exceed 500 characters"],
+      maxlength: [1000, "Post text cannot exceed 1000 characters"],
     },
     hashtags: {
       type: [String],

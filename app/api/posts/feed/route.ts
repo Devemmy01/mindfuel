@@ -122,10 +122,10 @@ export async function GET(req: NextRequest) {
         {
           path: "quotedPostId",
           populate: [
-            { path: "userId", select: "name username image firebaseId" },
+            { path: "userId", select: "name username image firebaseId earnedMilestones" },
             { 
               path: "quotedPostId", 
-              populate: { path: "userId", select: "name username image firebaseId" }
+              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
             }
           ]
         }
@@ -141,14 +141,14 @@ export async function GET(req: NextRequest) {
       if (validPosts.length === 0 && totalCount > 0) {
         const fallbackPosts = await Post.find(matchFilter)
           .sort({ createdAt: -1 })
-          .populate("userId", "name image firebaseId username")
+          .populate("userId", "name image firebaseId username earnedMilestones")
           .populate({
             path: "quotedPostId",
             populate: [
-              { path: "userId", select: "name username image firebaseId" },
+              { path: "userId", select: "name username image firebaseId earnedMilestones" },
               { 
                 path: "quotedPostId", 
-                populate: { path: "userId", select: "name username image firebaseId" }
+                populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
               }
             ]
           })

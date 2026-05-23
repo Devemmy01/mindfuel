@@ -50,35 +50,35 @@
   }
 
   .dark {
-    --background: 222 47% 11%;       /* #111827 */
+    --background: 160 35% 1.2%;       /* #010302 - Premium extreme dark forest black */
     --foreground: 210 17% 98%;       /* #f9fafb */
 
-    --card: 222 47% 14%;
+    --card: 160 30% 3%;              /* #030705 - Darker card background */
     --card-foreground: 210 17% 98%;
 
-    --surface: 222 47% 16%;
+    --surface: 160 25% 5%;           /* #050d09 - Darker surface */
     --surface-foreground: 210 17% 98%;
 
-    --popover: 222 47% 13%;
+    --popover: 160 30% 3%;           /* #030705 */
     --popover-foreground: 210 17% 98%;
 
     --primary: 148 100% 37%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 17%;
+    --secondary: 160 25% 4.2%;        /* #040a07 */
     --secondary-foreground: 210 17% 98%;
 
-    --muted: 222 47% 17%;
-    --muted-foreground: 215 16% 58%;
+    --muted: 160 12% 9%;              /* #0e1713 */
+    --muted-foreground: 160 8% 60%;  /* #8fa19a */
 
-    --accent: 222 47% 19%;
+    --accent: 160 20% 11%;            /* #112019 */
     --accent-foreground: 210 17% 98%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 222 47% 20%;
-    --input: 222 47% 20%;
+    --border: 160 20% 7.2%;           /* #09120e - Subtle border */
+    --input: 160 20% 7.2%;
     --ring: 148 100% 37%;
   }
 }
@@ -277,6 +277,45 @@
 }
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+/* Ambient floating shapes */
+@keyframes float-slow-1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.15); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+@keyframes float-slow-2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-45px, 45px) scale(1.2); }
+}
+
+.animate-float-1 {
+  animation: float-slow-1 25s ease-in-out infinite alternate;
+}
+
+.animate-float-2 {
+  animation: float-slow-2 30s ease-in-out infinite alternate;
+}
+
+/* === Zen Master Avatar Aura === */
+@keyframes zen-spin {
+  from { background: conic-gradient(from 0deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63); }
+  to   { background: conic-gradient(from 360deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63); }
+}
+
+.zen-master-aura {
+  position: relative;
+  background: conic-gradient(from 0deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63);
+  animation: zen-rotate 4s linear infinite;
+  box-shadow: 0 0 18px rgba(0, 191, 99, 0.5), 0 0 32px rgba(167, 139, 250, 0.25);
+}
+
+@keyframes zen-rotate {
+  0%   { filter: hue-rotate(0deg) brightness(1.1); }
+  50%  { filter: hue-rotate(30deg) brightness(1.25); }
+  100% { filter: hue-rotate(0deg) brightness(1.1); }
 }
 
 /* ===========================

@@ -12,14 +12,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
 
     const postRaw = (await Post.findById(id)
-      .populate("userId", "name username image firebaseId")
+      .populate("userId", "name username image firebaseId earnedMilestones")
       .populate({
         path: "quotedPostId",
         populate: [
-          { path: "userId", select: "name username image firebaseId" },
+          { path: "userId", select: "name username image firebaseId earnedMilestones" },
           { 
             path: "quotedPostId", 
-            populate: { path: "userId", select: "name username image firebaseId" }
+            populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
           }
         ]
       })

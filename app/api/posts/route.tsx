@@ -14,6 +14,7 @@ import { createNotification } from "@/lib/notifications";
 import { IUser } from "@/models/user";
 import { PipelineStage } from "mongoose";
 import { syncPostHashtags } from "@/lib/hashtags";
+import { checkNewMilestones, getMilestoneById } from "@/lib/milestones";
 
 // GET /api/posts - Fetch feed or user posts
 export async function GET(req: NextRequest) {
@@ -99,14 +100,14 @@ export async function GET(req: NextRequest) {
       const postIds = feedItems.map((item: { _id: string }) => item._id);
       
       const postsRaw = (await Post.find({ _id: { $in: postIds } })
-        .populate("userId", "name username image firebaseId")
+        .populate("userId", "name username image firebaseId earnedMilestones")
         .populate({
           path: "quotedPostId",
           populate: [
-            { path: "userId", select: "name username image firebaseId" },
+            { path: "userId", select: "name username image firebaseId earnedMilestones" },
             { 
               path: "quotedPostId", 
-              populate: { path: "userId", select: "name username image firebaseId" }
+              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
             }
           ]
         })
@@ -141,14 +142,14 @@ export async function GET(req: NextRequest) {
     } else {
       // Profile or Liked feed: fetch matches
       const rawPosts = await Post.find(query)
-        .populate("userId", "name username image firebaseId")
+        .populate("userId", "name username image firebaseId earnedMilestones")
         .populate({
           path: "quotedPostId",
           populate: [
-            { path: "userId", select: "name username image firebaseId" },
+            { path: "userId", select: "name username image firebaseId earnedMilestones" },
             { 
               path: "quotedPostId", 
-              populate: { path: "userId", select: "name username image firebaseId" }
+              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
             }
           ]
         })
@@ -358,13 +359,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Check & award new milestones
+    let newMilestones: Array<{ id: string; label: string; emoji: string; description: string; tier: string }> = [];
+    try {
+      const totalPostCount = await Post.countDocuments({ userId: user._id });
+      const existingMilestoneIds = (user.earnedMilestones || []).map((m: { id: string }) => m.id);
+      const postHour = new Date().getHours();
+      const isFirstPost = totalPostCount === 1;
+
+      const newlyUnlocked = checkNewMilestones({
+        existingMilestoneIds,
+        totalPostCount,
+        newStreakDays: updatedUser?.streakDays || 0,
+        postHour,
+        isFirstPost,
+      });
+
+      if (newlyUnlocked.length > 0) {
+        const milestoneEntries = newlyUnlocked.map((id) => ({ id, earnedAt: new Date() }));
+        await User.findByIdAndUpdate(user._id, { $push: { earnedMilestones: { $each: milestoneEntries } } });
+        newMilestones = newlyUnlocked.map((id) => {
+          const def = getMilestoneById(id);
+          return { id, label: def?.label || id, emoji: def?.emoji || "🏅", description: def?.description || "", tier: def?.tier || "bronze" };
+        });
+      }
+    } catch (err) {
+      console.error("Milestone check failed:", err);
+    }
+
     return NextResponse.json(
       { 
         post: newPost,
         streak: {
           streakDays: updatedUser?.streakDays || 0,
           longestStreak: updatedUser?.longestStreak || 0,
-        }
+        },
+        newMilestones,
       },
       { status: 201 }
     );

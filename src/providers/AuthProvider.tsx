@@ -14,6 +14,7 @@ interface UserProfile {
   username?: string;
   image: string;
   bio?: string;
+  streakDays?: number;
 }
 
 interface AuthContextType {
@@ -102,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           username: data.user.username,
           image: data.user.image || "",
           bio: data.user.bio,
+          streakDays: data.user.streakDays,
         });
       }
     } catch (error) {

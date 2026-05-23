@@ -44,7 +44,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md bg-[#0c0c0c] border border-border/60 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto"
+              className="w-full max-w-md bg-card/95 backdrop-blur-md border border-brand-green/20 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto"
             >
               <div className="relative p-8 flex flex-col items-center text-center">
                 {/* Close Button */}

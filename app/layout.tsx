@@ -8,6 +8,7 @@ import { Analytics } from "@vercel/analytics/react";
 import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
 import OfflineNotice from "@/components/OfflineNotice";
+import ClientBadgeUpdater from "@/components/ClientBadgeUpdater";
 
 
 const inter = Inter({
@@ -178,6 +179,7 @@ export default function RootLayout({
           {/* Top accent line */}
           <div className="brand-accent-line" />
           <LayoutContent>{children}</LayoutContent>
+          <ClientBadgeUpdater />
           <InstallPWA />
           <OfflineNotice />
           <Analytics />

@@ -8,7 +8,8 @@ import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell } from "lucide-react";
+import MilestonesGrid from "@/components/MilestonesGrid";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -37,6 +38,7 @@ export default function DynamicProfilePage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editUsername, setEditUsername] = useState("");
   const [editBio, setEditBio] = useState("");
@@ -365,15 +367,13 @@ export default function DynamicProfilePage() {
               }`}
             />
           </button>
-          {isOwnProfile && (
-            <button
-              onClick={() => logout()}
-              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 hover:text-destructive transition-colors press-scale"
-              title="Sign Out"
-            >
-              <LogOut className="w-5 h-5 flex-shrink-0" />
-            </button>
-          )}
+          <button
+            onClick={() => setIsMobileSettingsOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 transition-colors press-scale"
+            title="Options"
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+          </button>
         </div>
       </header>
 
@@ -466,11 +466,9 @@ export default function DynamicProfilePage() {
           </div>
         </div>
         <div className="absolute left-4 -bottom-14">
-          <button
-            onClick={() => setIsProfilePicOpen(true)}
-            className="p-1 rounded-full bg-background shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-          >
-            {profileUser.image && !profileUser.image.startsWith("#") && !imgError ? (
+          {(() => {
+            const isZenMaster = (profileUser.earnedMilestones?.length ?? 0) >= 12;
+            const avatarInner = profileUser.image && !profileUser.image.startsWith("#") && !imgError ? (
               <Image
                 src={profileUser.image}
                 alt={profileUser.name}
@@ -478,21 +476,31 @@ export default function DynamicProfilePage() {
                 height={72}
                 unoptimized
                 onError={() => setImgError(true)}
-                className="w-18 h-18 rounded-full object-cover ring-4 ring-background"
+                className="w-18 h-18 rounded-full object-cover"
               />
             ) : (
               <div
-                className="w-18 h-18 rounded-full flex items-center justify-center ring-4 ring-background shadow-inner"
-                style={{
-                  backgroundColor: "#0a0a0a",
-                }}
+                className="w-18 h-18 rounded-full flex items-center justify-center shadow-inner"
+                style={{ backgroundColor: "#0a0a0a" }}
               >
                 <span className="text-3xl font-bold text-white selection:bg-transparent">
                   {profileUser.name[0]?.toUpperCase()}
                 </span>
               </div>
-            )}
-          </button>
+            );
+
+            return (
+              <button
+                onClick={() => setIsProfilePicOpen(true)}
+                className={`${isZenMaster ? "p-[2px] bg-background" : "p-1 bg-background"} rounded-full cursor-pointer`}
+                title={isZenMaster ? "Zen Master — all milestones earned" : undefined}
+              >
+                <div className={isZenMaster ? "rounded-full overflow-hidden " : ""}>
+                  {avatarInner}
+                </div>
+              </button>
+            );
+          })()}
         </div>
         
         <AnimatePresence>
@@ -566,24 +574,13 @@ export default function DynamicProfilePage() {
         </div>
 
         {allUserPosts.length > 0 && (
-          <div className="mt-8 pt-8 border-t border-border/40">
+          <div className="mt-8 pt-8 border-t border-border/40 space-y-8">
             <ReflectionCalendar posts={allUserPosts} />
+            <MilestonesGrid earnedMilestones={profileUser?.earnedMilestones || []} />
           </div>
         )}
 
-        {/* Mobile Footers */}
-        <div className="lg:hidden mt-6 pt-5 border-t border-border/40 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-              <Link href={`/${l.toLowerCase()}`} key={l} className="text-[11.5px] font-bold text-muted-foreground hover:text-brand-green transition-colors uppercase opacity-70">
-                {l}
-              </Link>
-            ))}
-          </div>
-          <p className="text-[10px] font-bold text-muted-foreground opacity-40 tracking-wider text-left uppercase">
-            MindFuel by Lumyn
-          </p>
-        </div>
+
       </div>
 
       <div className="sticky top-[57px] z-30 glass-strong border-b border-border/60 px-2 lg:px-4 flex justify-between items-center">
@@ -663,6 +660,120 @@ export default function DynamicProfilePage() {
       </div>
 
       <div className="mobile-content-offset" />
+
+      {/* Mobile Settings / Info Bottom Sheet */}
+      <AnimatePresence>
+        {isMobileSettingsOpen && (
+          <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileSettingsOpen(false)}>
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="bg-card border-t border-border w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 space-y-6 shadow-2xl relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag Handle */}
+              <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-4" />
+
+              <div className="flex items-center justify-between">
+                <h3 className="text-[17px] font-black text-white">Options</h3>
+                <button onClick={() => setIsMobileSettingsOpen(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {isOwnProfile && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setIsMobileSettingsOpen(false);
+                        setIsEditModalOpen(true);
+                      }}
+                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                    >
+                      <UserIcon className="w-4 h-4 text-brand-green" />
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileSettingsOpen(false);
+                        subscribeUser();
+                      }}
+                      disabled={isSubscribing}
+                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                    >
+                      <Bell className="w-4 h-4 text-brand-green" />
+                      Enable Daily Notifications
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="pt-2 pb-1 text-[11px] font-black text-white/30 uppercase tracking-widest pl-1">
+                    Information
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/about"
+                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                    >
+                      <Info className="w-4 h-4 text-brand-green" />
+                      About
+                    </Link>
+                    <Link
+                      href="/privacy"
+                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                    >
+                      <Shield className="w-4 h-4 text-brand-green" />
+                      Privacy
+                    </Link>
+                    <Link
+                      href="/terms"
+                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                    >
+                      <FileText className="w-4 h-4 text-brand-green" />
+                      Terms
+                    </Link>
+                    <Link
+                      href="/cookies"
+                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                    >
+                      <HelpCircle className="w-4 h-4 text-brand-green" />
+                      Cookies
+                    </Link>
+                  </div>
+                </div>
+
+                {isOwnProfile && (
+                  <button
+                    onClick={() => {
+                      setIsMobileSettingsOpen(false);
+                      logout();
+                    }}
+                    className="w-full h-12 px-4 mt-2 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 flex items-center gap-3 text-rose-500 text-[14px] font-black active:scale-[0.98] transition-all"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                )}
+              </div>
+
+              <div className="pt-4 text-center border-t border-white/5 mt-2">
+                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+                  MindFuel by Lumyn
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
