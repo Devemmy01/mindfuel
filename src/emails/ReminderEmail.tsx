@@ -76,7 +76,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Section>
         
         <Text style={subtext} className="subtext">
-          Whether it's a thought, a discovery, or something that inspired you, MindFuel is the perfect place to share with others who appreciate intentional conversations.
+          Whether it&apos;s a thought, a discovery, or something that inspired you, MindFuel is the perfect place to share with others who appreciate intentional conversations.
         </Text>
 
         <Section style={center}>
@@ -86,7 +86,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Section>
 
         <Text style={subtext} className="subtext">
-          Not feeling inspired right now? Check out our community's recent posts or get a fresh daily tip.
+          Not feeling inspired right now? Check out our community&apos;s recent posts or get a fresh daily tip.
         </Text>
         
         <Section style={center}>
@@ -96,7 +96,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Section>
         
         <Text style={footer} className="footer">
-          You're receiving this because you're part of the MindFuel community.<br />
+          You&apos;re receiving this because you&apos;re part of the MindFuel community.<br />
           Prefer not to get reminders? <Link href="https://mind-fuel.app/settings" style={footerLink}>Adjust your preferences</Link>.
         </Text>
       </Container>

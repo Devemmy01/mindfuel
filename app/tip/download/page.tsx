@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, Suspense } from "react";
+import React, { useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { Download, ArrowLeft, RefreshCw, CheckCircle2 } from "lucide-react";
@@ -15,7 +15,6 @@ function DownloadContent() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasDownloaded, setHasDownloaded] = useState(false);
-  const [autoTriggered, setAutoTriggered] = useState(false);
 
   const handleDownload = React.useCallback(async () => {
     if (!cardRef.current || isDownloading) return;
@@ -59,16 +58,7 @@ function DownloadContent() {
     }
   }, [isDownloading]);
 
-  // Auto-download on load
-  useEffect(() => {
-    if (!autoTriggered) {
-      const timer = setTimeout(() => {
-        handleDownload();
-        setAutoTriggered(true);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoTriggered, handleDownload]);
+  // Remove auto-download on load per user request.
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 sm:p-12">
@@ -92,8 +82,8 @@ function DownloadContent() {
             <span className="text-[13px] font-bold text-white/50">Back to Feed</span>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse" />
-            <span className="text-[11px] font-black uppercase tracking-widest text-brand-green">Auto-Generating...</span>
+            <div className="w-2 h-2 rounded-full bg-brand-green" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-brand-green">Download Ready</span>
           </div>
         </div>
 

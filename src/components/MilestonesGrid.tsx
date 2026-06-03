@@ -44,7 +44,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
           aria-controls="milestones-panel"
         >
           <h3 className="text-[12px] font-black text-white/40 uppercase tracking-[0.15em]">
-            Milestones
+            Growth Milestones
           </h3>
           {isOpen ? (
             <ChevronUp className="w-4 h-4 text-white/30 group-hover:text-brand-green transition-colors" />
@@ -53,7 +53,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
           )}
         </button>
         <span className="text-[11px] font-bold text-white/30">
-          {earnedCount}/{ZEN_MASTER_TOTAL} earned
+          {earnedCount}/{ZEN_MASTER_TOTAL} achieved
         </span>
       </div>
 
@@ -104,10 +104,10 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-green/70 mb-0.5">Achievement Unlocked</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-green/70 mb-0.5">Growth Milestone Unlocked</p>
                     <h4 className="text-[18px] font-black text-white mb-1">Zen Master 🌿</h4>
                     <p className="text-[12px] text-white/50 leading-relaxed">
-                      You&apos;ve earned every milestone. Your glowing aura is now visible on all your reflections across the feed.
+                      You&apos;ve built a complete record of personal growth. Your glowing aura is now visible across all your reflections.
                     </p>
                   </div>
                 </div>

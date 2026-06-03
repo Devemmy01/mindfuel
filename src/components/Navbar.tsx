@@ -105,11 +105,14 @@ export default function Navbar() {
   const displayName = profile?.name || user?.displayName;
 
   const navItems = [
-    { href: "/",            icon: Home,     label: "Home"    },
+    { href: "/feed",          icon: Home,     label: "Feed"    },
     { href: "/notifications", icon: Bell,     label: "Notifications", isNotification: true },
-    { href: "/collections", icon: Bookmark, label: "Saved"   },
-    { href: "/profile",     icon: User,     label: "Profile" },
+    { href: "/collections",  icon: Bookmark, label: "Saved"   },
+    { href: "/profile",      icon: User,     label: "Profile" },
   ];
+
+  // Don't render the app navbar on the landing page — it has its own nav
+  if (pathname === "/") return null;
 
   return (
     <>
@@ -209,7 +212,7 @@ export default function Navbar() {
                   key={href}
                   href={href}
                   onClick={(e) => {
-                    if (pathname === href && href === "/") {
+                    if (pathname === href && href === "/feed") {
                       e.preventDefault();
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }
@@ -260,7 +263,7 @@ export default function Navbar() {
               >
                 <div className="bg-[#00a855] active:bg-[#009950] text-white font-bold transition-colors rounded-full flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">
                   <Plus className="w-5 h-5 flex-shrink-0" strokeWidth={3} />
-                  <span className="hidden xl:inline text-[15px]">New Post</span>
+                  <span className="hidden xl:inline text-[15px]">Reflect</span>
                 </div>
               </Link>
             </div>
@@ -370,26 +373,26 @@ export default function Navbar() {
 
           {/* Feed */}
           <Link
-            href="/"
+            href="/feed"
             onClick={(e) => {
-              if (pathname === "/") {
+              if (pathname === "/feed") {
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
             target="_self"
-            aria-label="Home"
-            aria-current={pathname === "/" ? "page" : undefined}
+            aria-label="Feed"
+            aria-current={pathname === "/feed" ? "page" : undefined}
             className="flex-1 h-full flex flex-col items-center justify-center press-scale outline-none relative group"
           >
             <Home
               className={`w-[22px] h-[22px] transition-all duration-300 ${
-                pathname === "/" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
+                pathname === "/feed" ? "text-brand-green translate-y-[-2px]" : "text-muted-foreground group-hover:text-foreground"
               }`}
-              strokeWidth={pathname === "/" ? 2.5 : 2}
+              strokeWidth={pathname === "/feed" ? 2.5 : 2}
             />
-            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
-              Home
+            <span className={`absolute bottom-1.5 text-[9px] font-bold text-brand-green leading-none transition-all duration-300 ${pathname === "/feed" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+              Feed
             </span>
           </Link>
 
@@ -416,7 +419,7 @@ export default function Navbar() {
           <Link
             href="/create"
             target="_self"
-            aria-label="Create new post"
+            aria-label="Write a reflection"
             className="flex-1 h-full flex flex-col items-center justify-center outline-none"
           >
             <div className="w-[46px] h-[46px] bg-[#00a855] rounded-full flex items-center justify-center shadow-brand-sm press-scale active:bg-[#009950] transition-transform hover:scale-105">

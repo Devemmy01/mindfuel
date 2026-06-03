@@ -2,7 +2,6 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SearchUsers from "@/components/SearchUsers";
 import MindfulTip from "@/components/MindfulTip";
@@ -11,7 +10,7 @@ import GuestSignInPrompt from "@/components/GuestSignInPrompt";
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isStandalonePage = pathname === "/tip/download";
+  const isStandalonePage = pathname === "/tip/download" || pathname === "/";
 
   if (isStandalonePage) {
     return (
@@ -56,32 +55,6 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           {/* Saved Reflections */}
           <MindfulSaves />
 
-          {/* Subdued Footer — desktop only, tucked at the very bottom */}
-          <footer className="mt-auto pt-10 pb-6 px-2 flex flex-col gap-3">
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {["About", "Privacy", "Terms", "Cookies"].map((l) => (
-                <Link
-                  href={`/${l.toLowerCase()}`}
-                  key={l}
-                  className="text-[10.5px] font-bold text-muted-foreground hover:text-brand-green transition-colors tracking-wide uppercase opacity-50 hover:opacity-100"
-                >
-                  {l}
-                </Link>
-              ))}
-            </div>
-            <p className="text-[11px] font-medium text-muted-foreground opacity-35 tracking-wide">
-              MindFuel · a{" "}
-              <a
-                href="http://lumynhq.studio"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-brand-green transition-colors opacity-100"
-              >
-                Lumyn
-              </a>{" "}
-              product
-            </p>
-          </footer>
         </aside>
       </div>
     </div>

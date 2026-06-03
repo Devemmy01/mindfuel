@@ -35,7 +35,7 @@ function SkeletonCard() {
 
 export default function FeedClient() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"feed" | "reflections">("feed");
+  const [activeTab, setActiveTab] = useState<"feed" | "reflections">("reflections");
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const userIdParam = user?.uid ? `&userId=${user.uid}` : "";
@@ -184,16 +184,6 @@ export default function FeedClient() {
         {/* Simple header title */}
         <div className="flex border-b border-border/30">
           <button
-            onClick={() => handleTabClick("feed")}
-            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
-              activeTab === "feed"
-                ? "text-brand-green border-b-2 border-brand-green"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Feed
-          </button>
-          <button
             onClick={() => handleTabClick("reflections")}
             className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
               activeTab === "reflections"
@@ -202,6 +192,16 @@ export default function FeedClient() {
             }`}
           >
             Reflections
+          </button>
+          <button
+            onClick={() => handleTabClick("feed")}
+            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
+              activeTab === "feed"
+                ? "text-brand-green border-b-2 border-brand-green"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Feed
           </button>
         </div>
       </header>
@@ -286,19 +286,19 @@ export default function FeedClient() {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold">
-                {activeTab === "feed" ? "The feed is empty" : "No reflections yet"}
+                {activeTab === "reflections" ? "What lesson are you carrying today?" : "No reflections in your feed yet"}
               </h3>
               <p className="text-muted-foreground text-[14px] max-w-[260px]">
-                {activeTab === "feed" 
-                  ? "No thoughts have been shared yet. Be the trailblazer."
-                  : "Nobody has shared a reflection yet. Start the conversation!"}
+                {activeTab === "reflections"
+                  ? "Start your reflection journey. Share what life is teaching you."
+                  : "Follow others or share a reflection to get started."}
               </p>
             </div>
             <Link
               href="/create"
               className="px-8 py-3 text-white rounded-full font-bold text-[15px] bg-[#00a855] transition-colors shadow-brand-sm press-scale"
             >
-              {activeTab === "feed" ? "Post Your Thought" : "Share a Reflection"}
+              {activeTab === "feed" ? "Share a Reflection" : "Start Reflecting"}
             </Link>
           </motion.div>
         )}

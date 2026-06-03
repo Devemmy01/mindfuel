@@ -43,8 +43,25 @@ export function usePushNotifications() {
     try {
       // 1. Request Permission with timeout
       console.log("Push: Requesting permission...");
+      
+      const requestPermission = (): Promise<NotificationPermission> => {
+        try {
+          const result = Notification.requestPermission();
+          if (result && typeof result.then === "function") {
+            return result as Promise<NotificationPermission>;
+          }
+        } catch (_) {
+          // Fallback to callback if promise throws or is not supported
+        }
+        return new Promise<NotificationPermission>((resolve) => {
+          Notification.requestPermission((permission) => {
+            resolve(permission);
+          });
+        });
+      };
+
       const permission = await Promise.race([
-        Notification.requestPermission(),
+        requestPermission(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Permission request timed out")), 5000))
       ]) as NotificationPermission;
 
@@ -59,7 +76,15 @@ export function usePushNotifications() {
       let registration: ServiceWorkerRegistration | undefined;
       
       try {
-        const swUrl = window.location.hostname === "localhost" ? "/dev-sw.js" : "/sw.js";
+        const isDev =
+          process.env.NODE_ENV === "development" ||
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1" ||
+          window.location.hostname.startsWith("192.168.") ||
+          window.location.hostname.startsWith("10.") ||
+          window.location.hostname.endsWith(".local");
+
+        const swUrl = isDev ? "/dev-sw.js" : "/sw.js";
         console.log(`Push: Registering worker at ${swUrl}...`);
         registration = await navigator.serviceWorker.register(swUrl);
         console.log("Push: Service Worker registered", registration.scope);
