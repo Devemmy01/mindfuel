@@ -70,13 +70,13 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
           </Heading>
           <Text style={subtext} className="subtext">
             {hasNeverPosted
-              ? "You&apos;ve been part of MindFuel for a bit now, but we haven&apos;t seen a post from you yet. Your unique perspective matters—share what&apos;s on your mind."
-              : `It&apos;s been ${daysSincePost} days since your last post. Your unique perspective matters—share what&apos;s on your mind today.`}
+              ? "You've been part of MindFuel for a bit now, but we haven't seen a post from you yet. Your unique perspective matters—share what's on your mind."
+              : `It's been ${daysSincePost} days since your last post. Your unique perspective matters—share what's on your mind today.`}
           </Text>
         </Section>
         
         <Text style={subtext} className="subtext">
-          Whether it&apos;s a thought, a discovery, or something that inspired you, MindFuel is the perfect place to share with others who appreciate intentional conversations.
+          Whether it's a thought, a discovery, or something that inspired you, MindFuel is the perfect place to share with others who appreciate intentional conversations.
         </Text>
 
         <Section style={center}>
@@ -86,7 +86,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Section>
 
         <Text style={subtext} className="subtext">
-          Not feeling inspired right now? Check out our community&apos;s recent posts or get a fresh daily tip.
+          Not feeling inspired right now? Check out our community's recent posts or get a fresh daily tip.
         </Text>
         
         <Section style={center}>
@@ -96,7 +96,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Section>
         
         <Text style={footer} className="footer">
-          You&apos;re receiving this because you&apos;re part of the MindFuel community.<br />
+          You're receiving this because you're part of the MindFuel community.<br />
           Prefer not to get reminders? <Link href="https://mind-fuel.app/settings" style={footerLink}>Adjust your preferences</Link>.
         </Text>
       </Container>
