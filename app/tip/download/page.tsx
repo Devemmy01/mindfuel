@@ -113,32 +113,35 @@ function DownloadContent() {
             width: "100%",
           }}
         >
-          {/* ── Captured card — all styles are inline px values, no Tailwind ── */}
+          {/* Preview scale container — holds the transform. This does NOT get captured. */}
           <div
-            ref={cardRef}
             style={{
               width: `${CARD_W}px`,
               height: `${CARD_H}px`,
               transform: "scale(var(--preview-scale, 0.474))",
               transformOrigin: "top left",
               flexShrink: 0,
-
-              // Design
-              backgroundColor: "#0a0a0a",
-              backgroundImage:
-                "radial-gradient(circle at 0% 0%, rgba(0,191,99,0.15) 0%, transparent 50%), " +
-                "radial-gradient(circle at 100% 100%, rgba(0,191,99,0.05) 0%, transparent 50%)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "0px", // No rounded corners as requested
-              overflow: "hidden",
-              padding: "108px",
-              boxSizing: "border-box",
-
-              // Layout
-              display: "flex",
-              flexDirection: "column",
             }}
           >
+            {/* ── Captured card — untransformed 1080x1350 px layout ── */}
+            <div
+              ref={cardRef}
+              style={{
+                width: `${CARD_W}px`,
+                height: `${CARD_H}px`,
+                backgroundColor: "#0a0a0a",
+                backgroundImage:
+                  "radial-gradient(circle at 0% 0%, rgba(0,191,99,0.15) 0%, transparent 50%), " +
+                  "radial-gradient(circle at 100% 100%, rgba(0,191,99,0.05) 0%, transparent 50%)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "0px", // No rounded corners as requested
+                overflow: "hidden",
+                padding: "108px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
             {/* Logo */}
             <div
               style={{
@@ -252,6 +255,7 @@ function DownloadContent() {
             </div>
           </div>
         </div>
+      </div>
 
         {/* Actions */}
         <div className="mt-12 flex flex-col items-center gap-6">

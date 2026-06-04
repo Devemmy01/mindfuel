@@ -15,12 +15,18 @@ import * as React from 'react';
 interface DailyTipEmailProps {
   name: string;
   tip: string;
+  baseUrl?: string;
 }
 
 export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   name,
   tip,
-}) => (
+  baseUrl,
+}) => {
+  const currentBaseUrl =
+    baseUrl || process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
+
+  return (
     <Html>
       <Head>
         <style>{`
@@ -54,7 +60,7 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
         <Container style={container} className="container">
           <Section style={logoContainer} className="logoContainer">
             <Img
-              src="https://mind-fuel.app/logoDarkbg.png"
+              src={`${currentBaseUrl}/logoDarkbg.png`}
               width="160"
               height="auto"
               alt="MindFuel"
@@ -79,12 +85,12 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           </Text>
 
           <Section style={center}>
-            <Link href="https://mind-fuel.app" style={button} className="button">
+            <Link href={`${currentBaseUrl}`} style={button} className="button">
               Go to Feed
             </Link>
             <Text style={spacer} className="spacer">or</Text>
             <Link 
-              href={`https://mind-fuel.app/tip/download?text=${encodeURIComponent(tip)}`} 
+              href={`${currentBaseUrl}/tip/download?text=${encodeURIComponent(tip)}`} 
               style={secondaryButton}
               className="secondaryButton"
             >
@@ -94,12 +100,13 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           
           <Text style={footer} className="footer">
             You received this daily mindful tip from MindFuel.<br />
-            Don&apos;t want these? <Link href="https://mind-fuel.app/settings" style={footerLink}>Unsubscribe</Link>.
+            Don&apos;t want these? <Link href={`${currentBaseUrl}/settings`} style={footerLink}>Unsubscribe</Link>.
           </Text>
         </Container>
       </Body>
     </Html>
-);
+  );
+};
 
 export default DailyTipEmail;
 

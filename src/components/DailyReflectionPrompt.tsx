@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 
@@ -44,7 +44,6 @@ export default function DailyReflectionPrompt({
         {/* Header row */}
         <div className="flex items-center justify-between mb-5">
           <div className="inline-flex items-center gap-2 bg-brand-green/10 border border-brand-green/20 px-3.5 py-1.5 rounded-full">
-            <Sparkles className="w-3.5 h-3.5 text-brand-green" strokeWidth={2.5} />
             <p className="text-[11px] font-black text-brand-green tracking-widest uppercase">
               Today&apos;s Reflection
             </p>
