@@ -96,16 +96,22 @@ export function usePushNotifications() {
 
         const swUrl = isDev ? "/dev-sw.js" : "/sw.js";
 
-        // (a) Find any registration that already has an active worker.
+        // (a) Find any registration that already exists for this origin.
+        // We check active || installing || waiting — if ANY of these exist
+        // there is already a registration in progress and we must NOT call
+        // register() again, which would trigger a conflicting install and
+        // cause the current worker to go "redundant".
         const allRegistrations = await navigator.serviceWorker.getRegistrations();
-        const activeRegistration = allRegistrations.find((r) => r.active);
+        const existingRegistration = allRegistrations.find(
+          (r) => r.active || r.installing || r.waiting
+        );
 
-        if (activeRegistration) {
-          console.log("Push: Found active SW at scope", activeRegistration.scope);
-          registration = activeRegistration;
+        if (existingRegistration) {
+          console.log("Push: Found existing SW registration at scope", existingRegistration.scope);
+          registration = existingRegistration;
         } else {
-          // (b) No active SW — register fresh.
-          console.log("Push: No active SW found. Registering", swUrl);
+          // (b) No SW at all — register fresh.
+          console.log("Push: No SW found. Registering", swUrl);
           registration = await navigator.serviceWorker.register(swUrl);
         }
 
