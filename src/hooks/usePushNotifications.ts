@@ -71,7 +71,10 @@ export function usePushNotifications() {
         return;
       }
 
-      // 2. Register the Service Worker then wait for it to become active
+      // 2. Get or register the Service Worker, then wait for it to be active.
+      // IMPORTANT: We first check for an existing registration. Calling register()
+      // when a worker is already installing causes the new install to become
+      // "redundant" and fail. We only register fresh if no SW exists yet.
       console.log("Push: Ensuring Service Worker is registered...");
       let registration: ServiceWorkerRegistration | undefined;
 
@@ -85,32 +88,35 @@ export function usePushNotifications() {
           window.location.hostname.endsWith(".local");
 
         const swUrl = isDev ? "/dev-sw.js" : "/sw.js";
-        console.log(`Push: Registering worker at ${swUrl}...`);
 
-        registration = await navigator.serviceWorker.register(swUrl);
-        console.log("Push: Service Worker registered", registration.scope);
+        // Step 1: Check if a registration already exists for this scope
+        const existingRegistration = await navigator.serviceWorker.getRegistration(swUrl);
 
-        // Wait up to 15 seconds for the Service Worker to reach 'active' state.
-        // We check registration.active directly rather than navigator.serviceWorker.ready
-        // because pushManager only needs the SW to be active, not necessarily controlling the page.
+        if (existingRegistration) {
+          console.log("Push: Reusing existing Service Worker registration", existingRegistration.scope);
+          registration = existingRegistration;
+        } else {
+          // Only register fresh when no SW is present
+          console.log(`Push: No existing SW found. Registering worker at ${swUrl}...`);
+          registration = await navigator.serviceWorker.register(swUrl);
+          console.log("Push: Service Worker registered", registration.scope);
+        }
+
+        // Step 2: If the SW is not yet active, wait for it (installing → activated)
         if (!registration.active) {
           await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
               reject(new Error("Service Worker failed to reach active state in time."));
             }, 15000);
 
-            const checkActive = () => {
-              if (registration?.active) {
-                clearTimeout(timeout);
-                resolve();
-                return true;
-              }
-              return false;
-            };
+            // Already active? Resolve immediately.
+            if (registration?.active) {
+              clearTimeout(timeout);
+              resolve();
+              return;
+            }
 
-            if (checkActive()) return;
-
-            // Check if there is an installing or waiting worker to listen to
+            // Listen on the installing or waiting worker
             const worker = registration?.installing || registration?.waiting;
             if (worker) {
               const stateHandler = () => {
@@ -121,19 +127,24 @@ export function usePushNotifications() {
                 } else if (worker.state === "redundant") {
                   worker.removeEventListener("statechange", stateHandler);
                   clearTimeout(timeout);
-                  reject(new Error("Service Worker registration became redundant."));
+                  // Redundant means a newer SW took over — try using the new active one
+                  if (registration?.active) {
+                    resolve();
+                  } else {
+                    reject(new Error("Service Worker became redundant before activating."));
+                  }
                 }
               };
               worker.addEventListener("statechange", stateHandler);
             } else {
-              // Periodically poll registration state just in case event listener missed it
+              // No installing/waiting worker — poll for active state
               const interval = setInterval(() => {
                 if (registration?.active) {
                   clearInterval(interval);
                   clearTimeout(timeout);
                   resolve();
                 }
-              }, 500);
+              }, 200);
             }
           });
         }
