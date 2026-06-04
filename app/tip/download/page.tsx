@@ -8,10 +8,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Fixed output dimensions in pixels — always 1080×1350 regardless of device
+const CARD_W = 1080;
+const CARD_H = 1350;
+
 function DownloadContent() {
   const searchParams = useSearchParams();
   const text = searchParams.get("text") || "Breathe deeply. You are exactly where you need to be.";
-  
+
   const cardRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasDownloaded, setHasDownloaded] = useState(false);
@@ -20,34 +24,34 @@ function DownloadContent() {
     if (!cardRef.current || isDownloading) return;
     setIsDownloading(true);
     try {
-      // Wait for everything to be ready
+      // Give the browser a moment to finish rendering
       await new Promise((r) => setTimeout(r, 800));
-      
+
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         quality: 1,
-        pixelRatio: 3,
+        // Fix capture at CARD_W × CARD_H so mobile and desktop produce
+        // identical images regardless of the on-screen preview scale.
+        width: CARD_W,
+        height: CARD_H,
+        pixelRatio: 1,
         backgroundColor: "#0a0a0a",
-        fontEmbedCSS: "", // Disable automatic font embedding to bypass SecurityError
+        fontEmbedCSS: "", // Avoid SecurityError from cross-origin stylesheets
         filter: (node) => {
-          // Skip any style tags that might cause issues
-          if (node.tagName === 'STYLE' || node.tagName === 'LINK') {
+          if (node.tagName === "STYLE" || node.tagName === "LINK") {
             try {
-              const styleNode = node as HTMLStyleElement | HTMLLinkElement;
-              if (styleNode.sheet) {
-                // Just check if we can access it
-                void styleNode.sheet.cssRules;
-              }
+              const s = node as HTMLStyleElement | HTMLLinkElement;
+              if (s.sheet) void s.sheet.cssRules;
             } catch {
               return false;
             }
           }
           return true;
-        }
+        },
       });
-      
+
       const link = document.createElement("a");
-      link.download = `mindfuel-daily-tip.png`;
+      link.download = "mindfuel-daily-tip.png";
       link.href = dataUrl;
       link.click();
       setHasDownloaded(true);
@@ -58,22 +62,20 @@ function DownloadContent() {
     }
   }, [isDownloading]);
 
-  // Remove auto-download on load per user request.
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 sm:p-12">
-      {/* Premium subtle background glow */}
+      {/* Background glows (not captured) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-brand-green/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-brand-green/5 rounded-full blur-[100px]" />
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-lg relative z-10"
       >
-        {/* Branding Header (Not part of download) */}
+        {/* Page header — not part of the downloaded image */}
         <div className="flex items-center justify-between mb-8 px-2">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
@@ -83,66 +85,180 @@ function DownloadContent() {
           </Link>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-brand-green" />
-            <span className="text-[11px] font-black uppercase tracking-widest text-brand-green">Download Ready</span>
+            <span className="text-[11px] font-black uppercase tracking-widest text-brand-green">
+              Download Ready
+            </span>
           </div>
         </div>
 
-        {/* The Card - This is what gets captured */}
-        <div className="relative group perspective-1000 shadow-2xl rounded-[3rem]">
-          <div 
+        {/*
+          Preview wrapper:
+          The inner card is rendered at its true pixel size (CARD_W × CARD_H) via
+          inline styles, then scaled down to fit the screen using CSS transform.
+          transformOrigin="top left" + explicit wrapper height keep the layout intact.
+
+          On desktop  (~512 px container): scale ≈ 512/1080 ≈ 0.474
+          On mobile   (~320 px container): scale ≈ 320/1080 ≈ 0.296
+
+          The toPng call captures the node BEFORE the transform is applied, so it
+          always produces a full-size 1080×1350 image.
+        */}
+        <div
+          className="relative shadow-2xl overflow-hidden"
+          style={{
+            // Reserve the height the scaled card will visually occupy.
+            // height = CARD_H × scale. We use a CSS custom property set by the
+            // <style> block below so each breakpoint is handled automatically.
+            height: `calc(${CARD_H}px * var(--preview-scale, 0.474))`,
+            width: "100%",
+          }}
+        >
+          {/* ── Captured card — all styles are inline px values, no Tailwind ── */}
+          <div
             ref={cardRef}
-            className="w-full aspect-[4/5] sm:aspect-square bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-10 sm:p-14 flex flex-col relative overflow-hidden"
             style={{
-              backgroundImage: 'radial-gradient(circle at 0% 0%, rgba(0, 191, 99, 0.15) 0%, transparent 50%), radial-gradient(circle at 100% 100%, rgba(0, 191, 99, 0.05) 0%, transparent 50%)'
+              width: `${CARD_W}px`,
+              height: `${CARD_H}px`,
+              transform: "scale(var(--preview-scale, 0.474))",
+              transformOrigin: "top left",
+              flexShrink: 0,
+
+              // Design
+              backgroundColor: "#0a0a0a",
+              backgroundImage:
+                "radial-gradient(circle at 0% 0%, rgba(0,191,99,0.15) 0%, transparent 50%), " +
+                "radial-gradient(circle at 100% 100%, rgba(0,191,99,0.05) 0%, transparent 50%)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "0px", // No rounded corners as requested
+              overflow: "hidden",
+              padding: "108px",
+              boxSizing: "border-box",
+
+              // Layout
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {/* MindFuel Logo inside the card as requested */}
-            <div className="flex justify-center mb-12 sm:mb-16">
-              <div className="bg-white/5 px-6 py-3 rounded-2xl border border-white/5">
-                <Image 
-                  src="/logoDarkbg.png" 
-                  alt="MindFuel" 
-                  width={140} 
-                  height={40} 
-                  className="opacity-90"
+            {/* Logo */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "110px",
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  padding: "18px 48px",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                <Image
+                  src="/logoDarkbg.png"
+                  alt="MindFuel"
+                  width={240}
+                  height={68}
+                  style={{ opacity: 0.9 }}
                 />
               </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="relative">
-                <span className="absolute -top-10 -left-6 text-[100px] font-serif leading-none opacity-10 text-brand-green select-none pointer-events-none">
+            {/* Quote */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ position: "relative" }}>
+                {/* Opening quote mark */}
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "-72px",
+                    left: "-20px",
+                    fontSize: "180px",
+                    lineHeight: 1,
+                    fontFamily: "Georgia, 'Times New Roman', serif",
+                    opacity: 0.1,
+                    color: "#00bf63",
+                    userSelect: "none",
+                    pointerEvents: "none",
+                  }}
+                >
                   &ldquo;
                 </span>
-                <p className="text-[26px] sm:text-[34px] font-bold leading-[1.3] tracking-tight text-white mb-10 relative z-10 italic drop-shadow-lg">
+                <p
+                  style={{
+                    fontSize: "68px",
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                    letterSpacing: "-0.02em",
+                    color: "#ffffff",
+                    marginBottom: "60px",
+                    position: "relative",
+                    zIndex: 10,
+                    fontStyle: "italic",
+                    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+                  }}
+                >
                   {text}
                 </p>
-                
               </div>
             </div>
 
-            {/* Premium Watermark */}
-            <div className="mt-auto pt-10 flex items-center justify-between border-t border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col">
-                  <span className="text-[16px] font-black text-white/40">Daily Mindful Tip</span>
-                  <span className="text-[12px] font-medium text-white/20">mind-fuel.app</span>
-                </div>
+            {/* Footer */}
+            <div
+              style={{
+                marginTop: "auto",
+                paddingTop: "52px",
+                borderTop: "1px solid rgba(255,255,255,0.05)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span
+                  style={{
+                    fontSize: "30px",
+                    fontWeight: 900,
+                    color: "rgba(255,255,255,0.4)",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  }}
+                >
+                  Daily Mindful Tip
+                </span>
+                <span
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.2)",
+                    fontFamily: "Inter, system-ui, sans-serif",
+                  }}
+                >
+                  mind-fuel.app
+                </span>
               </div>
-              <div className="text-[12px] font-black text-white/20">
+              <span
+                style={{
+                  fontSize: "22px",
+                  fontWeight: 900,
+                  color: "rgba(255,255,255,0.2)",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                }}
+              >
                 Reflection
-              </div>
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Status & Actions */}
+        {/* Actions */}
         <div className="mt-12 flex flex-col items-center gap-6">
           <AnimatePresence mode="wait">
             {!hasDownloaded ? (
               <motion.button
-                key="downloading"
+                key="download"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -175,7 +291,7 @@ function DownloadContent() {
                 <p className="text-white/60 text-[13px] max-w-[280px]">
                   Your mindful card is ready. Share your journey and inspire others.
                 </p>
-                <Link 
+                <Link
                   href="/"
                   className="mt-2 text-brand-green font-bold text-[13px] hover:underline underline-offset-4"
                 >
@@ -184,23 +300,36 @@ function DownloadContent() {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           <p className="text-white/30 text-[11px] font-medium uppercase tracking-[0.15em] text-center max-w-[240px] leading-relaxed">
             Curated daily by MindFuel. Your space for intentional thought.
           </p>
         </div>
       </motion.div>
+
+      {/*
+        CSS custom property that controls the preview scale.
+        Desktop (≥ 512 px container / max-w-lg): 512 / 1080 ≈ 0.474
+        Small mobile (≤ 390 px):                 340 / 1080 ≈ 0.315
+      */}
+      <style>{`
+        :root { --preview-scale: 0.474; }
+        @media (max-width: 480px)  { :root { --preview-scale: 0.32; } }
+        @media (max-width: 360px)  { :root { --preview-scale: 0.29; } }
+      `}</style>
     </div>
   );
 }
 
 export default function TipDownloadPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-brand-green animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+          <RefreshCw className="w-8 h-8 text-brand-green animate-spin" />
+        </div>
+      }
+    >
       <DownloadContent />
     </Suspense>
   );

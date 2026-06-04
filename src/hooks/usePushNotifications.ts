@@ -71,10 +71,10 @@ export function usePushNotifications() {
         return;
       }
 
-      // 2. Register/Ready Service Worker with timeout
+      // 2. Register the Service Worker then wait for it to become active
       console.log("Push: Ensuring Service Worker is registered...");
       let registration: ServiceWorkerRegistration | undefined;
-      
+
       try {
         const isDev =
           process.env.NODE_ENV === "development" ||
@@ -86,48 +86,27 @@ export function usePushNotifications() {
 
         const swUrl = isDev ? "/dev-sw.js" : "/sw.js";
         console.log(`Push: Registering worker at ${swUrl}...`);
-        registration = await navigator.serviceWorker.register(swUrl);
-        console.log("Push: Service Worker registered", registration.scope);
-        
-        // WAIT for the Service Worker to be ACTIVE
-        // This is crucial to avoid "no active Service Worker" errors
-        let retryCount = 0;
-        while (!registration.active && retryCount < 30) {
-          console.log(`Push: Waiting for SW to activate... (Attempt ${retryCount + 1})`);
-          
-          const worker = registration.installing || registration.waiting;
-          if (worker) {
-            await new Promise<void>((resolve) => {
-              const handler = () => {
-                if (worker.state === "activated" || worker.state === "redundant") {
-                  worker.removeEventListener("statechange", handler);
-                  resolve();
-                }
-              };
-              worker.addEventListener("statechange", handler);
-              setTimeout(resolve, 1000); // 1s safety fallback
-            });
-          } else {
-            await new Promise(r => setTimeout(r, 500));
-          }
 
-          // Refresh registration object using register (which is fast and scope-safe)
-          registration = await navigator.serviceWorker.register(swUrl);
-          retryCount++;
-        }
+        // Register once — do NOT re-call register() inside a loop; it races
+        // against the browser's own activation lifecycle on mobile browsers.
+        await navigator.serviceWorker.register(swUrl);
+        console.log("Push: Service Worker registered, waiting for activation...");
 
-        if (registration?.active) {
-          console.log("Push: Service Worker is now ACTIVE!");
-        } else {
-          // If still not active, check if there's any active registration on the scope
-          const fallbackReg = await navigator.serviceWorker.getRegistration(registration?.scope || "/");
-          if (fallbackReg?.active) {
-            registration = fallbackReg;
-            console.log("Push: Service Worker is active via fallback registration!");
-          } else {
-            throw new Error("Service Worker failed to reach active state in time.");
-          }
-        }
+        // navigator.serviceWorker.ready is the correct API:
+        // it returns a Promise that resolves only when there is an ACTIVE
+        // service worker controlling the page — no polling required.
+        const ACTIVATION_TIMEOUT_MS = 15_000;
+        registration = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("Service Worker failed to reach active state in time.")),
+              ACTIVATION_TIMEOUT_MS
+            )
+          ),
+        ]);
+
+        console.log("Push: Service Worker is now ACTIVE!", registration.scope);
       } catch (regError: unknown) {
         console.warn("Push: Worker activation failed", regError);
         const message = regError instanceof Error ? regError.message : "Unknown activation error";

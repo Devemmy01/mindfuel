@@ -4,6 +4,9 @@ import webpush from "@/lib/push";
 import { PushSubscription } from "web-push";
 import { Types } from "mongoose";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "https://mind-fuel.app";
+
 interface NotificationParams {
   recipientId: string | Types.ObjectId;
   senderId: string | Types.ObjectId;
@@ -59,11 +62,16 @@ export async function createNotification({
         }
       };
 
+      // Ensure the URL is absolute so the notification click opens the real
+      // production domain and not localhost in any environment.
+      const absoluteUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
+
       const payload = JSON.stringify({
         title: getTitle(),
         body: message,
-        icon: "/logo.png",
-        url: url
+        icon: `${BASE_URL}/icon-192.png`,
+        badge: `${BASE_URL}/icon-192.png`,
+        url: absoluteUrl,
       });
 
       // Send to all registered devices
