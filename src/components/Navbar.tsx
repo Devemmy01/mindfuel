@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -8,90 +9,76 @@ import { useAuth } from "@/providers/AuthProvider";
 import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal, Bell } from "lucide-react";
 import NotificationsList, { AppNotification } from "./NotificationsList";
 
+const notifFetcher = (url: string) =>
+  fetch(url).then((r) => r.json()).catch(() => null);
+
 export default function Navbar() {
   const { user, profile, logout, openSignInModal } = useAuth();
   const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
 
   const desktopNotificationsRef = useRef<HTMLDivElement>(null);
   const mobileNotificationsRef = useRef<HTMLButtonElement>(null);
   const mobileOverlayRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      
-      let closeNotifications = true;
-      if (
-        desktopNotificationsRef.current?.contains(target) ||
-        mobileNotificationsRef.current?.contains(target) ||
-        mobileOverlayRef.current?.contains(target)
-      ) {
-        closeNotifications = false;
-      }
-
-      let closeMenu = true;
-      if (userMenuRef.current?.contains(target)) {
-        closeMenu = false;
-      }
-
+      const closeNotifications =
+        !desktopNotificationsRef.current?.contains(target) &&
+        !mobileNotificationsRef.current?.contains(target) &&
+        !mobileOverlayRef.current?.contains(target);
+      const closeMenu = !userMenuRef.current?.contains(target);
       if (showNotifications && closeNotifications) setShowNotifications(false);
       if (showUserMenu && closeMenu) setShowUserMenu(false);
     }
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications, showUserMenu]);
 
-  // Fetch notifications
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      setUnreadCount(0);
-      return;
+  // SWR-based notification fetching:
+  // - Deduplicates requests across tabs (dedupingInterval)
+  // - Automatically pauses polling when the tab is hidden (refreshWhenHidden: false)
+  // - Revalidates on window focus without an extra polling cycle
+  const notifFetcher = (url: string) =>
+    fetch(url).then((r) => r.json()).catch(() => null);
+
+  const { data: notifData, mutate: mutateNotifications } = useSWR(
+    user ? `/api/notifications?userId=${user.uid}` : null,
+    notifFetcher,
+    {
+      refreshInterval: 120_000,       // 120 s — same cadence as before
+      refreshWhenHidden: false,        // KEY: stops polling in background tabs
+      refreshWhenOffline: false,
+      revalidateOnFocus: true,         // fetch fresh data when user returns to tab
+      dedupingInterval: 30_000,
     }
+  );
 
-    const fetchNotifications = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/notifications?userId=${user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setNotifications(data.notifications);
-          setUnreadCount(data.unreadCount);
-        }
-      } catch (err) {
-        console.error("Failed to fetch notifications", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchNotifications();
-    // Poll every 120 seconds for new notifications
-    const interval = setInterval(fetchNotifications, 120000);
-    return () => clearInterval(interval);
-  }, [user]);
+  const notifications: AppNotification[] = notifData?.notifications ?? [];
+  const unreadCount: number = notifData?.unreadCount ?? 0;
+  const isLoading = !notifData && !!user;
 
   const markAllAsRead = async () => {
     if (!user || unreadCount === 0) return;
     try {
-      setUnreadCount(0);
+      // Optimistically update local SWR cache
+      mutateNotifications(
+        { notifications: notifications.map((n) => ({ ...n, isRead: true })), unreadCount: 0 },
+        false
+      );
       await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.uid }),
       });
-      // Update local state isRead status
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error("Failed to mark notifications as read", err);
+      mutateNotifications(); // revalidate on error
     }
   };
 

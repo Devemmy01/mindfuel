@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useViewTracker } from "@/hooks/useViewTracker";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
@@ -71,7 +72,6 @@ export default function PostDetailPage() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
-  const viewFetched = useRef(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -82,34 +82,8 @@ export default function PostDetailPage() {
   const [isHidden, setIsHidden] = useState(false);
 
 
-  useEffect(() => {
-    if (id && !viewFetched.current) {
-      viewFetched.current = true;
-      const trackView = async () => {
-        try {
-          const res = await fetch(`/api/posts/${id}/view`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: user?.uid }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.views !== undefined) {
-              setPost((prev) => (prev ? { ...prev, views: data.views } : null));
-            }
-          }
-        } catch {
-          // Ignore errors
-        }
-      };
-
-      if ("requestIdleCallback" in window) {
-        requestIdleCallback(trackView);
-      } else {
-        setTimeout(trackView, 1000);
-      }
-    }
-  }, [id, user?.uid]);
+  // Track view with session deduplication (1 s threshold on the detail page — user is clearly reading)
+  useViewTracker(cardRef, { postId: id as string, userId: user?.uid ?? null, threshold: 1000 });
 
   // Close menus on outside click
   // Extract prompt prefix and reflection text from saved combined string

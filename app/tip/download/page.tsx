@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { Download, ArrowLeft, RefreshCw, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
+import { logoDarkBase64 } from "@/lib/logoBase64";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Fixed output dimensions in pixels — always 1080×1350 regardless of device
@@ -160,12 +160,13 @@ function DownloadContent() {
                   alignItems: "center",
                 }}
               >
-                <Image
-                  src="/logoDarkbg.png"
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoDarkBase64}
                   alt="MindFuel"
-                  width={240}
-                  height={68}
-                  style={{ opacity: 0.9 }}
+                  width="240"
+                  height="68"
+                  style={{ opacity: 0.9, display: "block" }}
                 />
               </div>
             </div>

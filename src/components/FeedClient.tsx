@@ -232,14 +232,13 @@ export default function FeedClient() {
                 <div className="mt-4">
                   {posts.map((post, i) => (
                     <motion.div
-                      key={post._id}
+                      key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
                       initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-20px" }}
+                      animate={{ opacity: 1, y: 0 }}
                       transition={{ 
                         duration: 0.4, 
                         ease: [0.21, 0.47, 0.32, 0.98],
-                        delay: Math.min(i * 0.05, 0.3) // Limit initial stagger delay
+                        delay: Math.min(i * 0.05, 0.3)
                       }}
                     >
                       <PostCard post={post} isHighlighted={true} />
@@ -251,14 +250,13 @@ export default function FeedClient() {
               <>
                 {posts.map((post, i) => (
                   <motion.div
-                    key={post._id}
+                    key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
                     initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-20px" }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ 
                       duration: 0.4, 
                       ease: [0.21, 0.47, 0.32, 0.98],
-                      delay: Math.min(i * 0.05, 0.3) // Limit initial stagger delay
+                      delay: Math.min(i * 0.05, 0.3)
                     }}
                   >
                     <PostCard post={post} />

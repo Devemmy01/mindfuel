@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { useViewTracker } from "@/hooks/useViewTracker";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import {
@@ -66,7 +67,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
   const menuRef = useRef<HTMLDivElement>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
-  const viewFetched = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -83,23 +84,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu, showShareMenu]);
 
-  useEffect(() => {
-    if (!viewFetched.current) {
-      viewFetched.current = true;
-      const track = () => {
-        fetch(`/api/posts/${post._id}/view`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user?.uid }),
-        }).catch(() => {});
-      };
-      if ("requestIdleCallback" in window) {
-        requestIdleCallback(track);
-      } else {
-        setTimeout(track, 200);
-      }
-    }
-  }, [post._id, user?.uid]);
+  // Track view only after the card has been visible for 1.5 s (IntersectionObserver)
+  useViewTracker(cardRef, { postId: String(post._id), userId: user?.uid ?? null });
 
   // onEmojiClick removed as it is now in EditPostModal
 
@@ -210,6 +196,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   return (
     <>
       <motion.article
+        ref={cardRef}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={() => router.push(`/post/${post._id}`)}

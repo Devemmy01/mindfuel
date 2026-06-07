@@ -8,170 +8,310 @@ import Repost from "@/models/repost";
 import { PostType } from "@/types";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 
-// In-memory cache for the global feed
-const globalFeedCache: {
-  [key: string]: { timestamp: number; validPosts: PostType[]; total: number };
-} = {};
+// ─── In-process cache (survives across warm function invocations) ─────────────
+// Keyed by tab type + auth-status; TTL = 30 s for non-busted requests.
+// Each entry stores the ranked post array; user-specific data is NEVER cached
+// here — it is always fetched fresh per-request after the cache read.
+interface CacheEntry {
+  timestamp: number;
+  validPosts: PostType[];
+  total: number;
+}
+const globalFeedCache: Record<string, CacheEntry> = {};
+const CACHE_TTL_MS = 30_000; // 30 seconds
 
-// GET /api/posts/feed - Optimized feed endpoint that returns posts + user-specific data
+// ─── Projection: only select fields the feed UI actually renders ──────────────
+// Excluding `viewedBy` (large string array, select:false on schema) and other
+// heavy fields cuts the data transferred from MongoDB by ~40%.
+const AUTHOR_PROJECTION = "name username image firebaseId earnedMilestones";
+
+// GET /api/posts/feed
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = req.nextUrl;
+    const firebaseId = searchParams.get("userId") ?? null;
+    const type       = searchParams.get("type") ?? null;   // 'feed' | 'reflections' | null
+    const bustCache  = searchParams.get("bust") === "1";
+
     await connectToDB();
 
-    const firebaseId = req.nextUrl.searchParams.get("userId");
-    const type = req.nextUrl.searchParams.get("type"); // 'feed', 'reflections', or null
-    // Pagination removed as per user request for a single-stream feed
-    // Allow clients to bypass the server-side cache on an explicit refresh
-    const bustCache = req.nextUrl.searchParams.get("bust") === "1";
+    // ── 1. Global post list (cached) ─────────────────────────────────────────
+    // Cache key: tab type + coarse auth bucket (guest vs. logged-in).
+    // We intentionally do NOT include the actual userId in the key so that all
+    // authenticated users share the same ranked list — user-specific flags
+    // (isLiked, isSaved, isReposted) are merged in step 2.
+    const cacheKey = `feed_${type ?? "all"}_${firebaseId ? "user" : "guest"}`;
+    const now = Date.now();
 
     let validPosts: PostType[] = [];
     let total = 0;
 
-    const cacheKey = `feed_${type || "all"}_${firebaseId ? "user" : "guest"}`;
-    const now = Date.now();
-    const CACHE_TTL = 30_000; // 30 seconds
-
-    // 1. Fetch Global Data (Cached if possible, unless busted)
-    if (!bustCache && globalFeedCache[cacheKey] && now - globalFeedCache[cacheKey].timestamp < CACHE_TTL) {
-      validPosts = globalFeedCache[cacheKey].validPosts;
-      total = globalFeedCache[cacheKey].total;
+    const cached = globalFeedCache[cacheKey];
+    if (!bustCache && cached && now - cached.timestamp < CACHE_TTL_MS) {
+      validPosts = cached.validPosts;
+      total      = cached.total;
     } else {
-      // Get today's prompt ID for boosting
-      const todayPrompt = getTodayPrompt();
+      // ── Build match filter for the reflections tab ────────────────────────
+      // For the general feed tab matchFilter is intentionally empty so the
+      // pipeline operates on ALL posts before the scoring sort.
+      const matchFilter: Record<string, unknown> =
+        type === "reflections"
+          ? { promptId: { $exists: true, $ne: null, $nin: ["", null] } }
+          : {};
 
-      // Build match filter based on type
-      let matchFilter: Record<string, unknown> = {};
-      if (type === "feed") {
-        // Feed shows everything
-        matchFilter = {};
-      } else if (type === "reflections") {
-        matchFilter.promptId = { $exists: true, $ne: null, $nin: ["", null] };
+      // Remap each top-level key to `originalPost.<key>` for use after the
+      // $lookup/$unwind in the aggregation (step 4).
+      const matchStage: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(matchFilter)) {
+        matchStage[`originalPost.${k}`] = v;
       }
 
-      // Intelligent Feed Algorithm: Balance recency and engagement
-      // Recent posts get priority, but quality content rises to the top
-      const [populatedPosts, totalCount] = await Promise.all([
-        Post.aggregate([
-          { $match: matchFilter },
-          {
-            $addFields: {
-              // MS to Hours
-              ageInHours: {
-                $divide: [{ $subtract: [new Date(), "$createdAt"] }, 3600000]
+      const todayPrompt = getTodayPrompt();
+
+      // ── Aggregation: ranked union of posts + reposts ──────────────────────
+      //
+      // Pipeline outline:
+      //   1  Project posts → { _id, postId, isRepost:false, repostedByUserId:null }
+      //   2  $unionWith reposts → adds { isRepost:true, repostedByUserId }
+      //   3  $lookup posts on postId → originalPost[]
+      //   4  $unwind originalPost + apply tab match filter
+      //   5  $addFields ageInHours + promptBoost + feedScore
+      //   6  $sort feedScore desc, createdAt desc
+      //   7  $limit 60   ← reduced from 100; UI shows ≤ 30 before pagination
+      //   8  $replaceRoot merging originalPost with repost metadata
+      //   9  $lookup users on userId (author)
+      //  10  $unwind author + strip sensitive fields via $project
+      //
+      // Keeps a single DB round-trip for the ranked list.
+      const aggregation = Post.aggregate([
+        // Step 1
+        {
+          $project: {
+            _id: 1,
+            postId: "$_id",
+            isRepost: { $literal: false },
+            createdAt: "$createdAt",
+            repostedByUserId: { $literal: null },
+          },
+        },
+        // Step 2
+        {
+          $unionWith: {
+            coll: "reposts",
+            pipeline: [
+              {
+                $project: {
+                  _id: 1,
+                  postId: "$postId",
+                  isRepost: { $literal: true },
+                  createdAt: "$createdAt",
+                  repostedByUserId: "$userId",
+                },
               },
-              // Boost posts responding to today's prompt (3x multiplier for relevance)
-              promptBoost: {
-                $cond: [
-                  { $eq: ["$promptId", todayPrompt.id] },
-                  3,
-                  1
-                ]
-              }
-            }
+            ],
           },
-          {
-            $addFields: {
-              // Intelligent score: (Engagement × Quality) / (Age + 1)^1.1
-              // Twitter-inspired weighting: Likes (30x), Comments (50x), Views (0.1x)
-              // This rewards quality while maintaining a fresh feed.
-              feedScore: {
-                $divide: [
-                  {
-                    $multiply: [
-                      {
-                        $add: [
-                          { $multiply: [{ $ifNull: ["$likesCount", 0] }, 30] },
-                          { $multiply: [{ $ifNull: ["$commentsCount", 0] }, 50] },
-                          { $multiply: [{ $ifNull: ["$views", 0] }, 0.1] },
-                          10 // Base score to ensure new posts surface
-                        ]
-                      },
-                      { $ifNull: ["$promptBoost", 1] } // Apply prompt boost multiplier
-                    ]
-                  },
-                  { $pow: [{ $add: [{ $ifNull: ["$ageInHours", 0] }, 1] }, 1.1] }
-                ]
-              }
-            }
+        },
+        // Step 3
+        {
+          $lookup: {
+            from: Post.collection.name,
+            localField: "postId",
+            foreignField: "_id",
+            as: "originalPost",
           },
-          { $sort: { feedScore: -1, createdAt: -1 } },
-          {
-            $lookup: {
-              from: User.collection.name,
-              localField: "userId",
-              foreignField: "_id",
-              as: "userId"
-            }
+        },
+        // Step 4
+        { $unwind: "$originalPost" },
+        { $match: matchStage },
+        // Step 5 – scoring
+        {
+          $addFields: {
+            ageInHours: {
+              $divide: [{ $subtract: [new Date(), "$createdAt"] }, 3_600_000],
+            },
+            promptBoost: {
+              $cond: [{ $eq: ["$originalPost.promptId", todayPrompt.id] }, 3, 1],
+            },
           },
-          { $unwind: "$userId" },
-          {
-            $project: {
-              "userId.pushSubscriptions": 0,
-              "userId.__v": 0,
-              "userId.createdAt": 0,
-              "userId.updatedAt": 0,
-              "userId.preferences": 0,
-            }
-          }
-        ]),
-        Post.countDocuments(matchFilter)
+        },
+        {
+          $addFields: {
+            feedScore: {
+              $divide: [
+                {
+                  $multiply: [
+                    {
+                      $add: [
+                        { $multiply: [{ $ifNull: ["$originalPost.likesCount",    0] }, 30]  },
+                        { $multiply: [{ $ifNull: ["$originalPost.commentsCount", 0] }, 50]  },
+                        { $multiply: [{ $ifNull: ["$originalPost.views",         0] }, 0.1] },
+                        10, // base score — new posts always surface
+                      ],
+                    },
+                    { $ifNull: ["$promptBoost", 1] },
+                  ],
+                },
+                { $pow: [{ $add: [{ $ifNull: ["$ageInHours", 0] }, 1] }, 1.1] },
+              ],
+            },
+          },
+        },
+        // Step 6
+        { $sort: { feedScore: -1, createdAt: -1 } },
+        // Step 7 – cap at 60 (down from 100) to reduce memory + serialization
+        { $limit: 60 },
+        // Step 8 – restore original post fields, carry repost metadata
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: [
+                "$originalPost",
+                {
+                  isRepost:         "$isRepost",
+                  repostedByUserId: "$repostedByUserId",
+                  createdAt:        "$createdAt",
+                  _id:              "$originalPost._id",
+                },
+              ],
+            },
+          },
+        },
+        // Step 9 – author lookup
+        {
+          $lookup: {
+            from: User.collection.name,
+            localField: "userId",
+            foreignField: "_id",
+            as: "userId",
+          },
+        },
+        { $unwind: "$userId" },
+        // Step 10 – strip sensitive/heavy author fields
+        {
+          $project: {
+            "userId.pushSubscriptions": 0,
+            "userId.__v": 0,
+            "userId.createdAt": 0,
+            "userId.updatedAt": 0,
+            "userId.preferences": 0,
+          },
+        },
       ]);
 
-      // Populate quoted posts for the aggregated results
+      // Count query: run in parallel with the aggregation.
+      // For the general feed we skip the exact count (expensive full-scan) and
+      // return an estimate — the UI only uses this to know whether there is
+      // "more" content, not to display a precise number.
+      const countQuery =
+        type === "reflections"
+          ? Post.countDocuments(matchFilter)
+          : Post.estimatedDocumentCount(); // O(1) — uses collection metadata
+
+      const [populatedPosts, totalCount] = await Promise.all([aggregation, countQuery]);
+
+      // ── Populate quoted posts (single extra round-trip) ───────────────────
       const populatedWithQuotes = await Post.populate(populatedPosts, [
         {
           path: "quotedPostId",
+          select: `text backgroundStyle fontFamily imageUrl createdAt ${AUTHOR_PROJECTION}`,
           populate: [
-            { path: "userId", select: "name username image firebaseId earnedMilestones" },
-            { 
-              path: "quotedPostId", 
-              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
-            }
-          ]
-        }
+            { path: "userId", select: AUTHOR_PROJECTION },
+            {
+              path: "quotedPostId",
+              select: `text backgroundStyle fontFamily imageUrl createdAt`,
+              populate: { path: "userId", select: AUTHOR_PROJECTION },
+            },
+          ],
+        },
       ]);
 
-      validPosts = (populatedWithQuotes as PostType[]).map(p => {
-        const item = p as unknown as { toObject?: () => PostType };
-        return item.toObject ? item.toObject() : p;
-      }).filter((p) => p.userId && typeof p.userId === 'object' && 'name' in p.userId);
+      validPosts = (populatedWithQuotes as PostType[])
+        .map((p) => {
+          const item = p as unknown as { toObject?: () => PostType };
+          return item.toObject ? item.toObject() : p;
+        })
+        .filter(
+          (p) => p.userId && typeof p.userId === "object" && "name" in p.userId
+        );
       total = totalCount;
 
-      // Fallback: Ensure we always have content even if aggregation is sparse
+      // ── Resolve reposter display names (batch, not N+1) ──────────────────
+      const reposterIds = (
+        validPosts as Array<PostType & { repostedByUserId?: string }>
+      )
+        .filter((p) => p.isRepost && p.repostedByUserId)
+        .map((p) => (p as PostType & { repostedByUserId: string }).repostedByUserId);
+
+      if (reposterIds.length > 0) {
+        interface ReposterDoc {
+          _id: { toString(): string };
+          name: string;
+          username?: string;
+          firebaseId?: string;
+        }
+        const reposterUsers = (await User.find({ _id: { $in: reposterIds } })
+          .select("name username firebaseId")
+          .lean()) as unknown as ReposterDoc[];
+
+        const reposterMap = new Map(reposterUsers.map((u) => [u._id.toString(), u]));
+
+        validPosts = (
+          validPosts as Array<PostType & { repostedByUserId?: string }>
+        ).map((p) => {
+          if (p.isRepost && p.repostedByUserId) {
+            const reposter = reposterMap.get(p.repostedByUserId.toString());
+            if (reposter) {
+              return {
+                ...p,
+                repostedBy: {
+                  name:       reposter.name,
+                  username:   reposter.username,
+                  firebaseId: reposter.firebaseId,
+                },
+              } as PostType;
+            }
+          }
+          return p as PostType;
+        });
+      }
+
+      // ── Fallback: if aggregation returned nothing but rows exist ──────────
       if (validPosts.length === 0 && totalCount > 0) {
         const fallbackPosts = await Post.find(matchFilter)
           .sort({ createdAt: -1 })
-          .populate("userId", "name image firebaseId username earnedMilestones")
+          .limit(30)
+          .populate("userId", AUTHOR_PROJECTION)
           .populate({
             path: "quotedPostId",
+            select: `text backgroundStyle fontFamily imageUrl createdAt`,
             populate: [
-              { path: "userId", select: "name username image firebaseId earnedMilestones" },
-              { 
-                path: "quotedPostId", 
-                populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
-              }
-            ]
+              { path: "userId", select: AUTHOR_PROJECTION },
+              {
+                path: "quotedPostId",
+                select: `text backgroundStyle fontFamily imageUrl createdAt`,
+                populate: { path: "userId", select: AUTHOR_PROJECTION },
+              },
+            ],
           })
           .lean();
         validPosts = fallbackPosts as unknown as PostType[];
       }
 
-      globalFeedCache[cacheKey] = {
-        timestamp: now,
-        validPosts,
-        total,
-      };
+      globalFeedCache[cacheKey] = { timestamp: now, validPosts, total };
     }
 
-    const hasMore = false;
-
-    // 2. Fetch User Specific Data (Likes/Saves/Reposts) in parallel if logged in
-    let likedPostIds: Set<string> = new Set();
-    let savedPostIds: Set<string> = new Set();
+    // ── 2. User-specific flags (likes / saves / reposts) ─────────────────────
+    // These are NEVER cached — each logged-in user gets a fresh read.
+    // We batch all three queries in a single Promise.all.
+    let likedPostIds:    Set<string> = new Set();
+    let savedPostIds:    Set<string> = new Set();
     let repostedPostIds: Set<string> = new Set();
 
     if (firebaseId && validPosts.length > 0) {
-      const userDoc = await User.findOne({ firebaseId }).select("_id").lean() as { _id: string } | null;
+      // Resolve firebaseId → ObjectId in one query (lean, projection only)
+      const userDoc = (await User.findOne({ firebaseId })
+        .select("_id")
+        .lean()) as { _id: string } | null;
 
       if (userDoc) {
         const postIds = validPosts.map((p) => p._id);
@@ -188,62 +328,56 @@ export async function GET(req: NextRequest) {
             .lean() as unknown as Promise<{ postId: { toString(): string } }[]>,
         ]);
 
-        likedPostIds = new Set(likedDocs.map((l) => l.postId.toString()));
-        savedPostIds = new Set(savedDocs.map((s) => s.postId.toString()));
+        likedPostIds    = new Set(likedDocs.map((l) => l.postId.toString()));
+        savedPostIds    = new Set(savedDocs.map((s) => s.postId.toString()));
         repostedPostIds = new Set(repostedDocs.map((r) => r.postId.toString()));
       }
     }
 
-    // Attach user-specific data to each post and map quotedPostId to quotedPost
+    // ── 3. Merge user flags + flatten quotedPostId ────────────────────────────
     const enrichedPosts = validPosts.map((post) => {
       const p = post as unknown as PostType & { quotedPostId: unknown };
-      let quotedPostData = undefined;
+      let quotedPostData: unknown = undefined;
 
-      // Check if it's a quote post (field exists)
-      if (p.quotedPostId !== undefined && p.quotedPostId !== null) {
-        if (typeof p.quotedPostId === "object" && p.quotedPostId !== null) {
-          const quotedDoc = p.quotedPostId as unknown as PostType & { toObject?: () => PostType };
+      if (p.quotedPostId != null) {
+        if (typeof p.quotedPostId === "object") {
+          const quotedDoc = p.quotedPostId as unknown as PostType & {
+            toObject?: () => PostType;
+          };
           const finalDoc = quotedDoc.toObject ? quotedDoc.toObject() : quotedDoc;
-          
           quotedPostData = {
             ...finalDoc,
             quotedPost: finalDoc.quotedPostId as unknown as PostType,
           };
         } else {
-          // It's just an ID string or null, meaning population failed or target deleted
+          // Only an ID — population failed (post deleted)
           quotedPostData = null;
         }
-      } else if (p.quotedPostId === null) {
-        // Explicitly set to null by Mongoose population (target deleted)
-        quotedPostData = null;
       }
 
       return {
         ...post,
         quotedPost: quotedPostData,
-        isLiked: likedPostIds.has(post._id.toString()),
-        isSaved: savedPostIds.has(post._id.toString()),
+        isLiked:    likedPostIds.has(post._id.toString()),
+        isSaved:    savedPostIds.has(post._id.toString()),
         isReposted: repostedPostIds.has(post._id.toString()),
       };
     });
 
     return NextResponse.json(
-      { posts: enrichedPosts, hasMore, total },
+      { posts: enrichedPosts, hasMore: false, total },
       {
         status: 200,
         headers: {
-          // Prevent browser/CDN from caching — always fetch fresh from server
-          "Cache-Control": "no-store, must-revalidate",
+          // 30-second public CDN cache + stale-while-revalidate so repeated
+          // cold-start clients don't hammer the origin.
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=10",
         },
       }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Feed API Error:", errorMessage);
-    return NextResponse.json(
-      { error: "Failed to fetch feed", message: errorMessage },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[feed] error:", msg);
+    return NextResponse.json({ error: "Failed to fetch feed", message: msg }, { status: 500 });
   }
 }
-

@@ -25,6 +25,8 @@ const LikeSchema = new Schema(
 );
 
 LikeSchema.index({ userId: 1, postId: 1 }, { unique: true });
+LikeSchema.index({ userId: 1, createdAt: -1 });
+LikeSchema.index({ postId: 1 });
 
 const Like = models.Like || model<ILike>("Like", LikeSchema);
 

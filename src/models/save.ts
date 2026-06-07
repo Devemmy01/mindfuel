@@ -37,6 +37,8 @@ const SaveSchema = new Schema(
 );
 
 SaveSchema.index({ userId: 1, postId: 1 }, { unique: true });
+SaveSchema.index({ userId: 1, createdAt: -1 });
+SaveSchema.index({ postId: 1 });
 
 const Save = models.Save || model<ISave>("Save", SaveSchema);
 

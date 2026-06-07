@@ -2,6 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-static";
+
 export default function CookiesPage() {
   return (
     <div className="w-full flex-col flex min-h-screen">

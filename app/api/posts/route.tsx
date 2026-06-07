@@ -139,66 +139,102 @@ export async function GET(req: NextRequest) {
           validPosts.push(enrichedPost as unknown as PostType);
         }
       }
-    } else {
-      // Profile or Liked feed: fetch matches
-      const rawPosts = await Post.find(query)
-        .populate("userId", "name username image firebaseId earnedMilestones")
-        .populate({
-          path: "quotedPostId",
-          populate: [
-            { path: "userId", select: "name username image firebaseId earnedMilestones" },
-            { 
-              path: "quotedPostId", 
-              populate: { path: "userId", select: "name username image firebaseId earnedMilestones" }
-            }
-          ]
-        })
-        .lean();
-      
-      // Filter out posts where userId is null (deleted users)
-      validPosts = (rawPosts as unknown as PostType[]).filter((p) => p.userId);
+    } else if (type === "liked" && queryUser) {
+      // Liked feed: DB-level pagination — fetch only liked postIds for this page
+      const [likedDocs, likedTotal] = await Promise.all([
+        Like.find({ userId: queryUser._id })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .select("postId")
+          .lean() as unknown as Promise<Array<{ postId: string }>>,
+        Like.countDocuments({ userId: queryUser._id }),
+      ]);
 
-      // Attach repost info for profile feed
-      if (type !== "liked" && queryUser) {
-        const repostDocs = await Repost.find({ userId: queryUser._id }).lean() as unknown as Array<{ postId: { toString(): string }, createdAt: Date }>;
-        const repostMap = new Map(repostDocs.map(r => [r.postId.toString(), true]));
-        
-        validPosts = validPosts.map(post => {
-          if (repostMap.has(post._id.toString())) {
-            return {
-              ...post,
-              isRepost: true,
-              repostedBy: {
-                name: queryUser.name,
-                username: queryUser.username,
-                firebaseId: queryUser.firebaseId
-              }
-            };
-          }
-          return post;
-        });
-        
-        // Sort by repost date if it's a repost, otherwise post date
-        validPosts.sort((a, b) => {
-          let dateA = new Date(a.createdAt).getTime();
-          if (a.isRepost) {
-             const r = repostDocs.find(rd => rd.postId.toString() === a._id.toString());
-             if (r) dateA = new Date(r.createdAt).getTime();
-          }
-          let dateB = new Date(b.createdAt).getTime();
-          if (b.isRepost) {
-             const r = repostDocs.find(rd => rd.postId.toString() === b._id.toString());
-             if (r) dateB = new Date(r.createdAt).getTime();
-          }
-          return dateB - dateA;
-        });
-      } else {
-        validPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      total = likedTotal;
+      const likedPostIds = likedDocs.map((l) => l.postId);
+
+      if (likedPostIds.length > 0) {
+        const rawPosts = await Post.find({ _id: { $in: likedPostIds } })
+          .populate("userId", "name username image firebaseId earnedMilestones")
+          .populate({
+            path: "quotedPostId",
+            populate: [
+              { path: "userId", select: "name username image firebaseId earnedMilestones" },
+              {
+                path: "quotedPostId",
+                populate: { path: "userId", select: "name username image firebaseId earnedMilestones" },
+              },
+            ],
+          })
+          .lean();
+        // Re-sort to match liked order (MongoDB $in doesn't preserve order)
+        const postMap = new Map((rawPosts as unknown as PostType[]).map((p) => [p._id.toString(), p]));
+        validPosts = likedPostIds
+          .map((id) => postMap.get(id.toString()))
+          .filter((p): p is PostType => !!p && !!p.userId);
       }
-      
-      // Apply pagination manually after sorting
-      total = validPosts.length;
-      validPosts = validPosts.slice(skip, skip + limit);
+    } else {
+      // Profile feed (own posts + reposts): paginate using aggregation at DB level
+      const profileQuery = query;
+
+      // Fetch repost docs for this user so we can union and sort correctly
+      const repostDocs = await Repost.find({ userId: queryUser?._id })
+        .sort({ createdAt: -1 })
+        .lean() as unknown as Array<{ postId: { toString(): string }; createdAt: Date }>;
+      const repostMap = new Map(repostDocs.map((r) => [r.postId.toString(), r.createdAt]));
+      const repostedPostIds = repostDocs.map((r) => r.postId);
+
+      const combinedQuery = queryUser
+        ? { $or: [{ userId: queryUser._id }, { _id: { $in: repostedPostIds } }] }
+        : profileQuery;
+
+      const [rawPosts, rawTotal] = await Promise.all([
+        Post.find(combinedQuery)
+          .populate("userId", "name username image firebaseId earnedMilestones")
+          .populate({
+            path: "quotedPostId",
+            populate: [
+              { path: "userId", select: "name username image firebaseId earnedMilestones" },
+              {
+                path: "quotedPostId",
+                populate: { path: "userId", select: "name username image firebaseId earnedMilestones" },
+              },
+            ],
+          })
+          .lean(),
+        Post.countDocuments(combinedQuery),
+      ]);
+
+      total = rawTotal;
+
+      // Attach repost metadata and sort, then paginate in JS
+      // (union of own posts + reposts requires in-memory sort for now)
+      let allPosts = (rawPosts as unknown as PostType[]).filter((p) => p.userId);
+      allPosts = allPosts.map((post) => {
+        const repostDate = repostMap.get(post._id.toString());
+        if (repostDate && queryUser) {
+          return {
+            ...post,
+            isRepost: true,
+            _sortDate: repostDate,
+            repostedBy: {
+              name: queryUser.name,
+              username: queryUser.username,
+              firebaseId: queryUser.firebaseId,
+            },
+          };
+        }
+        return { ...post, _sortDate: post.createdAt };
+      });
+
+      allPosts.sort((a, b) => {
+        const dateA = new Date((a as PostType & { _sortDate: Date })._sortDate).getTime();
+        const dateB = new Date((b as PostType & { _sortDate: Date })._sortDate).getTime();
+        return dateB - dateA;
+      });
+
+      validPosts = allPosts.slice(skip, skip + limit);
     }
 
     const hasMore = total > skip + validPosts.length;
@@ -318,40 +354,42 @@ export async function POST(req: NextRequest) {
     // Handle Quote Repost Notifications & Counts
     if (quotedPostId) {
       try {
-        // Increment repostCount on original post
-        await Post.findByIdAndUpdate(quotedPostId, { $inc: { repostCount: 1 } });
+        // Increment repostCount and fetch post + author in parallel
+        const [originalPost] = await Promise.all([
+          Post.findById(quotedPostId),
+          Post.findByIdAndUpdate(quotedPostId, { $inc: { repostCount: 1 } }),
+        ]);
 
-        const originalPost = await Post.findById(quotedPostId);
         if (originalPost && originalPost.userId.toString() !== (user?._id as unknown as string).toString()) {
           const author = await User.findById(originalPost.userId) as IUser | null;
           if (author) {
-             // 1. In-App Notification
-              await createNotification({
+            // Fire notification + email in parallel
+            await Promise.all([
+              createNotification({
                 recipientId: author._id as unknown as string,
                 senderId: user._id as unknown as string,
-               type: "quote",
-               postId: newPost._id,
-               message: `${user.name} quoted your thought: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-               url: `/post/${newPost._id}`
-             });
-
-             // 2. Email Notification
-             if (author.email && author.preferences?.notifications !== false) {
-                 await resend.emails.send({
-                 from: "MindFuel <noreply@mind-fuel.app>",
-                 to: author.email,
-                 subject: `${user.name} quoted your thought`,
-                 react: (
-                   <QuoteEmail
-                     authorName={author.name}
-                     quoterName={user.name}
-                     quoteText={text}
-                     originalPostText={originalPost.text}
-                     postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${newPost._id}`}
-                   />
-                 ) as React.ReactElement,
-               });
-             }
+                type: "quote",
+                postId: newPost._id,
+                message: `${user.name} quoted your thought: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
+                url: `/post/${newPost._id}`
+              }),
+              author.email && author.preferences?.notifications !== false
+                ? resend.emails.send({
+                    from: "MindFuel <noreply@mind-fuel.app>",
+                    to: author.email,
+                    subject: `${user.name} quoted your thought`,
+                    react: (
+                      <QuoteEmail
+                        authorName={author.name}
+                        quoterName={user.name}
+                        quoteText={text}
+                        originalPostText={originalPost.text}
+                        postLink={`${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/post/${newPost._id}`}
+                      />
+                    ) as React.ReactElement,
+                  })
+                : Promise.resolve(),
+            ]);
           }
         }
       } catch (err) {

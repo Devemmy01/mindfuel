@@ -40,6 +40,9 @@ const CommentSchema = new Schema(
   { timestamps: true }
 );
 
+CommentSchema.index({ postId: 1, createdAt: -1 });
+CommentSchema.index({ parentId: 1 });
+
 const Comment = models.Comment || model<IComment>("Comment", CommentSchema);
 
 export default Comment;

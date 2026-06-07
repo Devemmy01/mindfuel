@@ -90,10 +90,9 @@ export default function DailyReflectionFeed({
       <AnimatePresence>
         {todayResponses.map((post, i) => (
           <motion.div
-            key={post._id}
+            key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
             initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-10px" }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ 
               delay: i * 0.05, 
               duration: 0.4,

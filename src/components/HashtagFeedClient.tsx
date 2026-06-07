@@ -176,8 +176,8 @@ export default function HashtagFeedClient({ tag }: HashtagFeedClientProps) {
           </motion.div>
         ) : (
           <div>
-            {posts.map((post) => (
-              <PostCard key={post._id} post={post} />
+            {posts.map((post, i) => (
+              <PostCard key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} post={post} />
             ))}
 
             <div className="py-14 flex flex-col items-center justify-center text-center">

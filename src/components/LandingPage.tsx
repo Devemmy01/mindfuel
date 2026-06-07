@@ -123,7 +123,7 @@ export default function LandingPage() {
             </button>
             <button
               onClick={openSignInModal}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[14px] transition-all shadow-[0_4px_16px_rgba(0,168,85,0.3)] hover:-translate-y-0.5 active:scale-95"
+              className="flex items-center gap-2 px-4 py-2 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[14px] transition-all hover:-translate-y-0.5 active:scale-95"
             >
               Get Started
               <ArrowRight className="w-3.5 h-3.5" />
@@ -171,7 +171,7 @@ export default function LandingPage() {
         >
           <button
             onClick={openSignInModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[16px] transition-all shadow-[0_8px_30px_rgba(0,168,85,0.35)] hover:-translate-y-1 active:scale-95"
+            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[16px] transition-all hover:-translate-y-1 active:scale-95"
           >
             Start Reflecting
             <ArrowRight className="w-5 h-5" />
@@ -535,7 +535,7 @@ export default function LandingPage() {
           </p>
           <button
             onClick={openSignInModal}
-            className="inline-flex items-center gap-3 px-10 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-black text-[18px] transition-all shadow-[0_12px_40px_rgba(0,168,85,0.4)] hover:-translate-y-1 active:scale-95"
+            className="inline-flex items-center gap-3 px-10 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-black text-[18px] transition-all hover:-translate-y-1 active:scale-95"
           >
             Start Reflecting
             <ArrowRight className="w-5 h-5" />

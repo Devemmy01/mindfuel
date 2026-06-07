@@ -26,7 +26,7 @@ const NotificationSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ["like", "comment", "reply"],
+      enum: ["like", "comment", "reply", "repost", "quote", "save"],
       required: true,
     },
     postId: {
@@ -47,8 +47,9 @@ const NotificationSchema = new Schema(
   { timestamps: true }
 );
 
-// Compound index for faster filtering of unread notifications for a user
+// Compound indexes for faster query performance
 NotificationSchema.index({ recipient: 1, isRead: 1 });
+NotificationSchema.index({ recipient: 1, createdAt: -1 });
 
 const Notification = models.Notification || model<INotification>("Notification", NotificationSchema);
 

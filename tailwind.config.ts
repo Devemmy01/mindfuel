@@ -70,10 +70,10 @@ const config = {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
-        "brand-glow": "0 4px 24px rgba(0, 191, 99, 0.35)",
-        "brand-sm": "0 2px 12px rgba(0, 191, 99, 0.25)",
-        "soft": "0 2px 12px rgba(0,0,0,0.06)",
-        "card": "0 4px 20px rgba(0,0,0,0.08)",
+        "brand-glow": "none",
+        "brand-sm": "none",
+        "soft": "none",
+        "card": "none",
       },
       keyframes: {
         "accordion-down": {

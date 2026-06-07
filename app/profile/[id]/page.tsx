@@ -606,10 +606,9 @@ export default function DynamicProfilePage() {
             {posts.map((post, i) => (
               viewMode === "list" ? (
                 <motion.div 
-                  key={post._id} 
+                  key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, y: 16 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true, margin: "-10px" }}
+                  animate={{ opacity: 1, y: 0 }} 
                   transition={{ 
                     delay: Math.min(i * 0.04, 0.3),
                     duration: 0.4,
@@ -620,10 +619,9 @@ export default function DynamicProfilePage() {
                 </motion.div>
               ) : (
                 <motion.div 
-                  key={post._id} 
+                  key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, scale: 0.9 }} 
-                  whileInView={{ opacity: 1, scale: 1 }} 
-                  viewport={{ once: true, margin: "-10px" }}
+                  animate={{ opacity: 1, scale: 1 }} 
                   transition={{ 
                     delay: Math.min(i * 0.03, 0.3),
                     duration: 0.4,
