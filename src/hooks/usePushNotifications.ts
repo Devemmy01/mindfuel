@@ -72,40 +72,40 @@ export function usePushNotifications() {
       }
 
       // 2. Acquire the root Service Worker registration used by next-pwa.
-      // Avoid watching an installing worker directly: during deploys, an
-      // installing worker can become redundant while the browser promotes a
-      // newer one. navigator.serviceWorker.ready resolves to the active winner.
+      // We use the registration directly instead of waiting on `ready`, which
+      // can stall while the browser is promoting the worker during deploys.
       console.log("Push: Acquiring active Service Worker...");
       let registration: ServiceWorkerRegistration | undefined;
 
       try {
-        const readyWithTimeout = () =>
-          Promise.race([
-            navigator.serviceWorker.ready,
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Service Worker failed to become ready in time.")), 15000)
-            ),
-          ]);
-
         registration = await navigator.serviceWorker.getRegistration("/");
 
         if (!registration) {
           console.log("Push: No root SW found. Registering /sw.js");
-          await navigator.serviceWorker.register("/sw.js", {
+          registration = await navigator.serviceWorker.register("/sw.js", {
             scope: "/",
             updateViaCache: "none",
           });
         }
 
-        registration = await readyWithTimeout();
-        console.log("Push: Service Worker is ACTIVE at", registration.scope);
+        if (!registration.active) {
+          console.log("Push: Waiting briefly for the worker to settle...");
+          await new Promise<void>((resolve) => setTimeout(resolve, 750));
+        }
+
+        const refreshedRegistration = await navigator.serviceWorker.getRegistration("/");
+        if (refreshedRegistration) {
+          registration = refreshedRegistration;
+        }
+
+        console.log("Push: Service Worker registration ready at", registration.scope);
       } catch (regError: unknown) {
         console.warn("Push: Worker acquisition failed", regError);
         const message = regError instanceof Error ? regError.message : "Unknown activation error";
         throw new Error(`Worker Error: ${message}`);
       }
 
-      if (!registration || !registration.active) throw new Error("No active Service Worker found");
+      if (!registration) throw new Error("No Service Worker registration found");
 
       // 3. Subscribe to Push, reusing an existing subscription when present.
       console.log("Push: Subscribing to PushManager...");
