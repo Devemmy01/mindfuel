@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import { landingFaqs } from "@/lib/seo";
 
 const PROMPTS = [
   { q: "What are you grateful to have learned?", cat: "Gratitude", color: "#f97316" },
@@ -140,9 +141,9 @@ export default function LandingPage() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.05] mb-6 max-w-4xl"
         >
-          Reflect.{" "}
+          A social journal for people who{" "}
           <span className="text-brand-green relative inline-block">
-            Learn.
+            reflect,
             <motion.span
               initial={{ width: 0 }}
               animate={{ width: "100%" }}
@@ -150,7 +151,7 @@ export default function LandingPage() {
               className="absolute bottom-0 left-0 h-[6px] bg-brand-green/30 rounded-full"
             />
           </span>{" "}
-          Grow.
+          learn, and grow.
         </motion.h1>
 
         <motion.p
@@ -159,8 +160,8 @@ export default function LandingPage() {
           transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
         >
-          MindFuel is a social journal where thoughtful people share lessons, reflections,
-          and ideas that help them grow.
+          MindFuel is a reflection app and mindful social network where thoughtful people answer daily prompts,
+          document lessons, save meaningful ideas, and build a personal growth journal over time.
         </motion.p>
 
         <motion.div
@@ -191,7 +192,7 @@ export default function LandingPage() {
           transition={{ delay: 0.6, duration: 0.8 }}
           className="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[13px] text-muted-foreground"
         >
-          {["No algorithm", "No vanity metrics", "Just growth"].map((item) => (
+          {["Daily reflection prompts", "Personal growth journal", "Thoughtful community"].map((item) => (
             <span key={item} className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-brand-green flex-shrink-0" strokeWidth={2.5} />
               {item}
@@ -222,7 +223,8 @@ export default function LandingPage() {
             className="text-muted-foreground text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
           >
             Most platforms encourage endless scrolling, reactions, and validation.
-            MindFuel encourages thoughtful reflection, meaningful conversations, and personal growth.
+            MindFuel encourages thoughtful reflection, meaningful conversations, and personal growth through
+            searchable journal entries, daily writing prompts, and a quieter community feed.
           </motion.p>
 
           <motion.div
@@ -250,6 +252,44 @@ export default function LandingPage() {
               <p className="text-foreground font-bold text-base">&ldquo;What changed your mind?&rdquo;</p>
               <p className="text-foreground font-bold text-base">&ldquo;What did today teach you?&rdquo;</p>
             </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── SEO Context ── */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <div className="grid md:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+          >
+            <p className="text-[12px] font-black uppercase tracking-widest text-brand-green mb-4">
+              Reflection App
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+              Turn everyday lessons into a personal growth journal.
+            </h2>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+            className="space-y-5 text-muted-foreground text-[15px] sm:text-[16px] leading-relaxed"
+          >
+            <p>
+              MindFuel helps you write short reflections about what you are learning from life,
+              work, school, relationships, creativity, and change. It is designed for people who
+              want the benefits of journaling with the energy of a thoughtful community.
+            </p>
+            <p>
+              Use MindFuel as a daily reflection app, a mindful social network, or a public archive
+              of your best insights. Prompts help you start writing, saves help you collect ideas,
+              and your profile becomes a record of how your thinking evolves.
+            </p>
           </motion.div>
         </div>
       </section>
@@ -515,6 +555,44 @@ export default function LandingPage() {
               </motion.span>
             ))}
           </motion.div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={fadeInUp}
+          className="text-center mb-10"
+        >
+          <p className="text-[12px] font-black uppercase tracking-widest text-brand-green mb-3">
+            FAQ
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+            Questions people ask about MindFuel
+          </h2>
+        </motion.div>
+
+        <div className="space-y-4">
+          {landingFaqs.map((item) => (
+            <motion.div
+              key={item.question}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUp}
+              className="border border-border/60 bg-secondary/10 rounded-2xl p-5 sm:p-6"
+            >
+              <h3 className="text-[17px] sm:text-[18px] font-black mb-2">
+                {item.question}
+              </h3>
+              <p className="text-muted-foreground text-[14px] sm:text-[15px] leading-relaxed">
+                {item.answer}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </section>
 

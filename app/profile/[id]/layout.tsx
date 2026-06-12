@@ -1,13 +1,13 @@
 import { Metadata } from "next";
+import { absoluteUrl, defaultOgImage, siteDescription } from "@/lib/seo";
 
 interface ProfilePageProps {
   params: Promise<{ id: string }>;
 }
 
 async function getProfile(id: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mind-fuel.app';
   try {
-    const res = await fetch(`${baseUrl}/api/users/${id}`, { cache: 'no-store' });
+    const res = await fetch(absoluteUrl(`/api/users/${id}`), { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -22,26 +22,37 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   if (!data || !data.user) {
     return {
       title: "Profile | MindFuel",
-      description: "Explore mindful reflections on MindFuel.",
+      description: siteDescription,
+      alternates: {
+        canonical: absoluteUrl(`/profile/${id}`),
+      },
     };
   }
 
   const user = data.user;
   const displayName = user.name || "A Thinker";
-  const bio = user.bio || `Explore ${displayName}'s mindful reflections and daily streaks on MindFuel.`;
+  const username = user.username || id;
+  const bio =
+    user.bio ||
+    `Read ${displayName}'s reflections, saved lessons, and personal growth journey on MindFuel.`;
+  const image = user.image || defaultOgImage;
 
   return {
-    title: `${displayName} (@${user.username || id}) | MindFuel`,
+    title: `${displayName} (@${username}) - Reflections & Growth Journal`,
     description: bio,
+    alternates: {
+      canonical: absoluteUrl(`/profile/${id}`),
+    },
     openGraph: {
       title: `${displayName} on MindFuel`,
       description: bio,
       type: "profile",
+      url: absoluteUrl(`/profile/${id}`),
       images: [
         {
-          url: user.image || "/og-profile.png",
-          width: 400,
-          height: 400,
+          url: image,
+          width: 1200,
+          height: 630,
           alt: displayName,
         },
       ],
@@ -50,7 +61,7 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
       card: "summary",
       title: `${displayName} on MindFuel`,
       description: bio,
-      images: [user.image || "/og-profile.png"],
+      images: [image],
     },
   };
 }

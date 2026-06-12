@@ -9,6 +9,14 @@ import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
 import OfflineNotice from "@/components/OfflineNotice";
 import ClientBadgeUpdater from "@/components/ClientBadgeUpdater";
+import {
+  absoluteUrl,
+  defaultOgImage,
+  seoKeywords,
+  siteDescription,
+  siteName,
+  siteUrl,
+} from "@/lib/seo";
 
 
 const inter = Inter({
@@ -17,32 +25,15 @@ const inter = Inter({
   display: "swap",
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.mind-fuel.app";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
+  metadataBase: new URL(siteUrl),
+  applicationName: siteName,
   title: {
-    default: "MindFuel | The Social Journal",
+    default: "MindFuel | Social Journal & Reflection App",
     template: "%s | MindFuel",
   },
-  description:
-    "MindFuel is a social journal where people reflect, learn, and grow together through thoughtful conversations and daily reflection prompts. Share what life is teaching you.",
-  keywords: [
-    "mindfuel",
-    "social journal",
-    "reflection app",
-    "personal growth platform",
-    "daily reflection prompts",
-    "mindful social network",
-    "journaling community",
-    "self improvement",
-    "personal growth",
-    "lifelong learning",
-    "thoughtful community",
-    "mindfulness journaling",
-    "reflection network",
-    "growth mindset",
-  ],
+  description: siteDescription,
+  keywords: seoKeywords,
   authors: [{ name: "Lumyn", url: "https://lumynhq.studio" }],
   creator: "Lumyn",
   publisher: "Lumyn",
@@ -76,30 +67,28 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: baseUrl,
-    siteName: "MindFuel",
-    title: "MindFuel — The Social Journal",
-    description:
-      "Share what life is teaching you. MindFuel is a social journal where thoughtful people reflect, learn, and grow together.",
+    url: siteUrl,
+    siteName,
+    title: "MindFuel - Social Journal & Reflection App",
+    description: siteDescription,
     images: [
       {
-        url: "/og-image.png",
+        url: defaultOgImage,
         width: 1200,
         height: 630,
-        alt: "MindFuel — The Social Journal",
+        alt: "MindFuel social journal and reflection app",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "MindFuel — The Social Journal",
-    description:
-      "Share what life is teaching you. A social journal for people who reflect, learn, and grow.",
+    title: "MindFuel - Social Journal & Reflection App",
+    description: siteDescription,
     creator: "@mindfuelapp",
-    images: ["/og-image.png"],
+    images: [defaultOgImage],
   },
   alternates: {
-    canonical: baseUrl,
+    canonical: siteUrl,
   },
   category: "social",
 };
@@ -119,29 +108,52 @@ export const viewport: Viewport = {
 function JsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "MindFuel",
-    alternateName: "The Social Journal",
-    url: baseUrl,
-    description:
-      "MindFuel is a social journal where people reflect, learn, and grow together through thoughtful conversations and daily reflection prompts.",
-    publisher: {
-      "@type": "Organization",
-      name: "Lumyn",
-      url: "https://lumynhq.studio",
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/logo.png`,
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: siteName,
+        url: siteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: absoluteUrl("/logo.png"),
+        },
+        sameAs: ["https://twitter.com/mindfuelapp"],
       },
-    },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${baseUrl}/search?q={search_term_string}`,
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: siteName,
+        alternateName: ["MindFuel Social Journal", "MindFuel Reflection App"],
+        url: siteUrl,
+        description: siteDescription,
+        publisher: {
+          "@id": `${siteUrl}/#organization`,
+        },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: `${siteUrl}/search?q={search_term_string}`,
+          },
+          "query-input": "required name=search_term_string",
+        },
       },
-      "query-input": "required name=search_term_string",
-    },
+      {
+        "@type": "WebApplication",
+        "@id": `${siteUrl}/#app`,
+        name: siteName,
+        url: siteUrl,
+        applicationCategory: "LifestyleApplication",
+        operatingSystem: "Web, iOS, Android",
+        description: siteDescription,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      },
+    ],
   };
 
   return (

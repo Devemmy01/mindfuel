@@ -7,6 +7,7 @@ import { Heart, Loader2, Smile, CornerDownRight } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -147,6 +148,31 @@ function Composer({
     try { await onSubmit(text); setText(""); } finally { setSubmitting(false); }
   };
 
+  const emojiPicker =
+    showEmoji && typeof document !== "undefined"
+      ? createPortal(
+          <AnimatePresence>
+            <motion.div
+              ref={pickerRef}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              style={{
+                position: "fixed",
+                left: pickerStyle ? pickerStyle.left : "50%",
+                top: pickerStyle ? pickerStyle.top : undefined,
+                transform: pickerStyle ? undefined : "translateX(-50%)",
+                bottom: pickerStyle ? undefined : 84,
+              }}
+              className="z-[100000] shadow-2xl rounded-2xl overflow-hidden border border-border bg-popover"
+            >
+              <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
+            </motion.div>
+          </AnimatePresence>,
+          document.body
+        )
+      : null;
+
   return (
     <form onSubmit={submit}
       className={`w-full bg-transparent border-none overflow-hidden transition-all ${compact ? "" : ""}`}>
@@ -172,24 +198,12 @@ function Composer({
                   return next;
                 });
               }}
+              aria-label="Open emoji picker"
+              aria-expanded={showEmoji}
               className="w-8 h-8 flex items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10 transition-all active:scale-90">
               <Smile className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
-            <AnimatePresence>
-              {showEmoji && (
-                <motion.div ref={pickerRef} initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  style={{
-                    position: "fixed",
-                    left: pickerStyle ? pickerStyle.left : "50%",
-                    top: pickerStyle ? pickerStyle.top : undefined,
-                    transform: pickerStyle ? undefined : "translateX(-50%)",
-                    bottom: pickerStyle ? undefined : 84,
-                  }}
-                  className="z-50 shadow-2xl rounded-2xl overflow-hidden border border-border bg-popover">
-                  <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {emojiPicker}
           </div>
           <div className="flex items-center gap-2">
             {text.length > 0 && <CharRing current={text.length} limit={CHAR_LIMIT} />}
