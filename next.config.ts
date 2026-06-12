@@ -7,7 +7,7 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: false,
   customWorkerDir: "worker",
-  buildExcludes: [/dev-sw\.js$/],
+  buildExcludes: [/dev-sw\.js$/, /app-build-manifest\.json$/],
 });
 
 

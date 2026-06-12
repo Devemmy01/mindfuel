@@ -72,8 +72,8 @@ export function usePushNotifications() {
       }
 
       // 2. Acquire the root Service Worker registration used by next-pwa.
-      // We use the registration directly instead of waiting on `ready`, which
-      // can stall while the browser is promoting the worker during deploys.
+      // We wait for the current registration to become active instead of
+      // relying on `ready`, which can hang when the worker is mid-update.
       console.log("Push: Acquiring active Service Worker...");
       let registration: ServiceWorkerRegistration | undefined;
 
@@ -89,12 +89,37 @@ export function usePushNotifications() {
         }
 
         if (!registration.active) {
-          console.log("Push: Waiting briefly for the worker to settle...");
-          await new Promise<void>((resolve) => setTimeout(resolve, 750));
+          const worker = registration.installing || registration.waiting;
+          if (!worker) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+          } else {
+            await new Promise<void>((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                worker.removeEventListener("statechange", onStateChange);
+                reject(new Error("Service Worker failed to activate in time."));
+              }, 20000);
+
+              const onStateChange = () => {
+                if (worker.state === "activated") {
+                  clearTimeout(timeout);
+                  worker.removeEventListener("statechange", onStateChange);
+                  resolve();
+                }
+
+                if (worker.state === "redundant") {
+                  clearTimeout(timeout);
+                  worker.removeEventListener("statechange", onStateChange);
+                  reject(new Error("Service Worker was replaced before activation."));
+                }
+              };
+
+              worker.addEventListener("statechange", onStateChange);
+            });
+          }
         }
 
         const refreshedRegistration = await navigator.serviceWorker.getRegistration("/");
-        if (refreshedRegistration) {
+        if (refreshedRegistration?.active) {
           registration = refreshedRegistration;
         }
 
@@ -105,7 +130,9 @@ export function usePushNotifications() {
         throw new Error(`Worker Error: ${message}`);
       }
 
-      if (!registration) throw new Error("No Service Worker registration found");
+      if (!registration?.active) {
+        throw new Error("Service Worker is not active yet. Refresh the page and try again.");
+      }
 
       // 3. Subscribe to Push, reusing an existing subscription when present.
       console.log("Push: Subscribing to PushManager...");
