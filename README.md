@@ -446,16 +446,6 @@ MindFuel handles user-generated content, profile data, authentication, emails, a
 - User reports provide a moderation pathway.
 - Privacy, terms, and cookie pages are present in the app.
 
-## Interview Explanation
-
-Here is a concise way to explain MindFuel in an interview:
-
-> MindFuel is a reflective social journaling platform I built with Next.js, TypeScript, MongoDB, Firebase Auth, and PWA support. The product helps users answer daily prompts, share lessons, save meaningful reflections, and build a visible record of personal growth. It combines a social feed with journaling, streaks, milestones, web push notifications, email reminders, hashtags, comments, reposts, and user profiles.
-
-You can also explain the engineering side like this:
-
-> Architecturally, MindFuel uses the Next.js App Router for both UI and backend route handlers. MongoDB and Mongoose power the core data models, Firebase handles authentication, Cloudinary handles media uploads, Resend handles email, and a custom service worker handles web push notifications. I also implemented scheduled Vercel cron jobs for recurring reminders and daily content delivery.
-
 ## Technical Highlights
 
 - Built a full-stack product with Next.js App Router and TypeScript.
@@ -492,7 +482,3 @@ Potential next steps include:
 - Exportable personal journal archive.
 - More advanced collections and tagging.
 - Mobile app wrapper using the existing PWA foundation.
-
-## License
-
-This project is private unless a license is added.
