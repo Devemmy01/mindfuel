@@ -78,6 +78,36 @@ export function usePushNotifications() {
       let registration: ServiceWorkerRegistration | undefined;
 
       try {
+        const waitForActiveWorker = async (reg: ServiceWorkerRegistration, timeoutMs: number) => {
+          if (reg.active) return reg;
+
+          const worker = reg.installing || reg.waiting;
+          if (!worker) return reg;
+
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              worker.removeEventListener("statechange", onStateChange);
+              reject(new Error("Service Worker failed to activate in time."));
+            }, timeoutMs);
+
+            const onStateChange = () => {
+              if (worker.state === "activated") {
+                clearTimeout(timeout);
+                worker.removeEventListener("statechange", onStateChange);
+                resolve();
+              } else if (worker.state === "redundant") {
+                clearTimeout(timeout);
+                worker.removeEventListener("statechange", onStateChange);
+                reject(new Error("Service Worker was replaced before activation."));
+              }
+            };
+
+            worker.addEventListener("statechange", onStateChange);
+          });
+
+          return reg;
+        };
+
         registration = await navigator.serviceWorker.getRegistration("/");
 
         if (!registration) {
@@ -88,34 +118,20 @@ export function usePushNotifications() {
           });
         }
 
-        if (!registration.active) {
-          const worker = registration.installing || registration.waiting;
-          if (!worker) {
-            await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-          } else {
-            await new Promise<void>((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                worker.removeEventListener("statechange", onStateChange);
-                reject(new Error("Service Worker failed to activate in time."));
-              }, 20000);
-
-              const onStateChange = () => {
-                if (worker.state === "activated") {
-                  clearTimeout(timeout);
-                  worker.removeEventListener("statechange", onStateChange);
-                  resolve();
-                }
-
-                if (worker.state === "redundant") {
-                  clearTimeout(timeout);
-                  worker.removeEventListener("statechange", onStateChange);
-                  reject(new Error("Service Worker was replaced before activation."));
-                }
-              };
-
-              worker.addEventListener("statechange", onStateChange);
-            });
+        try {
+          registration = await waitForActiveWorker(registration, 15000);
+        } catch (firstError) {
+          console.warn("Push: First activation attempt failed, retrying with a clean registration...", firstError);
+          const existing = await navigator.serviceWorker.getRegistration("/");
+          if (existing) {
+            await existing.unregister();
           }
+
+          registration = await navigator.serviceWorker.register("/sw.js", {
+            scope: "/",
+            updateViaCache: "none",
+          });
+          registration = await waitForActiveWorker(registration, 20000);
         }
 
         const refreshedRegistration = await navigator.serviceWorker.getRegistration("/");
