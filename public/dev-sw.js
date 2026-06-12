@@ -14,21 +14,38 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(clients.claim()); // Take control of the page immediately
 });
 
+function parsePushPayload(text) {
+  try {
+    const payload = JSON.parse(text);
+    return payload && typeof payload === "object"
+      ? payload
+      : { title: "MindFuel", body: String(payload) };
+  } catch {
+    return {
+      title: "MindFuel",
+      body: text,
+    };
+  }
+}
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
   try {
-    const data = JSON.parse(event.data.text());
+    const data = parsePushPayload(event.data.text());
+    const notificationData = data.data && typeof data.data === "object" ? data.data : {};
+    const url = data.url || notificationData.url || "/";
     const options = {
       body: data.body,
       icon: data.icon || "/icon-192.png",
-      badge: "/icon-192.png",
+      badge: data.badge || "/icon-192.png",
       data: {
-        url: data.url || "/",
+        ...notificationData,
+        url,
       },
     };
 
-    event.waitUntil(self.registration.showNotification(data.title, options));
+    event.waitUntil(self.registration.showNotification(data.title || "MindFuel", options));
   } catch (err) {
     console.error("Dev-SW: Push error:", err);
   }
