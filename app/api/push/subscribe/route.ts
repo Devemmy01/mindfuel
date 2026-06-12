@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 
+export const maxDuration = 5;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();

@@ -16,6 +16,8 @@ import { PipelineStage } from "mongoose";
 import { syncPostHashtags } from "@/lib/hashtags";
 import { checkNewMilestones, getMilestoneById } from "@/lib/milestones";
 
+export const maxDuration = 10;
+
 // GET /api/posts - Fetch feed or user posts
 export async function GET(req: NextRequest) {
   try {

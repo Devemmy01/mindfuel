@@ -7,15 +7,17 @@ import { ReminderEmail } from "@/emails/ReminderEmail";
 import React from "react";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function GET(req: NextRequest) {
-  // Simple auth check using a secret header
   const authHeader = req.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
-    // return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userAgent = req.headers.get("user-agent");
+  const isAuthorized =
+    userAgent === "vercel-cron/1.0" ||
+    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`);
+
+  if (!isAuthorized) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -24,11 +26,41 @@ export async function GET(req: NextRequest) {
     // Calculate date 3 days ago
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-    // 1. Find users who haven't posted in 3+ days
+    // 1. Find users who haven't posted in 3+ days.
+    // This uses the denormalized lastReflectionDate maintained on User instead
+    // of querying Post once per user.
     const inactiveUsers = await User.find({
       "preferences.dailyEmail": { $ne: false },
       email: { $exists: true, $ne: "" },
-    }).select("_id name email createdAt");
+      $or: [
+        { lastReflectionDate: { $lte: threeDaysAgo } },
+        { lastReflectionDate: null, createdAt: { $lte: threeDaysAgo } },
+        { lastReflectionDate: { $exists: false }, createdAt: { $lte: threeDaysAgo } },
+      ],
+    }).select("_id name email createdAt lastReflectionDate");
+
+    const usersMissingReflectionDate = inactiveUsers.filter((user) => !user.lastReflectionDate);
+    const lastPostByUserId = new Map<string, Date>();
+
+    if (usersMissingReflectionDate.length > 0) {
+      const lastPosts = await Post.aggregate<{ _id: unknown; lastPostDate: Date }>([
+        {
+          $match: {
+            userId: { $in: usersMissingReflectionDate.map((user) => user._id) },
+          },
+        },
+        {
+          $group: {
+            _id: "$userId",
+            lastPostDate: { $max: "$createdAt" },
+          },
+        },
+      ]);
+
+      for (const post of lastPosts) {
+        lastPostByUserId.set(String(post._id), post.lastPostDate);
+      }
+    }
 
     const results = {
       inactiveEmails: 0,
@@ -104,43 +136,32 @@ export async function GET(req: NextRequest) {
     // 2. Process each user
     for (const user of inactiveUsers) {
       try {
-        // Get the user's most recent post
-        const lastPost = await Post.findOne({ userId: user._id })
-          .sort({ createdAt: -1 })
-          .select("createdAt");
+        const lastReflectionDate =
+          user.lastReflectionDate || lastPostByUserId.get(String(user._id));
 
-        if (!lastPost) {
-          // User has never posted
-          // Only send reminder if they signed up more than 3 days ago
-          const userCreatedAt = new Date(user.createdAt);
-          if (userCreatedAt <= threeDaysAgo) {
-            const sent = await sendReminderEmail(
-              user.email,
-              user.name || "Friend",
-              undefined,
-              true
-            );
-            if (sent) {
-              results.neverPostedEmails++;
-            }
+        if (!lastReflectionDate) {
+          const sent = await sendReminderEmail(
+            user.email,
+            user.name || "Friend",
+            undefined,
+            true
+          );
+          if (sent) {
+            results.neverPostedEmails++;
           }
         } else {
-          // User has posted before
-          // Check if their last post was more than 3 days ago
-          const lastPostDate = new Date(lastPost.createdAt);
-          if (lastPostDate <= threeDaysAgo) {
-            const daysSincePost = Math.floor(
-              (Date.now() - lastPostDate.getTime()) / (24 * 60 * 60 * 1000)
-            );
-            const sent = await sendReminderEmail(
-              user.email,
-              user.name || "Friend",
-              daysSincePost,
-              false
-            );
-            if (sent) {
-              results.inactiveEmails++;
-            }
+          const lastPostDate = new Date(lastReflectionDate);
+          const daysSincePost = Math.floor(
+            (Date.now() - lastPostDate.getTime()) / (24 * 60 * 60 * 1000)
+          );
+          const sent = await sendReminderEmail(
+            user.email,
+            user.name || "Friend",
+            daysSincePost,
+            false
+          );
+          if (sent) {
+            results.inactiveEmails++;
           }
         }
       } catch (error: unknown) {

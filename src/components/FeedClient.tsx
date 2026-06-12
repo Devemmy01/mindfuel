@@ -43,7 +43,7 @@ export default function FeedClient() {
   const reflectionsUrl = `/api/posts/feed?type=reflections${userIdParam}`;
 
   const { data: feedPosts, isLoading: feedLoading, mutate: mutateFeed } = useSWR<PostType[]>(
-    feedUrl,
+    activeTab === "feed" ? feedUrl : null,
     fetcher,
     { 
       revalidateOnFocus: false, 
@@ -53,7 +53,7 @@ export default function FeedClient() {
   );
 
   const { data: reflectionPosts, isLoading: reflectionLoading, mutate: mutateReflections } = useSWR<PostType[]>(
-    reflectionsUrl,
+    activeTab === "reflections" ? reflectionsUrl : null,
     fetcher,
     { 
       revalidateOnFocus: false, 

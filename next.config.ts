@@ -5,8 +5,9 @@ const withPWA = withPWAInit({
   // disable: process.env.NODE_ENV === "development",
   disable: false,
   register: true,
-  skipWaiting: true,
+  skipWaiting: false,
   customWorkerDir: "worker",
+  buildExcludes: [/dev-sw\.js$/],
 });
 
 
@@ -20,7 +21,15 @@ const nextConfig = {
       },
       {
         protocol: "https" as const,
-        hostname: "**",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https" as const,
+        hostname: "firebasestorage.googleapis.com",
+      },
+      {
+        protocol: "https" as const,
+        hostname: "storage.googleapis.com",
       },
     ],
   },

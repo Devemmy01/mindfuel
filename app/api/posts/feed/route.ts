@@ -19,6 +19,7 @@ interface CacheEntry {
 }
 const globalFeedCache: Record<string, CacheEntry> = {};
 const CACHE_TTL_MS = 30_000; // 30 seconds
+export const maxDuration = 5;
 
 // ─── Projection: only select fields the feed UI actually renders ──────────────
 // Excluding `viewedBy` (large string array, select:false on schema) and other

@@ -50,7 +50,7 @@ export function usePushNotifications() {
           if (result && typeof result.then === "function") {
             return result as Promise<NotificationPermission>;
           }
-        } catch (_) {
+        } catch {
           // Fallback to callback if promise throws or is not supported
         }
         return new Promise<NotificationPermission>((resolve) => {
@@ -71,106 +71,34 @@ export function usePushNotifications() {
         return;
       }
 
-      // 2. Acquire an active Service Worker registration.
-      //
-      // Strategy:
-      //  a) Check ALL existing registrations for one that already has an active worker.
-      //     next-pwa auto-registers /sw.js at scope "/" — we don't need to call
-      //     register() again, which would trigger an update-check that causes the
-      //     installing worker to become "redundant" if a SW is already running.
-      //  b) Only if nothing is active do we register fresh.
-      //  c) If we end up waiting on an installing worker that goes "redundant"
-      //     (meaning a different/newer worker superseded it), we re-query the
-      //     registration to pick up the winner instead of throwing.
+      // 2. Acquire the root Service Worker registration used by next-pwa.
+      // Avoid watching an installing worker directly: during deploys, an
+      // installing worker can become redundant while the browser promotes a
+      // newer one. navigator.serviceWorker.ready resolves to the active winner.
       console.log("Push: Acquiring active Service Worker...");
       let registration: ServiceWorkerRegistration | undefined;
 
       try {
-        const isDev =
-          process.env.NODE_ENV === "development" ||
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1" ||
-          window.location.hostname.startsWith("192.168.") ||
-          window.location.hostname.startsWith("10.") ||
-          window.location.hostname.endsWith(".local");
+        const readyWithTimeout = () =>
+          Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Service Worker failed to become ready in time.")), 15000)
+            ),
+          ]);
 
-        const swUrl = isDev ? "/dev-sw.js" : "/sw.js";
+        registration = await navigator.serviceWorker.getRegistration("/");
 
-        // (a) Find any registration that already exists for this origin.
-        // We check active || installing || waiting — if ANY of these exist
-        // there is already a registration in progress and we must NOT call
-        // register() again, which would trigger a conflicting install and
-        // cause the current worker to go "redundant".
-        const allRegistrations = await navigator.serviceWorker.getRegistrations();
-        const existingRegistration = allRegistrations.find(
-          (r) => r.active || r.installing || r.waiting
-        );
-
-        if (existingRegistration) {
-          console.log("Push: Found existing SW registration at scope", existingRegistration.scope);
-          registration = existingRegistration;
-        } else {
-          // (b) No SW at all — register fresh.
-          console.log("Push: No SW found. Registering", swUrl);
-          registration = await navigator.serviceWorker.register(swUrl);
-        }
-
-        // (c) If the registration isn't active yet, wait for it.
-        if (!registration.active) {
-          await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error("Service Worker failed to reach active state in time."));
-            }, 15000);
-
-            // Double-check: may have activated between the check above and now.
-            if (registration?.active) {
-              clearTimeout(timeout);
-              resolve();
-              return;
-            }
-
-            const worker = registration?.installing || registration?.waiting;
-
-            if (worker) {
-              const stateHandler = () => {
-                if (worker.state === "activated") {
-                  worker.removeEventListener("statechange", stateHandler);
-                  clearTimeout(timeout);
-                  resolve();
-                } else if (worker.state === "redundant") {
-                  worker.removeEventListener("statechange", stateHandler);
-                  clearTimeout(timeout);
-                  // A newer SW superseded the one we were watching.
-                  // Re-query for whoever won the race.
-                  if (registration?.active) {
-                    resolve();
-                  } else {
-                    // Give it 500 ms for clientsClaim() to propagate.
-                    setTimeout(() => {
-                      if (registration?.active) {
-                        resolve();
-                      } else {
-                        reject(new Error("Service Worker became redundant before activating."));
-                      }
-                    }, 500);
-                  }
-                }
-              };
-              worker.addEventListener("statechange", stateHandler);
-            } else {
-              // No worker in any pending state — poll until active.
-              const interval = setInterval(() => {
-                if (registration?.active) {
-                  clearInterval(interval);
-                  clearTimeout(timeout);
-                  resolve();
-                }
-              }, 200);
-            }
+        if (!registration) {
+          console.log("Push: No root SW found. Registering /sw.js");
+          await navigator.serviceWorker.register("/sw.js", {
+            scope: "/",
+            updateViaCache: "none",
           });
         }
 
-        console.log("Push: Service Worker is ACTIVE at", registration?.scope);
+        registration = await readyWithTimeout();
+        console.log("Push: Service Worker is ACTIVE at", registration.scope);
       } catch (regError: unknown) {
         console.warn("Push: Worker acquisition failed", regError);
         const message = regError instanceof Error ? regError.message : "Unknown activation error";
@@ -179,12 +107,14 @@ export function usePushNotifications() {
 
       if (!registration || !registration.active) throw new Error("No active Service Worker found");
 
-      // 3. Subscribe to Push
+      // 3. Subscribe to Push, reusing an existing subscription when present.
       console.log("Push: Subscribing to PushManager...");
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
+      const subscription =
+        (await registration.pushManager.getSubscription()) ||
+        (await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        }));
 
       console.log("Push: Subscription successful, syncing with backend...");
 

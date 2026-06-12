@@ -411,7 +411,7 @@ export default function OnboardingOverlay() {
                 <Link
                   href={`/create?prompt=${encodeURIComponent(todayPrompt.question)}&promptId=${todayPrompt.id}`}
                   onClick={handleDismiss}
-                  className="px-4 md:px-8 h-14 flex items-center justify-center gap-2 rounded-full font-black text-[14px] bg-green-600 text-white hover:bg-green-700 transition-all press-scale"
+                  className="px-4                                                                                                             md:px-8 h-14 flex items-center justify-center gap-2 rounded-full font-black text-[14px] bg-green-600 text-white hover:bg-green-700 transition-all press-scale"
                 >
                   Share My Thought
                   <ArrowRight size={16} strokeWidth={3} />
@@ -430,5 +430,3 @@ export default function OnboardingOverlay() {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
-}

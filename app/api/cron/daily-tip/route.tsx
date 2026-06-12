@@ -9,6 +9,7 @@ import webpush from "web-push";
 import React from "react";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 // Configure Web Push if keys are available
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -20,13 +21,14 @@ if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 export async function GET(req: NextRequest) {
-  // Simple auth check using a secret header
   const authHeader = req.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
-    // return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userAgent = req.headers.get("user-agent");
+  const isAuthorized =
+    userAgent === "vercel-cron/1.0" ||
+    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`);
+
+  if (!isAuthorized) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

@@ -31,56 +31,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/**
- * Register the browser for push notifications via the service worker.
- * Sends the PushSubscription to our backend so we can deliver pushes later.
- */
-async function registerPushSubscription(firebaseId: string) {
-  try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-
-    // Wait for the service worker to be ready (next-pwa registers it automatically)
-    const registration = await navigator.serviceWorker.ready;
-
-    // Check if we already have a subscription
-    let subscription = await registration.pushManager.getSubscription();
-
-    if (!subscription) {
-      // Fetch the VAPID public key from our API
-      const configRes = await fetch("/api/push/config");
-      if (!configRes.ok) return;
-      const { publicKey } = await configRes.json();
-      if (!publicKey) return;
-
-      // Convert the VAPID key to a Uint8Array
-      const urlBase64ToUint8Array = (base64String: string) => {
-        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-      };
-
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
-    }
-
-    // Send the subscription to our backend
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firebaseId, subscription }),
-    });
-  } catch (err) {
-    console.error("Push subscription registration failed:", err);
-  }
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -152,9 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               // Only fetch the profile if already synced this session
               await fetchUserProfile(firebaseUser.uid);
             }
-
-            // Register for push notifications
-            registerPushSubscription(firebaseUser.uid);
           } catch (error) {
             console.error("Failed to sync user:", error);
           }
@@ -229,4 +176,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

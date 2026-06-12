@@ -27,8 +27,8 @@ export const connectToDB = async () => {
     const opts = {
       dbName: "mindfuel",
       bufferCommands: false,
-      maxPoolSize: 10,
-      minPoolSize: 2,
+      maxPoolSize: 5,
+      minPoolSize: 0,
       serverSelectionTimeoutMS: 5000,
     };
 
