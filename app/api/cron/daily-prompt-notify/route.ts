@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
             const payload = JSON.stringify({
               title: "✨ Daily Reflection",
               body: todayPrompt.question,
-              icon: "/logo.png",
-              badge: "/logo.png",
+              icon: "/splash-logo.png",
+              badge: "/splash-logo.png",
               tag: "daily-prompt",
               requireInteraction: false,
               actions: [

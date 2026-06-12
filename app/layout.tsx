@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "MindFuel",
-    startupImage: "/logo.png",
+    startupImage: "/splash-logo.png",
   },
   formatDetection: { telephone: false },
   icons: {
@@ -116,7 +116,7 @@ function JsonLd() {
         url: siteUrl,
         logo: {
           "@type": "ImageObject",
-          url: absoluteUrl("/logo.png"),
+          url: absoluteUrl("/splash-logo.png"),
         },
         sameAs: ["https://twitter.com/mindfuelapp"],
       },

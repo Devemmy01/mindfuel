@@ -40,8 +40,8 @@ self.addEventListener("push", (event) => {
     const url = data.url || notificationData.url || "/";
     const options = {
       body: data.body,
-      icon: data.icon || "/logo.png",
-      badge: data.badge || "/logo.png",
+      icon: data.icon || "/splash-logo.png",
+      badge: data.badge || "/splash-logo.png",
       data: {
         ...notificationData,
         url,
