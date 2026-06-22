@@ -5,7 +5,7 @@ import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, RefreshCw } from "lucide-react";
+import { ArrowUp, BookOpen, RefreshCw, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PostType } from "@/types";
@@ -42,21 +42,31 @@ export default function FeedClient() {
   const feedUrl = `/api/posts/feed?type=feed${userIdParam}`;
   const reflectionsUrl = `/api/posts/feed?type=reflections${userIdParam}`;
 
-  const { data: feedPosts, isLoading: feedLoading, mutate: mutateFeed } = useSWR<PostType[]>(
+  const {
+    data: feedPosts,
+    isLoading: feedLoading,
+    isValidating: feedValidating,
+    mutate: mutateFeed,
+  } = useSWR<PostType[]>(
     activeTab === "feed" ? feedUrl : null,
     fetcher,
-    { 
-      revalidateOnFocus: false, 
+    {
+      revalidateOnFocus: false,
       dedupingInterval: 60000,
       keepPreviousData: true
     }
   );
 
-  const { data: reflectionPosts, isLoading: reflectionLoading, mutate: mutateReflections } = useSWR<PostType[]>(
+  const {
+    data: reflectionPosts,
+    isLoading: reflectionLoading,
+    isValidating: reflectionsValidating,
+    mutate: mutateReflections,
+  } = useSWR<PostType[]>(
     activeTab === "reflections" ? reflectionsUrl : null,
     fetcher,
-    { 
-      revalidateOnFocus: false, 
+    {
+      revalidateOnFocus: false,
       dedupingInterval: 60000,
       keepPreviousData: true
     }
@@ -64,8 +74,6 @@ export default function FeedClient() {
 
   const posts = activeTab === "feed" ? (feedPosts || []) : (reflectionPosts || []);
   const loading = activeTab === "feed" ? (!feedPosts && feedLoading) : (!reflectionPosts && reflectionLoading);
-  const refreshing = false;
-
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 520);
@@ -99,6 +107,19 @@ export default function FeedClient() {
       }
     },
   });
+  const isRefreshing =
+    isPullRefreshing ||
+    (activeTab === "feed" ? feedValidating : reflectionsValidating);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+
+    if (activeTab === "feed") {
+      await mutateFeed();
+    } else {
+      await mutateReflections();
+    }
+  };
 
   return (
     <div ref={containerRef} className="relative">
@@ -115,9 +136,8 @@ export default function FeedClient() {
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
-                  isPullRefreshing ? "animate-spin" : ""
-                }`}
+                className={`w-3.5 h-3.5 text-brand-green ${isPullRefreshing ? "animate-spin" : ""
+                  }`}
                 style={{
                   transform: isPullRefreshing
                     ? undefined
@@ -155,9 +175,9 @@ export default function FeedClient() {
       </AnimatePresence>
 
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 glass-strong border-b border-border/60">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-2xl">
         {/* Desktop/Mobile top bar */}
-        <div className="flex justify-between md:justify-end items-center px-4 py-2">
+        <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-2.5 md:hidden">
             <Image
               src="/logoDarkbg.png"
@@ -168,41 +188,81 @@ export default function FeedClient() {
             />
           </div>
           <button
-            onClick={() => {
-              if (activeTab === "feed") mutateFeed();
-              else mutateReflections();
-            }}
-            aria-label="Refresh feed"
-            className="w-9 h-9 flex items-center md:hidden justify-center rounded-full hover:bg-secondary/60 transition-colors press-scale"
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            aria-label={isRefreshing ? "Refreshing feed" : "Refresh feed"}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-secondary/25 text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground active:scale-95 disabled:cursor-wait disabled:opacity-70 md:hidden"
           >
             <RefreshCw
-              className={`w-4 h-4 text-muted-foreground ${refreshing ? "animate-spin" : ""}`}
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin text-brand-green" : ""}`}
+              aria-hidden="true"
             />
           </button>
         </div>
+        {/* Feed view switcher */}
+        <div className="px-3 pb-2" role="tablist" aria-label="Feed view">
+          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border/60 bg-secondary/20 p-1 shadow-inner shadow-black/5">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "reflections"}
+              onClick={() => handleTabClick("reflections")}
+              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors ${
+                activeTab === "reflections"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+              }`}
+            >
+              {activeTab === "reflections" && (
+                <motion.span
+                  layoutId="feed-active-tab"
+                  className="absolute inset-0 rounded-xl border border-brand-green/15 bg-gradient-to-b from-brand-green/10 to-brand-green/[0.035] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              )}
+              <BookOpen
+                className={`relative h-4 w-4 transition-colors ${
+                  activeTab === "reflections" ? "text-brand-green" : "text-muted-foreground"
+                }`}
+                strokeWidth={activeTab === "reflections" ? 2.5 : 2}
+              />
+              <span className="relative">Reflections</span>
+              {activeTab === "reflections" && (
+                <span className="relative h-1.5 w-1.5 rounded-full bg-brand-green shadow-[0_0_8px_rgba(0,191,99,0.75)]" />
+              )}
+            </button>
 
-        {/* Simple header title */}
-        <div className="flex border-b border-border/30">
-          <button
-            onClick={() => handleTabClick("reflections")}
-            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
-              activeTab === "reflections"
-                ? "text-brand-green border-b-2 border-brand-green"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Reflections
-          </button>
-          <button
-            onClick={() => handleTabClick("feed")}
-            className={`flex-1 py-3 text-center text-[15px] font-bold transition-colors ${
-              activeTab === "feed"
-                ? "text-brand-green border-b-2 border-brand-green"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Feed
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "feed"}
+              onClick={() => handleTabClick("feed")}
+              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors ${
+                activeTab === "feed"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+              }`}
+            >
+              {activeTab === "feed" && (
+                <motion.span
+                  layoutId="feed-active-tab"
+                  className="absolute inset-0 rounded-xl border border-brand-green/15 bg-gradient-to-b from-brand-green/10 to-brand-green/[0.035] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              )}
+              <Users
+                className={`relative h-4 w-4 transition-colors ${
+                  activeTab === "feed" ? "text-brand-green" : "text-muted-foreground"
+                }`}
+                strokeWidth={activeTab === "feed" ? 2.5 : 2}
+              />
+              <span className="relative">Feed</span>
+              {activeTab === "feed" && (
+                <span className="relative h-1.5 w-1.5 rounded-full bg-brand-green shadow-[0_0_8px_rgba(0,191,99,0.75)]" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -235,8 +295,8 @@ export default function FeedClient() {
                       key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ 
-                        duration: 0.4, 
+                      transition={{
+                        duration: 0.4,
                         ease: [0.21, 0.47, 0.32, 0.98],
                         delay: Math.min(i * 0.05, 0.3)
                       }}
@@ -253,8 +313,8 @@ export default function FeedClient() {
                     key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ 
-                      duration: 0.4, 
+                    transition={{
+                      duration: 0.4,
                       ease: [0.21, 0.47, 0.32, 0.98],
                       delay: Math.min(i * 0.05, 0.3)
                     }}

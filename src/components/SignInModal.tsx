@@ -68,11 +68,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     />
                   </div>
                   <h2 className="text-2xl font-bold tracking-tight mb-2">
-                    Welcome to MindFuel
+                    Start your reflection practice
                   </h2>
                   <p className="text-muted-foreground text-sm px-4">
-                    Join a community of intentional thinkers. Share what fuels
-                    your mind.
+                    Turn daily lessons into lasting growth—with a thoughtful
+                    community beside you.
                   </p>
                 </div>
 
@@ -81,17 +81,17 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   <div className="flex items-start gap-3">
                     <p className="text-[13px] text-foreground/80 text-center">
                       <span className="font-bold text-foreground">
-                        Personalized Feed.
+                        Thoughtful prompts.
                       </span>{" "}
-                      See what others are reflecting on.
+                      Begin without staring at a blank page.
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
                     <p className="text-[13px] text-foreground/80 text-center">
                       <span className="font-bold text-foreground">
-                        Save Thoughts.
+                        Your growth archive.
                       </span>{" "}
-                      Build your private collection of inspiration.
+                      Keep the insights you want to live by.
                     </p>
                   </div>
                 </div>
@@ -120,11 +120,15 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     />
                   </svg>
                   <span className="font-bold text-[14px]">
-                    Sign in with Google
+                    Continue free with Google
                   </span>
                 </button>
 
-                <p className="mt-6 text-[11px] text-muted-foreground">
+                <p className="mt-3 text-[11px] font-medium text-muted-foreground/80">
+                  No password to create. Start in under a minute.
+                </p>
+
+                <p className="mt-4 text-[11px] text-muted-foreground">
                   By signing in, you agree to our{" "}
                   <Link
                     href="/terms"

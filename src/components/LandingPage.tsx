@@ -1,662 +1,345 @@
 "use client";
 
-import React, { useEffect } from "react";
-import Link from "next/link";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/providers/AuthProvider";
 import { motion } from "framer-motion";
-import { ArrowRight, BookOpen, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  Bookmark,
+  Check,
+  ChevronRight,
+  Flame,
+  Heart,
+  MessageCircle,
+  PenLine,
+  Search,
+  Sparkles,
+  Users,
+} from "lucide-react";
+import { useAuth } from "@/providers/AuthProvider";
 import { landingFaqs } from "@/lib/seo";
 
-const PROMPTS = [
-  { q: "What are you grateful to have learned?", cat: "Gratitude", color: "#f97316" },
-  { q: "What's a belief you've changed your mind about?", cat: "Growth", color: "#06b6d4" },
-  { q: "What lesson took you the longest to learn?", cat: "Reflection", color: "#8b5cf6" },
-  { q: "What challenge helped you grow the most?", cat: "Resilience", color: "#10b981" },
+const ease = [0.16, 1, 0.3, 1] as const;
+
+const prompts = [
+  { label: "Perspective", text: "What changed your mind lately?", accent: "from-violet-400/25 to-violet-400/5" },
+  { label: "Gratitude", text: "What ordinary thing felt special today?", accent: "from-amber-300/25 to-amber-300/5" },
+  { label: "Growth", text: "What are you learning to let go of?", accent: "from-emerald-300/25 to-emerald-300/5" },
 ];
 
-const HOW_IT_WORKS = [
-  { icon: BookOpen,   step: "01", title: "Reflect",  desc: "Answer daily reflection prompts or share lessons you've learned from life, work, and everything in between." },
-  { icon: Users,      step: "02", title: "Connect",  desc: "Read how others are growing, learning, and navigating life. Find people who think deeply like you do." },
-  { icon: TrendingUp, step: "03", title: "Grow",     desc: "Build a permanent record of your personal growth journey. MindFuel becomes more valuable the longer you use it." },
+const features = [
+  {
+    icon: PenLine,
+    eyebrow: "Make it yours",
+    title: "A journal that talks back.",
+    copy: "Capture a lesson privately or share it with people who add thoughtful perspective—not noise.",
+  },
+  {
+    icon: Sparkles,
+    eyebrow: "Never face a blank page",
+    title: "Prompts with a pulse.",
+    copy: "Fresh questions help you notice what the rush of the day usually hides.",
+  },
+  {
+    icon: Users,
+    eyebrow: "Social, gently",
+    title: "People over performance.",
+    copy: "Find honest reflections, useful ideas, and conversations that leave you better than they found you.",
+  },
+  {
+    icon: Bookmark,
+    eyebrow: "Your growing archive",
+    title: "Keep the thoughts that keep you.",
+    copy: "Save reflections and return to the ideas that changed how you see yourself and the world.",
+  },
 ];
 
-const AUDIENCE = ["Students", "Developers", "Designers", "Founders", "Creators", "Professionals", "Lifelong learners"];
-
-// Animation variants
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] } }
+const reveal = {
+  initial: { opacity: 0, y: 26 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.7, ease },
 };
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15
-    }
-  }
-};
+function AvatarStack() {
+  return (
+    <div className="flex -space-x-2.5" aria-hidden="true">
+      {["/pp1.png", "/pp5.png", "/pp8.png", "/pp13.png"].map((src, index) => (
+        <Image
+          key={src}
+          src={src}
+          alt=""
+          width={36}
+          height={36}
+          className="h-9 w-9 rounded-full border-2 border-[#07110c] object-cover"
+          style={{ zIndex: 4 - index }}
+        />
+      ))}
+    </div>
+  );
+}
 
-const cardHover = {
-  rest: { y: 0, scale: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" },
-  hover: {
-    y: -8,
-    scale: 1.02,
-    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2)",
-    transition: { duration: 0.3, ease: "easeOut" }
-  }
-};
+function ProductPreview() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28, rotate: 1 }}
+      animate={{ opacity: 1, y: 0, rotate: 0 }}
+      transition={{ delay: 0.3, duration: 0.9, ease }}
+      className="relative mx-auto w-full max-w-[560px] lg:ml-auto"
+    >
+      <div className="absolute -inset-8 rounded-[3rem] bg-brand-green/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#07110c]/95 p-2 shadow-[0_40px_100px_rgba(0,0,0,0.55)] sm:rounded-[2.5rem] sm:p-3">
+        <div className="rounded-[1.55rem] border border-white/[0.07] bg-[#030806] sm:rounded-[2rem]">
+          <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-brand-green shadow-[0_0_12px_rgba(0,191,99,.8)]" />
+              <span className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">Today on MindFuel</span>
+            </div>
+            <Search className="h-4 w-4 text-white/35" />
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <div className="mb-3 rounded-2xl border border-brand-green/20 bg-gradient-to-br from-brand-green/15 via-brand-green/[0.05] to-transparent p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="rounded-full bg-brand-green/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-brand-green">Daily spark</span>
+                <Sparkles className="h-4 w-4 text-brand-green" />
+              </div>
+              <p className="max-w-sm text-xl font-black leading-tight text-white sm:text-2xl">
+                What is something you understand differently now?
+              </p>
+              <div className="mt-5 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-white/45">
+                  <AvatarStack />
+                  <span>32 reflections</span>
+                </div>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-green text-white shadow-[0_10px_30px_rgba(0,191,99,.3)]">
+                  <PenLine className="h-4 w-4" />
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <Image src="/pp15.png" alt="Community member" width={40} height={40} className="h-10 w-10 rounded-full object-cover ring-2 ring-brand-green/20" />
+                <div>
+                  <p className="text-sm font-bold text-white">Amara N.</p>
+                  <p className="text-[11px] text-white/35">2 hours ago · Growth</p>
+                </div>
+              </div>
+              <p className="text-[15px] leading-relaxed text-white/80 sm:text-base">
+                I used to think clarity arrived before action. Lately I&apos;m learning that clarity is often the reward for beginning.
+              </p>
+              <div className="mt-5 flex items-center gap-6 border-t border-white/[0.06] pt-4 text-white/35">
+                <span className="flex items-center gap-2 text-xs"><Heart className="h-4 w-4" /> 24</span>
+                <span className="flex items-center gap-2 text-xs"><MessageCircle className="h-4 w-4" /> 6</span>
+                <Bookmark className="ml-auto h-4 w-4" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-7 -left-3 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#0b1711]/95 p-3.5 shadow-2xl backdrop-blur-xl sm:flex lg:-left-10"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-400/15 text-orange-300"><Flame className="h-5 w-5" /></div>
+        <div><p className="text-sm font-black text-white">12 day streak</p><p className="text-[10px] text-white/40">Your ideas are compounding</p></div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function LandingPage() {
   const { user, loading, openSignInModal } = useAuth();
   const router = useRouter();
+  const [routeReady, setRouteReady] = useState(false);
+  const [isIntentionalVisit, setIsIntentionalVisit] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    setIsIntentionalVisit(
+      new URLSearchParams(window.location.search).get("view") === "landing"
+    );
+    setRouteReady(true);
+    router.prefetch("/feed");
+  }, [router]);
+
+  useEffect(() => {
+    if (routeReady && !loading && user && !isIntentionalVisit) {
       router.replace("/feed");
     }
-  }, [user, loading, router]);
+  }, [user, loading, routeReady, isIntentionalVisit, router]);
+
+  // Keep the full landing page in the server-rendered HTML so search engines,
+  // link unfurlers, and no-JS visitors receive the actual product story. Once
+  // Firebase resolves a returning session, show a brief transition to the app.
+  if (routeReady && !loading && user && !isIntentionalVisit) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center bg-[#020604] text-white"
+        role="status"
+        aria-label="Opening MindFuel"
+      >
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-brand-green/20 blur-2xl" />
+            <Image
+              src="/splash-logo.png"
+              alt=""
+              width={72}
+              height={72}
+              priority
+              className="relative h-16 w-16 animate-pulse object-contain"
+            />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">
+            Opening your space
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const primaryAction = user ? (
+    <Link href="/feed" className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#00a855] px-6 py-3.5 text-sm font-black text-white shadow-[0_14px_40px_rgba(0,191,99,.25)] transition hover:-translate-y-0.5 hover:bg-[#00a855]/90">
+      Back to my feed <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+    </Link>
+  ) : (
+    <button onClick={openSignInModal} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#00a855] px-6 py-3.5 text-sm font-black text-white shadow-[0_14px_40px_rgba(0,191,99,.25)] transition hover:-translate-y-0.5 hover:bg-[#00a855]/90">
+      Start reflecting—it&apos;s free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-[#020604] text-white selection:bg-brand-green/30">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-60 [background-image:linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_80%)]" />
 
-      {/* ── Ambient Background ── */}
-      <div className="fixed pointer-events-none inset-0 -z-10">
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            x: [0, 20, 0],
-            y: [0, -20, 0],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-brand-green/8 blur-[140px]"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.15, 1],
-            x: [0, -30, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{
-            duration: 18,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute top-[50%] -right-60 w-[500px] h-[500px] rounded-full bg-emerald-800/6 blur-[120px]"
-        />
-        <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] rounded-full bg-brand-green/5 blur-[100px]" />
-      </div>
-
-      {/* ── Public Navbar ── */}
-      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <Image src="/logoDarkbg.png" alt="MindFuel" width={130} height={40} className="h-9 w-auto object-contain" priority />
+      <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between rounded-full border border-white/[0.08] bg-[#06100b]/80 px-4 shadow-2xl shadow-black/20 backdrop-blur-2xl sm:px-5">
+          <Link href={user ? "/?view=landing" : "/"} aria-label="MindFuel landing page" className="flex items-center">
+            <Image src="/logoDarkbg.png" alt="MindFuel" width={132} height={40} priority className="h-9 w-auto object-contain" />
           </Link>
-          <div className="hidden md:flex items-center gap-7">
-            {["Features", "About"].map((item) => (
-              <a
-                key={item}
-                href={`/#${item.toLowerCase()}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="text-[14px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                {item}
-              </a>
-            ))}
+          <div className="hidden items-center gap-7 md:flex">
+            <a href="#why" className="text-sm font-semibold text-white/55 transition hover:text-white">Why MindFuel</a>
+            <a href="#features" className="text-sm font-semibold text-white/55 transition hover:text-white">Features</a>
+            <a href="#faq" className="text-sm font-semibold text-white/55 transition hover:text-white">FAQ</a>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={openSignInModal}
-              className="text-[14px] font-semibold text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={openSignInModal}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[14px] transition-all hover:-translate-y-0.5 active:scale-95"
-            >
-              Get Started
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center gap-2">
+            {!user && <button onClick={openSignInModal} className="hidden px-3 py-2 text-sm font-bold text-white/60 transition hover:text-white sm:block">Sign in</button>}
+            {user ? (
+              <Link href="/feed" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-black text-black transition hover:bg-brand-green hover:text-white hover:bg-[#00a855] sm:text-sm">Open app <ArrowRight className="h-3.5 w-3.5" /></Link>
+            ) : (
+              <button onClick={openSignInModal} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-black text-black transition hover:bg-brand-green hover:text-white hover:bg-[#00a855] sm:text-sm">Join MindFuel <ArrowRight className="h-3.5 w-3.5" /></button>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="relative max-w-6xl mx-auto px-4 sm:px-6 min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-center py-16">
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.05] mb-6 max-w-4xl"
-        >
-          A social journal for people who{" "}
-          <span className="text-brand-green relative inline-block">
-            reflect,
-            <motion.span
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ delay: 0.8, duration: 0.6, ease: "easeOut" }}
-              className="absolute bottom-0 left-0 h-[6px] bg-brand-green/30 rounded-full"
-            />
-          </span>{" "}
-          learn, and grow.
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
-        >
-          MindFuel is a reflection app and mindful social network where thoughtful people answer daily prompts,
-          document lessons, save meaningful ideas, and build a personal growth journal over time.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
-        >
-          <button
-            onClick={openSignInModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[16px] transition-all hover:-translate-y-1 active:scale-95"
-          >
-            Start Reflecting
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          <Link
-            href="/feed"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 border border-border/70 hover:border-border text-foreground rounded-full font-semibold text-[16px] transition-all hover:bg-secondary/40"
-          >
-            Explore Reflections
-          </Link>
-        </motion.div>
-
-        {/* Social proof */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[13px] text-muted-foreground"
-        >
-          {["Daily reflection prompts", "Personal growth journal", "Thoughtful community"].map((item) => (
-            <span key={item} className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-brand-green flex-shrink-0" strokeWidth={2.5} />
-              {item}
-            </span>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── Problem ── */}
-      <section id="about" className="border-y border-border/50 bg-secondary/10 min-h-[85vh] flex flex-col justify-center py-20 px-4 sm:px-6 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <motion.h2
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-3xl sm:text-4xl font-black tracking-tight mb-6"
-          >
-            Social media captures attention.<br />
-            <span className="text-brand-green">Reflection creates growth.</span>
-          </motion.h2>
-          
-          <motion.p
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-muted-foreground text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
-          >
-            Most platforms encourage endless scrolling, reactions, and validation.
-            MindFuel encourages thoughtful reflection, meaningful conversations, and personal growth through
-            searchable journal entries, daily writing prompts, and a quieter community feed.
-          </motion.p>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={staggerContainer}
-            className="grid sm:grid-cols-2 gap-5 max-w-2xl mx-auto text-left text-[14px]"
-          >
-            <motion.div
-              variants={fadeInUp}
-              className="rounded-3xl border border-border/50 bg-background/40 backdrop-blur-sm p-6 space-y-3 hover:border-border/80 transition-colors"
-            >
-              <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/50">Other platforms ask</p>
-              <p className="text-muted-foreground/70 line-through text-base">&ldquo;What&apos;s happening?&rdquo;</p>
-              <p className="text-muted-foreground/70 line-through text-base">&ldquo;What&apos;s on your mind?&rdquo;</p>
-              <p className="text-muted-foreground/70 line-through text-base">&ldquo;Look at this photo&rdquo;</p>
+      <main className="relative z-10">
+        <section className="relative mx-auto grid min-h-screen max-w-7xl items-center gap-16 px-5 pb-20 pt-32 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:px-12 lg:pt-28">
+          <div className="relative">
+            <div className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
+              The personal growth network
             </motion.div>
-            <motion.div
-              variants={fadeInUp}
-              className="rounded-3xl border border-brand-green/20 bg-brand-green/[0.03] backdrop-blur-sm p-6 space-y-3 shadow-[0_8px_32px_rgba(0,191,99,0.02)] hover:border-brand-green/40 transition-colors"
-            >
-              <p className="text-[11px] font-black uppercase tracking-wider text-brand-green/70">MindFuel asks</p>
-              <p className="text-foreground font-bold text-base">&ldquo;What are you learning?&rdquo;</p>
-              <p className="text-foreground font-bold text-base">&ldquo;What changed your mind?&rdquo;</p>
-              <p className="text-foreground font-bold text-base">&ldquo;What did today teach you?&rdquo;</p>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── SEO Context ── */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <div className="grid md:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-          >
-            <p className="text-[12px] font-black uppercase tracking-widest text-brand-green mb-4">
-              Reflection App
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
-              Turn everyday lessons into a personal growth journal.
-            </h2>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="space-y-5 text-muted-foreground text-[15px] sm:text-[16px] leading-relaxed"
-          >
-            <p>
-              MindFuel helps you write short reflections about what you are learning from life,
-              work, school, relationships, creativity, and change. It is designed for people who
-              want the benefits of journaling with the energy of a thoughtful community.
-            </p>
-            <p>
-              Use MindFuel as a daily reflection app, a mindful social network, or a public archive
-              of your best insights. Prompts help you start writing, saves help you collect ideas,
-              and your profile becomes a record of how your thinking evolves.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── How It Works ── */}
-      <section id="features" className="max-w-6xl mx-auto px-4 sm:px-6 min-h-[85vh] flex flex-col justify-center py-20">
-        <div className="text-center mb-18">
-          <motion.h2
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-3xl sm:text-4xl font-black tracking-tight mb-4"
-          >
-            How it works
-          </motion.h2>
-          <motion.p
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-muted-foreground text-lg max-w-xl mx-auto"
-          >
-            Three simple steps to start building evidence of your growth.
-          </motion.p>
-        </div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={staggerContainer}
-          className="grid md:grid-cols-3 gap-6 mt-14"
-        >
-          {HOW_IT_WORKS.map(({ icon: Icon, step, title, desc }) => (
-            <motion.div
-              key={step}
-              whileHover="hover"
-              initial="rest"
-              variants={{
-                ...fadeInUp,
-                hover: cardHover.hover
-              }}
-              className="relative rounded-3xl border border-border/50 bg-secondary/20 p-8 cursor-pointer overflow-hidden group"
-            >
-              <div className="absolute top-6 right-6 text-[12px] font-black text-muted-foreground/20 tracking-widest">{step}</div>
-              <div className="w-14 h-14 rounded-2xl bg-brand-green/10 border border-brand-green/20 flex items-center justify-center mb-6 group-hover:bg-brand-green/20 transition-colors">
-                <Icon className="w-6 h-6 text-brand-green" strokeWidth={1.75} />
-              </div>
-              <h3 className="text-xl font-black mb-3">{title}</h3>
-              <p className="text-muted-foreground text-[14px] leading-relaxed">{desc}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ── Prompt Showcase ── */}
-      <section className="border-y border-border/50 bg-secondary/5 min-h-[85vh] flex flex-col justify-center py-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <motion.h2
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={fadeInUp}
-              className="text-3xl sm:text-4xl font-black tracking-tight mb-4"
-            >
-              Never wonder what to write.
-            </motion.h2>
-            <motion.p
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={fadeInUp}
-              className="text-muted-foreground text-lg max-w-xl mx-auto"
-            >
-              Every day, MindFuel surfaces a reflection prompt designed to spark genuine insight.
+            <motion.h1 initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
+              Less scrolling.<br />
+              More <span className="bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200 bg-clip-text text-transparent">becoming.</span>
+            </motion.h1>
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.8, ease }} className="relative mt-7 max-w-xl text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
+              MindFuel is a personal growth network where people grow together through reflection—sharing lessons, finding perspective, and turning everyday insight into lasting change.
             </motion.p>
-          </div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={staggerContainer}
-            className="grid sm:grid-cols-2 gap-6"
-          >
-            {PROMPTS.map(({ q, cat, color }) => (
-              <motion.div
-                key={q}
-                variants={fadeInUp}
-                whileHover={{ y: -6, scale: 1.01, transition: { duration: 0.2 } }}
-                className="rounded-3xl border border-border/50 bg-background/60 p-7 group cursor-pointer hover:border-brand-green/25 hover:shadow-[0_12px_30px_rgba(0,191,99,0.02)] transition-all duration-300"
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">{cat}</span>
-                </div>
-                <p className="text-[20px] sm:text-[22px] font-black leading-snug text-foreground mb-5 group-hover:text-brand-green transition-colors">
-                  &ldquo;{q}&rdquo;
-                </p>
-                <button
-                  onClick={openSignInModal}
-                  className="inline-flex items-center gap-1.5 text-[14px] font-bold text-brand-green"
-                >
-                  Reflect on this <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </button>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── Growth Timeline ── */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 min-h-[85vh] flex flex-col justify-center py-20">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="space-y-6"
-          >
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-              See your growth<br /><span className="text-brand-green">over time.</span>
-            </h2>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              Every reflection contributes to your personal growth history.
-              MindFuel becomes more valuable the longer you use it.
-            </p>
-            <ul className="space-y-4">
-              {["Reflection streaks", "Activity heatmaps", "Growth milestones", "Personal archive"].map((item, idx) => (
-                <motion.li
-                  initial={{ opacity: 0, x: -15 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1, duration: 0.4 }}
-                  key={item}
-                  className="flex items-center gap-3 text-[16px] font-bold"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-brand-green flex-shrink-0" strokeWidth={2.5} />
-                  {item}
-                </motion.li>
-              ))}
-            </ul>
-          </motion.div>
-
-          {/* Visual card */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className="rounded-3xl border border-border/50 bg-secondary/10 p-8 space-y-6 relative overflow-hidden"
-          >
-            {/* Streak display */}
-            <div className="flex items-center gap-4">
-              <motion.div
-                animate={{
-                  y: [0, -6, 0],
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="w-14 h-14 rounded-2xl bg-brand-green/10 border border-brand-green/20 flex items-center justify-center text-2xl"
-              >
-                🔥
-              </motion.div>
-              <div>
-                <p className="font-black text-[22px] text-foreground">14-day streak</p>
-                <p className="text-muted-foreground text-[13px] font-bold text-brand-green">Weekly Reflection Habit</p>
-              </div>
-            </div>
-
-            {/* Mini heatmap */}
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/50 mb-3">Reflection Activity</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {Array.from({ length: 35 }).map((_, i) => {
-                  const active = [2, 3, 5, 7, 8, 9, 12, 14, 15, 16, 17, 19, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34].includes(i);
-                  return (
-                    <motion.div
-                      key={i}
-                      initial={{ scale: 0.8, opacity: 0.5 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.01, duration: 0.3 }}
-                      className="w-5 h-5 rounded-[4px]"
-                      style={{ backgroundColor: active ? "rgba(0,168,85,0.6)" : "rgba(255,255,255,0.04)" }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Milestone badges */}
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/50 mb-3">Growth Milestones</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: "✨ First Spark", delay: 0.1 },
-                  { label: "🔥 Consistent Reflector", delay: 0.2 },
-                  { label: "💡 Insight Contributor", delay: 0.3 }
-                ].map((b) => (
-                  <motion.span
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    whileInView={{ scale: 1, opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: b.delay, duration: 0.4 }}
-                    key={b.label}
-                    className="text-[12px] font-bold bg-brand-green/10 border border-brand-green/20 text-brand-green px-3.5 py-1.5 rounded-full"
-                  >
-                    {b.label}
-                  </motion.span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── Community ── */}
-      <section className="border-y border-border/50 bg-secondary/5 min-h-[75vh] flex flex-col justify-center py-16 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.h2
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-3xl sm:text-4xl font-black tracking-tight mb-4"
-          >
-            Join thoughtful people building better lives.
-          </motion.h2>
-          <motion.p
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            className="text-muted-foreground text-lg mb-10 max-w-xl mx-auto"
-          >
-            MindFuel is home to people who believe growth is intentional.
-          </motion.p>
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={staggerContainer}
-            className="flex flex-wrap justify-center gap-3 mb-10"
-          >
-            {AUDIENCE.map((a) => (
-              <motion.span
-                variants={{
-                  hidden: { opacity: 0, scale: 0.9 },
-                  visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 200, damping: 15 } }
-                }}
-                whileHover={{ scale: 1.05 }}
-                key={a}
-                className="px-5 py-2.5 rounded-full border border-border/60 bg-secondary/40 text-[14px] font-bold text-foreground/80 cursor-default hover:text-brand-green hover:border-brand-green/30 transition-colors"
-              >
-                {a}
-              </motion.span>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── FAQ ── */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeInUp}
-          className="text-center mb-10"
-        >
-          <p className="text-[12px] font-black uppercase tracking-widest text-brand-green mb-3">
-            FAQ
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-            Questions people ask about MindFuel
-          </h2>
-        </motion.div>
-
-        <div className="space-y-4">
-          {landingFaqs.map((item) => (
-            <motion.div
-              key={item.question}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              variants={fadeInUp}
-              className="border border-border/60 bg-secondary/10 rounded-2xl p-5 sm:p-6"
-            >
-              <h3 className="text-[17px] sm:text-[18px] font-black mb-2">
-                {item.question}
-              </h3>
-              <p className="text-muted-foreground text-[14px] sm:text-[15px] leading-relaxed">
-                {item.answer}
-              </p>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.8, ease }} className="relative mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {primaryAction}
+              <a href="#features" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-6 py-3.5 text-sm font-bold text-white/70 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white">See how it feels <ChevronRight className="h-4 w-4" /></a>
             </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Final CTA ── */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 min-h-[75vh] flex flex-col items-center justify-center text-center py-20 relative overflow-hidden">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeInUp}
-          className="space-y-6"
-        >
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tight leading-[1.1]">
-            What is life teaching<br />you <span className="text-brand-green">today?</span>
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-10">
-            Join a community of reflective people documenting their growth — one insight at a time.
-          </p>
-          <button
-            onClick={openSignInModal}
-            className="inline-flex items-center gap-3 px-10 py-4 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-black text-[18px] transition-all hover:-translate-y-1 active:scale-95"
-          >
-            Start Reflecting
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        </motion.div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="border-t border-border/50 bg-secondary/10 py-10 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-[12px] text-muted-foreground/40 font-medium tracking-wide">
-            MindFuel · a{" "}
-            <a href="https://lumynhq.studio" target="_blank" rel="noopener noreferrer" className="hover:text-brand-green transition-colors">
-              Lumyn
-            </a>{" "}
-            product
-          </p>
-          <div className="flex items-center gap-6">
-            {["about", "privacy", "terms", "cookies"].map((l) => {
-              const isAbout = l === "about";
-              return isAbout ? (
-                <a
-                  key={l}
-                  href="#about"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="text-[12px] font-bold text-muted-foreground/50 hover:text-brand-green transition-colors tracking-wide uppercase cursor-pointer"
-                >
-                  {l}
-                </a>
-              ) : (
-                <Link
-                  key={l}
-                  href={`/${l}`}
-                  className="text-[12px] font-bold text-muted-foreground/50 hover:text-brand-green transition-colors tracking-wide uppercase"
-                >
-                  {l}
-                </Link>
-              );
-            })}
+            {!user && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/35 sm:text-left">
+                Free to join · Continue with Google · Start in under a minute
+              </motion.p>
+            )}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
+              <AvatarStack />
+              <p className="text-xs leading-5 text-white/40"><span className="font-bold text-white/75">Built for thoughtful humans</span><br />Free to join. No pressure to perform.</p>
+            </motion.div>
           </div>
+          <ProductPreview />
+        </section>
+
+        <section id="why" className="border-y border-white/[0.06] bg-white/[0.015]">
+          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-32">
+            <motion.div {...reveal}>
+              <p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A better kind of social</p>
+              <h2 className="max-w-md text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-5xl">The internet is loud.<br /><span className="text-white/35">Your mind doesn&apos;t have to be.</span></h2>
+            </motion.div>
+            <motion.div {...reveal} className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[1.75rem] border border-white/[0.07] bg-black/20 p-6 sm:p-7">
+                <p className="mb-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/25">Most platforms reward</p>
+                <div className="space-y-4 text-lg font-bold text-white/30"><p className="line-through decoration-white/15">Hot takes</p><p className="line-through decoration-white/15">Endless reactions</p><p className="line-through decoration-white/15">Performing a perfect life</p></div>
+              </div>
+              <div className="rounded-[1.75rem] border border-brand-green/20 bg-gradient-to-br from-brand-green/10 to-transparent p-6 sm:p-7">
+                <p className="mb-6 text-[10px] font-black uppercase tracking-[0.2em] text-brand-green">MindFuel makes room for</p>
+                <div className="space-y-4 text-lg font-bold"><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Honest reflection</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Useful perspective</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Visible personal growth</p></div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section id="features" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
+          <motion.div {...reveal} className="mb-14 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Designed for depth</p><h2 className="max-w-2xl text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-6xl">Everything you need to turn moments into meaning.</h2></div>
+            <p className="max-w-sm text-sm leading-6 text-white/45 sm:text-base">A calm set of tools that gets richer with every thought you keep.</p>
+          </motion.div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {features.map(({ icon: Icon, eyebrow, title, copy }, index) => (
+              <motion.article key={title} {...reveal} transition={{ duration: 0.7, delay: index * 0.06, ease }} className="group relative min-h-[300px] overflow-hidden rounded-[2rem] border border-white/[0.07] bg-white/[0.025] p-7 transition duration-500 hover:-translate-y-1 hover:border-brand-green/20 hover:bg-brand-green/[0.035] sm:p-9">
+                <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-green/0 blur-3xl transition duration-500 group-hover:bg-brand-green/10" />
+                <div className="mb-16 flex items-center justify-between"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-green"><Icon className="h-5 w-5" /></span><span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/25">0{index + 1}</span></div>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-green">{eyebrow}</p><h3 className="mb-3 text-2xl font-black tracking-tight sm:text-3xl">{title}</h3><p className="max-w-md text-sm leading-6 text-white/45 sm:text-base">{copy}</p>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+
+        <section className="overflow-hidden border-y border-white/[0.06] bg-[#06100b] py-24 lg:py-32">
+          <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+            <motion.div {...reveal} className="mx-auto mb-14 max-w-2xl text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A prompt for every season</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">You already have something worth noticing.</h2><p className="mt-5 text-white/45">A good question simply helps you find it.</p></motion.div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {prompts.map((prompt, index) => (
+                <motion.button key={prompt.text} {...reveal} onClick={user ? () => router.push("/create") : openSignInModal} transition={{ duration: 0.7, delay: index * 0.08, ease }} className={`group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{prompt.label}</span><p className="mt-10 text-2xl font-black leading-tight">“{prompt.text}”</p><span className="mt-8 inline-flex items-center gap-2 text-xs font-black text-white/45 transition group-hover:text-white">Write your answer <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="mx-auto max-w-5xl px-5 py-24 sm:px-8 lg:py-32">
+          <motion.div {...reveal} className="mb-12 text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Good questions</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">A little more clarity.</h2></motion.div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {landingFaqs.map((item, index) => (
+              <motion.details key={item.question} {...reveal} transition={{ duration: 0.6, delay: Math.min(index * 0.04, 0.2), ease }} className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 open:border-brand-green/20 open:bg-brand-green/[0.03]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black sm:text-base">{item.question}<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-white/40 transition group-open:rotate-90 group-open:text-brand-green"><ChevronRight className="h-4 w-4" /></span></summary><p className="pt-4 text-sm leading-6 text-white/45">{item.answer}</p>
+              </motion.details>
+            ))}
+          </div>
+        </section>
+
+        <section className="px-5 pb-20 sm:px-8">
+          <motion.div {...reveal} className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-brand-green/20 bg-brand-green px-6 py-20 text-center text-white shadow-[0_40px_100px_rgba(0,191,99,.15)] sm:px-12">
+            <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_32%),radial-gradient(circle_at_80%_80%,#003d20_0,transparent_35%)]" />
+            <div className="relative"><p className="mb-5 text-xs font-black uppercase tracking-[0.22em] text-white/65">Your life is already teaching you</p><h2 className="mx-auto max-w-3xl text-4xl font-black leading-[1] tracking-[-0.05em] sm:text-6xl">Keep the lesson.<br />Share the light.</h2><p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/70 sm:text-base">One honest reflection can change your day—and be exactly what someone else needed to read.</p><div className="mt-9">{user ? <Link href="/feed" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Return to your feed <ArrowRight className="h-4 w-4" /></Link> : <button onClick={openSignInModal} className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Join MindFuel for free <ArrowRight className="h-4 w-4" /></button>}</div></div>
+          </motion.div>
+        </section>
+      </main>
+
+      <footer className="relative z-10 border-t border-white/[0.06] px-5 py-9 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 text-center sm:flex-row sm:text-left">
+          <div><Image src="/logoDarkbg.png" alt="MindFuel" width={118} height={36} className="h-8 w-auto object-contain" /><p className="mt-1 text-[11px] text-white/25">A place to become more yourself.</p></div>
+          <div className="flex flex-wrap justify-center gap-5 text-xs font-semibold text-white/35"><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/cookies" className="hover:text-white">Cookies</Link><a href="https://lumynhq.studio" target="_blank" rel="noreferrer" className="hover:text-white">Made by Lumyn</a></div>
         </div>
       </footer>
     </div>

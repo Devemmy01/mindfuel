@@ -5,13 +5,18 @@ export const siteUrl = (
 ).replace(/\/$/, "");
 
 export const siteName = "MindFuel";
-export const defaultOgImage = `${siteUrl}/og-image.png`;
+export const defaultOgImage = `${siteUrl}/og-image-v2.png`;
 
 export const siteDescription =
-  "MindFuel is a social journal and reflection app for thoughtful people who want daily prompts, personal growth tracking, and meaningful conversations without vanity metrics.";
+  "Build a daily reflection habit with MindFuel, the personal growth app for thoughtful prompts, shared lessons, meaningful conversations, and lasting change.";
 
 export const seoKeywords = [
   "MindFuel",
+  "personal growth network",
+  "personal growth community",
+  "reflection community",
+  "grow together through reflection",
+  "social reflection platform",
   "social journal",
   "reflection app",
   "daily reflection prompts",
@@ -31,22 +36,22 @@ export const landingFaqs = [
   {
     question: "What is MindFuel?",
     answer:
-      "MindFuel is a social journal where people write reflections, answer daily prompts, save meaningful thoughts, and grow through thoughtful conversations.",
+      "MindFuel is a personal growth network where people grow together through reflection. Members share lessons, answer thoughtful prompts, save meaningful ideas, and support one another's growth.",
   },
   {
     question: "Who is MindFuel for?",
     answer:
-      "MindFuel is for students, creators, founders, professionals, and lifelong learners who want a calmer place to document lessons, insights, and personal growth.",
+      "MindFuel is for anyone who wants to grow intentionally alongside others, including students, creators, founders, professionals, and lifelong learners.",
   },
   {
     question: "How is MindFuel different from regular social media?",
     answer:
-      "MindFuel is built around reflection instead of vanity metrics. It encourages depth, journaling, prompts, saves, and meaningful replies rather than attention-chasing posts.",
+      "MindFuel is built around shared growth instead of attention and performance. Reflection, thoughtful prompts, saved lessons, and meaningful replies help people learn from one another.",
   },
   {
     question: "Can I use MindFuel as a personal growth journal?",
     answer:
-      "Yes. MindFuel helps you build a searchable archive of reflections, track streaks, revisit saved ideas, and turn everyday lessons into a visible growth history.",
+      "Yes. Your reflections form a searchable personal archive, while the wider network gives you perspective, encouragement, and lessons from people growing alongside you.",
   },
 ];
 

@@ -1,5 +1,12 @@
 [
   {
+    "id": "v2.2.0",
+    "title": "A Fresh Look and a Better MindFuel Experience",
+    "details": "MindFuel has a refreshed interface designed to feel calmer, clearer, and easier to use. The landing page now tells our story more clearly, the feed has an improved view switcher, mobile refresh is back, navigation feels more polished, and joining MindFuel is faster and more welcoming. Everything is tuned to help you spend less time figuring things out and more time reflecting, connecting, and growing.",
+    "date": "2026-06-22",
+    "version": "2.2.0"
+  },
+  {
     "id": "v2.1.0",
     "title": "Onboarding, Milestones, Limits & UI Polish.",
     "details": "We now have a smooth onboarding experience, Milestones and badges are now live, older reflections can backfill missed badges, the post and edit character limit has been raised to 1000 words, the reflection history is brighter, and the app UI has been polished throughout. We also tightened up the MindFuel badge/widget experience for a smoother PWA feel.",

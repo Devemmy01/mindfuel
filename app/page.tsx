@@ -10,14 +10,16 @@ import {
 } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Social Journal & Daily Reflection App",
+  title: {
+    absolute: "MindFuel: Daily Reflection & Personal Growth App",
+  },
   description: siteDescription,
   keywords: seoKeywords,
   alternates: {
     canonical: absoluteUrl("/"),
   },
   openGraph: {
-    title: "MindFuel - Social Journal & Daily Reflection App",
+    title: "MindFuel — Grow Together Through Reflection",
     description: siteDescription,
     url: absoluteUrl("/"),
     images: [
@@ -25,13 +27,13 @@ export const metadata: Metadata = {
         url: defaultOgImage,
         width: 1200,
         height: 630,
-        alt: "MindFuel social journal and reflection app",
+        alt: "MindFuel personal growth network — grow together through reflection",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "MindFuel - Social Journal & Daily Reflection App",
+    title: "MindFuel — Grow Together Through Reflection",
     description: siteDescription,
     images: [defaultOgImage],
   },

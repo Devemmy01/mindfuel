@@ -6,11 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal, Bell } from "lucide-react";
+import { Home, Search, Plus, Bookmark, User, LogOut, MoreHorizontal, Bell, Sparkles } from "lucide-react";
 import NotificationsList, { AppNotification } from "./NotificationsList";
-
-const notifFetcher = (url: string) =>
-  fetch(url).then((r) => r.json()).catch(() => null);
 
 export default function Navbar() {
   const { user, profile, logout, openSignInModal } = useAuth();
@@ -104,7 +101,7 @@ export default function Navbar() {
   return (
     <>
       {/* ── Desktop Sidebar ─────────────────────────────── */}
-      <header className="hidden md:flex flex-col w-[72px] xl:w-[260px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-4 max-h-screen items-center xl:items-start z-[100]" role="banner">
+      <header className="hidden md:flex flex-col w-[72px] xl:w-[272px] shrink-0 sticky top-0 h-screen justify-between py-4 pr-2 pl-2 xl:pl-4 xl:pr-5 max-h-screen items-center xl:items-start z-[100]" role="banner">
         <div className="flex flex-col w-full h-full items-center xl:items-start">
 
           {/* Logo */}
@@ -254,6 +251,15 @@ export default function Navbar() {
                 </div>
               </Link>
             </div>
+
+            {user && (
+              <Link
+                href="/?view=landing"
+                className="outline-none block w-full mt-4"
+              >
+                <span className="bg-white text-black hover:bg-[#009950] hover:text-white font-bold transition-colors rounded-full flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">Our story</span>
+              </Link>
+            )}
           </nav>
 
           {/* User Profile Bottom */}
@@ -331,6 +337,14 @@ export default function Navbar() {
                     >
                       <Bookmark className="w-4 h-4" />
                       Saved
+                    </Link>
+                    <Link
+                      href="/?view=landing"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-[14px] font-medium text-foreground hover:bg-secondary/60 transition-colors w-full"
+                    >
+                      <Sparkles className="w-4 h-4 text-brand-green" />
+                      About MindFuel
                     </Link>
                     <button
                       onClick={() => { logout(); setShowUserMenu(false); }}

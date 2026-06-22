@@ -4,21 +4,21 @@ import { absoluteUrl, defaultOgImage } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Search Reflections, People, and Hashtags",
   description:
-    "Search MindFuel for thoughtful people, reflection topics, personal growth hashtags, and journal entries from the mindful social journaling community.",
+    "Search MindFuel's personal growth network for thoughtful people, reflection topics, growth hashtags, and shared lessons.",
   alternates: {
     canonical: absoluteUrl("/search"),
   },
   openGraph: {
-    title: "Search MindFuel reflections",
+    title: "Search the MindFuel Personal Growth Network",
     description:
-      "Find reflection topics, thoughtful people, growth hashtags, and journal entries on MindFuel.",
+      "Find thoughtful people, reflection topics, growth hashtags, and shared lessons on MindFuel.",
     url: absoluteUrl("/search"),
     images: [
       {
         url: defaultOgImage,
         width: 1200,
         height: 630,
-        alt: "Search MindFuel reflections and people",
+        alt: "Search people and reflections on MindFuel's personal growth network",
       },
     ],
   },

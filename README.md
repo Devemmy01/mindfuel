@@ -1,8 +1,8 @@
 # MindFuel
 
-MindFuel is a reflective social journaling platform for people who want social media to feel more intentional. Instead of optimizing for endless scrolling, MindFuel helps users answer daily prompts, share lessons, save meaningful reflections, build streaks, earn milestones, and return to a growing record of their personal development.
+MindFuel is a personal growth network where people grow together through reflection. Instead of optimizing for endless scrolling, it helps members share lessons, answer thoughtful prompts, support one another, and return to a growing record of their personal development.
 
-In simple terms: **MindFuel is a social network for thoughtful reflection, learning, and growth.**
+In simple terms: **MindFuel turns individual reflection into shared growth.**
 
 ## Why MindFuel Exists
 
