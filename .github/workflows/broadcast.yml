@@ -48,6 +48,11 @@ jobs:
           PAYLOAD=$(jq -n --arg secret "$CLEAN_SECRET" '{adminSecret: $secret}')
 
           RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            --connect-timeout 15 \
+            --max-time 90 \
+            --retry 2 \
+            --retry-delay 2 \
+            --retry-all-errors \
             -X POST -L "${CLEAN_URL}/api/admin/broadcast" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")

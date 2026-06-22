@@ -6,6 +6,9 @@
     "app/api/**/*.tsx": {
       "maxDuration": 5
     },
+    "app/api/admin/broadcast/route.tsx": {
+      "maxDuration": 60
+    },
     "app/api/cron/**/*.ts": {
       "maxDuration": 30
     },
