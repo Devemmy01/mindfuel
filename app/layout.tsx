@@ -91,6 +91,9 @@ export const metadata: Metadata = {
     canonical: siteUrl,
   },
   category: "social",
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {

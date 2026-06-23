@@ -225,6 +225,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-7 md:flex">
             <a href="#why" className="text-sm font-semibold text-white/55 transition hover:text-white">Why MindFuel</a>
             <a href="#features" className="text-sm font-semibold text-white/55 transition hover:text-white">Features</a>
+            <Link href="/guides" className="text-sm font-semibold text-white/55 transition hover:text-white">Guides</Link>
             <a href="#faq" className="text-sm font-semibold text-white/55 transition hover:text-white">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
@@ -317,6 +318,24 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
+          <motion.div {...reveal} className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Learn the practice</p><h2 className="max-w-2xl text-4xl font-black tracking-[-0.045em] sm:text-5xl">Reflection gets easier when you know where to begin.</h2></div>
+            <Link href="/guides" className="inline-flex items-center gap-2 text-sm font-black text-white/60 hover:text-white">Browse all guides <ArrowRight className="h-4 w-4" /></Link>
+          </motion.div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              ["daily-reflection-questions", "60 daily reflection questions", "Questions for self-awareness, perspective, relationships, and tomorrow."],
+              ["how-to-reflect", "How to reflect in five minutes", "A practical method that turns one moment into a lesson and a next step."],
+              ["journaling-for-personal-growth", "Journaling for personal growth", "A sustainable beginner’s guide without the pressure to produce perfect pages."],
+            ].map(([slug, title, copy]) => (
+              <motion.article key={slug} {...reveal} className="group rounded-[1.75rem] border border-white/[0.07] bg-white/[0.025] p-6 transition hover:border-brand-green/20 hover:bg-brand-green/[0.035]">
+                <h3 className="text-xl font-black">{title}</h3><p className="mt-3 text-sm leading-6 text-white/45">{copy}</p><Link href={`/guides/${slug}`} className="mt-6 inline-flex items-center gap-2 text-xs font-black text-brand-green">Read guide <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></Link>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+
         <section id="faq" className="mx-auto max-w-5xl px-5 py-24 sm:px-8 lg:py-32">
           <motion.div {...reveal} className="mb-12 text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Good questions</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">A little more clarity.</h2></motion.div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -339,7 +358,7 @@ export default function LandingPage() {
       <footer className="relative z-10 border-t border-white/[0.06] px-5 py-9 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 text-center sm:flex-row sm:text-left">
           <div><Image src="/logoDarkbg.png" alt="MindFuel" width={118} height={36} className="h-8 w-auto object-contain" /><p className="mt-1 text-[11px] text-white/25">A place to become more yourself.</p></div>
-          <div className="flex flex-wrap justify-center gap-5 text-xs font-semibold text-white/35"><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/cookies" className="hover:text-white">Cookies</Link><a href="https://lumynhq.studio" target="_blank" rel="noreferrer" className="hover:text-white">Made by Lumyn</a></div>
+          <div className="flex flex-wrap justify-center gap-5 text-xs font-semibold text-white/35"><Link href="/guides" className="hover:text-white">Guides</Link><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/cookies" className="hover:text-white">Cookies</Link><a href="https://lumynhq.studio" target="_blank" rel="noreferrer" className="hover:text-white">Made by Lumyn</a></div>
         </div>
       </footer>
     </div>

@@ -2,54 +2,77 @@ import { MetadataRoute } from "next";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import Hashtag from "@/models/hashtag";
+import User from "@/models/user";
 import { siteUrl } from "@/lib/seo";
+import { guides } from "@/lib/guides";
+
+// The sitemap includes live community content. Generate it at request time so a
+// temporary database outage during deployment cannot bake an incomplete file.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const contentUpdatedAt = new Date("2026-06-23");
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: siteUrl,
-      lastModified: now,
-      changeFrequency: "daily",
+      lastModified: contentUpdatedAt,
+      changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: `${siteUrl}/search`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.6,
+      url: `${siteUrl}/guides`,
+      lastModified: contentUpdatedAt,
+      changeFrequency: "weekly",
+      priority: 0.9,
     },
     {
       url: `${siteUrl}/privacy`,
-      lastModified: now,
+      lastModified: contentUpdatedAt,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${siteUrl}/terms`,
-      lastModified: now,
+      lastModified: contentUpdatedAt,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${siteUrl}/cookies`,
-      lastModified: now,
+      lastModified: contentUpdatedAt,
       changeFrequency: "yearly",
       priority: 0.2,
     },
   ];
 
+  staticPages.push(
+    ...guides.map((guide) => ({
+      url: `${siteUrl}/guides/${guide.slug}`,
+      lastModified: new Date(guide.updatedAt),
+      changeFrequency: "monthly" as const,
+      priority: 0.85,
+    })),
+  );
+
   try {
     await connectToDB();
     const [posts, hashtags] = await Promise.all([
-      Post.find({})
-        .select("_id createdAt updatedAt")
+      Post.find({
+        text: { $regex: /[\s\S]{80}/ },
+        $or: [
+          { scheduledAt: null },
+          { scheduledAt: { $exists: false } },
+          { scheduledAt: { $lte: now } },
+        ],
+      })
+        .select("_id userId createdAt updatedAt")
         .sort({ createdAt: -1 })
-        .limit(1000)
+        .limit(5000)
         .lean(),
-      Hashtag.find({ postCount: { $gt: 0 } })
+      Hashtag.find({ postCount: { $gte: 2 } })
         .select("tag updatedAt lastUsedAt")
         .sort({ postCount: -1, lastUsedAt: -1 })
         .limit(200)
@@ -70,7 +93,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    return [...staticPages, ...hashtagPages, ...postPages];
+    const authorIds = [...new Set(posts.map((post) => post.userId?.toString()).filter(Boolean))];
+    const authors = await User.find({ _id: { $in: authorIds } })
+      .select("firebaseId updatedAt")
+      .lean();
+    const profilePages: MetadataRoute.Sitemap = authors.map((author) => ({
+      url: `${siteUrl}/profile/${encodeURIComponent(author.firebaseId)}`,
+      lastModified: new Date(author.updatedAt || now),
+      changeFrequency: "weekly" as const,
+      priority: 0.65,
+    }));
+
+    return [...staticPages, ...hashtagPages, ...profilePages, ...postPages];
   } catch {
     return staticPages;
   }

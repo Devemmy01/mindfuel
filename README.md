@@ -339,6 +339,9 @@ Create a `.env.local` file in the project root.
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
+# Google Search Console (the content value from Google's HTML tag)
+GOOGLE_SITE_VERIFICATION=...
+
 # Database
 MONGODB_URI=mongodb+srv://...
 
@@ -408,6 +411,8 @@ Important deployment requirements:
 
 - Add all required environment variables in the Vercel project settings.
 - Configure the production app URL as `NEXT_PUBLIC_BASE_URL` and `NEXT_PUBLIC_APP_URL`.
+- Add `GOOGLE_SITE_VERIFICATION` after creating the Search Console property, then redeploy and verify the HTML tag.
+- Submit `https://mind-fuel.app/sitemap.xml` in Search Console after verification.
 - Ensure MongoDB network access allows Vercel connections.
 - Ensure Firebase Auth allows the production domain.
 - Ensure Cloudinary credentials are present for uploads.

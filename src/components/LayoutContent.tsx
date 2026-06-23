@@ -11,7 +11,8 @@ import AppLandingCard from "@/components/AppLandingCard";
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isStandalonePage = pathname === "/tip/download" || pathname === "/";
+  const isStandalonePage =
+    pathname === "/tip/download" || pathname === "/" || pathname.startsWith("/guides");
 
   if (isStandalonePage) {
     return (

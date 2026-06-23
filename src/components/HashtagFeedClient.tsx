@@ -9,7 +9,7 @@ import PostCard from "@/components/PostCard";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 
-interface HashtagFeedResponse {
+export interface HashtagFeedResponse {
   hashtag: {
     tag: string;
     displayTag: string;
@@ -23,17 +23,18 @@ interface HashtagFeedResponse {
 
 interface HashtagFeedClientProps {
   tag: string;
+  initialData?: HashtagFeedResponse;
 }
 
-export default function HashtagFeedClient({ tag }: HashtagFeedClientProps) {
+export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClientProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [currentTag, setCurrentTag] = useState(tag.toLowerCase());
-  const [posts, setPosts] = useState<PostType[]>([]);
-  const [hashtag, setHashtag] = useState<HashtagFeedResponse["hashtag"] | null>(null);
+  const [posts, setPosts] = useState<PostType[]>(initialData?.posts || []);
+  const [hashtag, setHashtag] = useState<HashtagFeedResponse["hashtag"] | null>(initialData?.hashtag || null);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? true);
+  const [loading, setLoading] = useState(!initialData);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 

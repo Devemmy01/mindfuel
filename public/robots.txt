@@ -6,5 +6,7 @@ Disallow: /create
 Disallow: /collections
 Disallow: /offline
 Disallow: /tip/download
+Disallow: /profile$
+Disallow: /search?
 
 Sitemap: https://mind-fuel.app/sitemap.xml

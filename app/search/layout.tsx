@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: absoluteUrl("/search"),
   },
+  robots: {
+    index: false,
+    follow: true,
+  },
   openGraph: {
     title: "Search the MindFuel Personal Growth Network",
     description:
