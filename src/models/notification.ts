@@ -3,8 +3,8 @@ import { Schema, model, models, Document, Types } from "mongoose";
 export interface INotification extends Document {
   recipient: Types.ObjectId;
   sender: Types.ObjectId;
-  type: "like" | "comment" | "reply";
-  postId: Types.ObjectId;
+  type: "like" | "comment" | "reply" | "repost" | "quote" | "save" | "follow";
+  postId?: Types.ObjectId;
   commentId?: Types.ObjectId;
   isRead: boolean;
   createdAt: Date;
@@ -26,8 +26,8 @@ const NotificationSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ["like", "comment", "reply", "repost", "quote", "save"],
-      required: true,
+      enum: ["like", "comment", "reply", "repost", "quote", "save", "follow"],
+      required: false,
     },
     postId: {
       type: Schema.Types.ObjectId,

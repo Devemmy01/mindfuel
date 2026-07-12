@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User, { IUser } from "@/models/user";
 import cloudinary from "@/lib/cloudinary";
+import { revalidateTag } from "next/cache";
 
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB base64 overhead
 
@@ -124,6 +125,8 @@ export async function POST(req: NextRequest) {
     if (!updatedUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    revalidateTag("public-profile");
 
     return NextResponse.json({ user: updatedUser }, { status: 200 });
   } catch (error: unknown) {

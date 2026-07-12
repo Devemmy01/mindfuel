@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { Types } from "mongoose";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
@@ -17,6 +18,7 @@ export interface PublicPost extends PostType {
 export interface PublicProfile extends ProfileUser {
   updatedAt?: string;
   postCount: number;
+  recentPosts: PostType[];
 }
 
 export interface PublicHashtagPage {
@@ -30,7 +32,7 @@ function serialize<T>(value: unknown): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export const getPublicPost = cache(async (id: string): Promise<PublicPost | null> => {
+const getPublicPostCached = unstable_cache(async (id: string): Promise<PublicPost | null> => {
   if (!Types.ObjectId.isValid(id)) return null;
 
   try {
@@ -61,15 +63,17 @@ export const getPublicPost = cache(async (id: string): Promise<PublicPost | null
     console.error("Failed to load public post", error);
     return null;
   }
-});
+}, ["public-post-v1"], { revalidate: 300, tags: ["public-post"] });
 
-export const getPublicProfile = cache(async (firebaseId: string): Promise<PublicProfile | null> => {
+export const getPublicPost = cache(getPublicPostCached);
+
+const getPublicProfileCached = unstable_cache(async (firebaseId: string): Promise<PublicProfile | null> => {
   if (!firebaseId) return null;
 
   try {
     await connectToDB();
     const user = (await User.findOne({ firebaseId })
-      .select("_id name username image firebaseId bio createdAt updatedAt earnedMilestones")
+      .select("_id name username image firebaseId bio createdAt updatedAt earnedMilestones streakDays")
       .lean()) as unknown as ({
         _id: Types.ObjectId;
         name: string;
@@ -79,26 +83,43 @@ export const getPublicProfile = cache(async (firebaseId: string): Promise<Public
         bio?: string;
         createdAt: Date;
         updatedAt?: Date;
+        streakDays?: number;
       } | null);
     if (!user) return null;
 
-    const postCount = await Post.countDocuments({
+    const visiblePostFilter = {
       userId: user._id,
       $or: [
         { scheduledAt: null },
         { scheduledAt: { $exists: false } },
         { scheduledAt: { $lte: new Date() } },
       ],
-    });
+    };
 
-    return { ...serialize<ProfileUser & { updatedAt?: string }>(user), postCount };
+    const [postCount, recentPosts] = await Promise.all([
+      Post.countDocuments(visiblePostFilter),
+      Post.find(visiblePostFilter)
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate("userId", "name username image firebaseId earnedMilestones")
+        .populate({ path: "quotedPostId", populate: { path: "userId", select: "name username image firebaseId" } })
+        .lean(),
+    ]);
+
+    return {
+      ...serialize<ProfileUser & { updatedAt?: string }>(user),
+      postCount,
+      recentPosts: serialize<PostType[]>(recentPosts),
+    };
   } catch (error) {
     console.error("Failed to load public profile", error);
     return null;
   }
-});
+}, ["public-profile-v2"], { revalidate: 300, tags: ["public-profile"] });
 
-export const getPublicHashtagPage = cache(async (tag: string): Promise<PublicHashtagPage> => {
+export const getPublicProfile = cache(getPublicProfileCached);
+
+const getPublicHashtagPageCached = unstable_cache(async (tag: string): Promise<PublicHashtagPage> => {
   const normalizedTag = normalizeHashtag(decodeURIComponent(tag));
   const emptyResult: PublicHashtagPage = {
     hashtag: { tag: normalizedTag, displayTag: `#${normalizedTag}`, postCount: 0 },
@@ -163,4 +184,6 @@ export const getPublicHashtagPage = cache(async (tag: string): Promise<PublicHas
     console.error("Failed to load public hashtag page", error);
     return emptyResult;
   }
-});
+}, ["public-hashtag-v1"], { revalidate: 300, tags: ["public-hashtag"] });
+
+export const getPublicHashtagPage = cache(getPublicHashtagPageCached);

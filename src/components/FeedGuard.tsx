@@ -8,7 +8,9 @@ import FeedClient from "@/components/FeedClient";
 /**
  * FeedGuard — wraps FeedClient and redirects unauthenticated users to the landing page.
  */
-export default function FeedGuard() {
+import type { PostType } from "@/types";
+
+export default function FeedGuard({ initialPosts = [] }: { initialPosts?: PostType[] }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -18,15 +20,10 @@ export default function FeedGuard() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col w-full min-h-screen items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-brand-green border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  // Render public/cached posts while Firebase restores the session. If the
+  // viewer is signed out the redirect happens after restoration, but no full-
+  // screen loader blocks signed-in users from seeing the feed immediately.
+  if (!loading && !user) return null;
 
-  if (!user) return null;
-
-  return <FeedClient />;
+  return <FeedClient initialReflectionPosts={initialPosts} />;
 }

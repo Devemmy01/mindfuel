@@ -60,6 +60,9 @@ export interface ProfileUser {
   bio?: string;
   createdAt: string;
   earnedMilestones?: Array<{ id: string; earnedAt: string }>;
+  streakDays?: number;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 export interface SaveType {

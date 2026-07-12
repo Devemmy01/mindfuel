@@ -19,7 +19,7 @@ const ZEN_MASTER_TOTAL = MILESTONES.length;
 
 export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps) {
   const [selected, setSelected] = useState<{ milestone: MilestoneDefinition; earnedAt?: string } | null>(null);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const earnedMap = new Map(earnedMilestones.map((m) => [m.id, m.earnedAt]));
   const earnedCount = earnedMap.size;
@@ -33,29 +33,34 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-4 px-1">
-        <button
-          type="button"
-          onClick={() => setIsOpen((value) => !value)}
-          className="flex items-center gap-2 text-left group"
-          aria-expanded={isOpen}
-          aria-controls="milestones-panel"
-        >
-          <h3 className="text-[12px] font-black text-white/40 uppercase tracking-[0.15em]">
-            Growth Milestones
-          </h3>
-          {isOpen ? (
-            <ChevronUp className="w-4 h-4 text-white/30 group-hover:text-brand-green transition-colors" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-white/30 group-hover:text-brand-green transition-colors" />
-          )}
-        </button>
-        <span className="text-[11px] font-bold text-white/30">
-          {earnedCount}/{ZEN_MASTER_TOTAL} achieved
+      <button
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        className="group flex w-full items-center gap-3 rounded-xl px-1 py-1.5 text-left"
+        aria-expanded={isOpen}
+        aria-controls="milestones-panel"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-brand-green/15 bg-brand-green/[0.08] text-base">
+          {isZenMaster ? "🧘" : "🏅"}
         </span>
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/55">Growth Milestones</span>
+            <span className="text-[10px] font-bold text-white/30">{earnedCount}/{ZEN_MASTER_TOTAL}</span>
+          </span>
+          <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/5">
+            <span
+              className="block h-full rounded-full bg-brand-green shadow-[0_0_8px_rgba(0,191,99,0.35)]"
+              style={{ width: `${(earnedCount / ZEN_MASTER_TOTAL) * 100}%` }}
+            />
+          </span>
+        </span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.025] transition-colors group-hover:border-brand-green/20 group-hover:bg-brand-green/[0.06]">
+          {isOpen ? <ChevronUp className="h-4 w-4 text-brand-green" /> : <ChevronDown className="h-4 w-4 text-white/35" />}
+        </span>
+      </button>
 
       <AnimatePresence initial={false}>
         {isOpen && (
@@ -67,13 +72,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            {/* Progress bar */}
-            <div className="h-1 w-full bg-white/5 rounded-full mb-6 overflow-hidden">
-              <motion.div
-                className={`h-full rounded-full ${isZenMaster ? "bg-gradient-to-r from-green-600 via-emerald-400 to-green-500 shadow-[0_0_14px_rgba(0,191,99,0.35)]" : "bg-green-500 shadow-[0_0_12px_rgba(0,191,99,0.25)]"} transition-[width] duration-700 ease-out`}
-                style={{ width: `${(earnedCount / ZEN_MASTER_TOTAL) * 100}%` }}
-              />
-            </div>
+            <div className="mt-5 border-t border-white/[0.05] pt-5" />
 
             {/* Zen Master Reward Card */}
             {isZenMaster && (
@@ -201,8 +200,8 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                 exit={{ opacity: 0, y: 40, scale: 0.95 }}
                 transition={{ type: "spring", damping: 28, stiffness: 350 }}
                 onClick={(e) => e.stopPropagation()}
-                className={`relative w-full max-w-sm rounded-3xl border overflow-hidden shadow-2xl
-                  ${isEarned ? `${colors.bg} ${colors.border} ${colors.glow}` : "bg-[#050e0a] border-white/10"}
+                className={`modal-solid relative w-full max-w-sm rounded-3xl border overflow-hidden
+                  ${isEarned ? colors.border : "border-white/10"}
                 `}
               >
                 {/* Close button */}

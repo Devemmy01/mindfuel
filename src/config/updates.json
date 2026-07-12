@@ -1,5 +1,12 @@
 [
   {
+    "id": "v2.3.0",
+    "title": "Real-Time Chat, Connections & a More Polished MindFuel.",
+    "details": "MindFuel now makes it easier to connect beyond the feed. Follow people whose reflections resonate with you, see follower and following relationships, and continue the conversation through real-time private messaging. Chats include typing indicators, delivery and seen states, unread counts, emoji support, resilient message history, and instant in-app or push notifications when you are away. Stay Mindful. 💚",
+    "date": "2026-07-12",
+    "version": "2.3.0"
+  },
+  {
     "id": "v2.2.0",
     "title": "A Fresh Look and a Better MindFuel Experience.",
     "details": "MindFuel has a refreshed interface designed to feel calmer, clearer, and easier to use. The landing page now tells our story more clearly, the feed has an improved view switcher, mobile refresh is back, navigation feels more polished, and joining MindFuel is faster and more welcoming. Everything is tuned to help you spend less time figuring things out and more time reflecting, connecting, and growing.",

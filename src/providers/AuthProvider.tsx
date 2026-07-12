@@ -63,6 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // This is only a routing hint, not an authentication credential. It lets
+      // middleware skip the landing page before Firebase restores on the client.
+      document.cookie = firebaseUser
+        ? `mindfuel_signed_in=1; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`
+        : "mindfuel_signed_in=; Path=/; Max-Age=0; SameSite=Lax";
       setUser(firebaseUser);
       setLoading(false);
 

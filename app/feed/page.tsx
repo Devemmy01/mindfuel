@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import FeedGuard from "@/components/FeedGuard";
 import { absoluteUrl, defaultOgImage } from "@/lib/seo";
+import { getInitialReflectionPosts } from "@/lib/initialFeed";
+import { Suspense } from "react";
+import type { PostType } from "@/types";
+
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Community Reflection Feed",
@@ -29,10 +34,25 @@ export const metadata: Metadata = {
   },
 };
 
+async function CachedFeed() {
+  let initialPosts: PostType[] = [];
+  try {
+    initialPosts = await getInitialReflectionPosts();
+  } catch (error) {
+    // Never hold the route behind a database failure. The client cache/API can
+    // still hydrate the feed after the shell is visible.
+    console.error("Unable to prepare initial feed snapshot", error);
+  }
+
+  return <FeedGuard initialPosts={initialPosts} />;
+}
+
 export default function FeedPage() {
   return (
     <div className="flex flex-col w-full min-h-screen">
-      <FeedGuard />
+      <Suspense fallback={<FeedGuard />}>
+        <CachedFeed />
+      </Suspense>
     </div>
   );
 }

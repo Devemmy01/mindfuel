@@ -48,13 +48,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "MindFuel",
-    startupImage: "/splash-logo.png",
-  },
   formatDetection: { telephone: false },
   icons: {
     apple: "/icon-192.png",
@@ -99,7 +92,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
-    { media: "(prefers-color-scheme: dark)", color: "#111827" },
+    { media: "(prefers-color-scheme: dark)", color: "#010302" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -192,6 +185,27 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
+        {process.env.NODE_ENV === "development" && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(() => {
+                if (!("serviceWorker" in navigator)) return;
+                navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+                  if (!registrations.length) return;
+                  await Promise.all(registrations.map((registration) => registration.unregister()));
+                  if ("caches" in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((key) => caches.delete(key)));
+                  }
+                  if (!sessionStorage.getItem("mindfuel_dev_sw_cleared")) {
+                    sessionStorage.setItem("mindfuel_dev_sw_cleared", "true");
+                    location.reload();
+                  }
+                });
+              })();`,
+            }}
+          />
+        )}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -199,8 +213,6 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         {/* Inter is loaded via next/font — no extra stylesheet needed */}
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
         <JsonLd />
       </head>
       <body

@@ -168,7 +168,7 @@ export default function InteractionBar({
         {showRepostMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowRepostMenu(false)} />
-            <div className="absolute bottom-full left-0 mb-2 w-40 bg-white dark:bg-[#111827] border border-border shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-bottom-left">
+            <div className="popover-solid absolute bottom-full left-0 mb-2 w-40 border border-border rounded-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-bottom-left">
               <button
                 onClick={handleRepostToggle}
                 className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-bold hover:bg-secondary/60 transition-colors"

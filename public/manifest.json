@@ -1,13 +1,13 @@
 {
-  "id": "/",
+  "id": "/feed",
   "name": "MindFuel",
   "short_name": "MindFuel",
   "description": "A personal growth network where people grow together through reflection, shared lessons, and meaningful conversations.",
-  "start_url": "/",
+  "start_url": "/feed?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#010302",
+  "theme_color": "#010302",
   "orientation": "portrait-primary",
   "categories": ["social", "lifestyle", "education"],
   "icons": [

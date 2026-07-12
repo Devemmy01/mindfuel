@@ -61,7 +61,26 @@ The post creation flow lets users publish reflections with styling options such 
 
 ### Profiles
 
-Each user has a profile that shows identity, username, bio, avatar, reflection history, and earned milestones. Profiles help turn individual posts into a visible growth journey.
+Each user has a profile that shows identity, username, bio, avatar, reflection history, earned milestones, followers, and following. People can follow, unfollow, follow back, browse connection lists, and start a private conversation from a profile.
+
+### Followers and Connections
+
+MindFuel includes a two-way connection layer built around follower and following relationships. Follow state updates optimistically across profile and notification surfaces, duplicate relationships are prevented at the database level, and new followers generate in-app alerts plus push notifications when the recipient has enabled them.
+
+### Private Messaging and Real-Time Chat
+
+Members can start one-to-one conversations from profiles or the messages screen. Chat includes:
+
+- Real-time message delivery through Socket.IO.
+- MongoDB-backed conversation history and unread counts.
+- Optimistic sends with sending and failure states.
+- Typing indicators and conversation presence rooms.
+- Delivered and seen receipts in messages and conversation previews.
+- Emoji insertion and a responsive, auto-growing composer.
+- Correct wrapping and scrolling for long messages.
+- Conversation search, cached history, and reconnect recovery.
+- Live message badges and green unread states across navigation and conversation lists.
+- In-app toasts while using MindFuel, browser alerts for hidden tabs, and web push when the recipient is offline.
 
 ### Saves and Collections
 
@@ -95,8 +114,10 @@ These features turn reflection into a visible habit without making the app feel 
 
 MindFuel supports multiple notification channels:
 
-- In-app notifications for likes, comments, replies, reposts, quotes, and saves.
+- In-app notifications for likes, comments, replies, reposts, quotes, saves, and new followers.
+- Immediate chat toasts and unread message badges.
 - Web push notifications through VAPID and service workers.
+- Offline message pushes and new-follower push notifications.
 - Email notifications through Resend.
 - Daily prompt and daily fuel reminder flows.
 
@@ -126,6 +147,8 @@ The backend includes cron and admin routes for recurring product operations:
 | Feed | Community reflection discovery and engagement |
 | Create | Reflection composer with prompts, styling, media, hashtags, polls, and quotes |
 | Profile | User identity, bio, posts, milestones, and growth history |
+| Connections | Followers, following, follow-back actions, and connection discovery |
+| Messages | Private real-time chat, unread states, typing indicators, emoji, and seen receipts |
 | Collections | Saved reflections and personal idea library |
 | Search | User and content discovery |
 | Hashtags | Topic-based reflection browsing |
@@ -144,6 +167,7 @@ The backend includes cron and admin routes for recurring product operations:
 - **Framer Motion** for interface animation.
 - **Lucide React** for icons.
 - **SWR** for client-side data fetching.
+- **Socket.IO Client** for live messaging, typing, and read-receipt events.
 
 ### Backend
 
@@ -154,6 +178,8 @@ The backend includes cron and admin routes for recurring product operations:
 - **Cloudinary** for image upload and media hosting.
 - **Resend** for transactional and broadcast email.
 - **web-push** for browser push notifications.
+- **Socket.IO** for real-time conversation delivery.
+- **Redis / ioredis** with the Socket.IO Redis adapter for multi-instance event delivery.
 
 ### PWA and Platform
 
@@ -173,12 +199,14 @@ User Browser
   |
 Next.js App Router
   |
-  |-- Pages: feed, create, profile, search, collections, hashtags
-  |-- API Routes: posts, comments, saves, users, notifications, push, cron
+  |-- Pages: feed, create, profile, messages, search, collections, hashtags
+  |-- API Routes: posts, comments, follows, chat, saves, users, notifications, push, cron
+  |-- Socket.IO: conversations, typing, message delivery, and seen receipts
   |
 Data and Services
   |
-  |-- MongoDB + Mongoose
+  |-- MongoDB + Mongoose (durable posts, follows, conversations, and messages)
+  |-- Redis adapter (cross-instance transient socket events)
   |-- Firebase Auth
   |-- Cloudinary
   |-- Resend
@@ -199,7 +227,8 @@ src/components/
 
 src/models/
   Mongoose schemas for users, posts, comments, likes, saves, reports,
-  notifications, collections, hashtags, reposts, and tips.
+  notifications, follows, conversations, messages, collections, hashtags,
+  reposts, and tips.
 
 src/lib/
   Shared product logic, integrations, notifications, milestones, prompts,
@@ -265,6 +294,14 @@ Key fields:
 
 Notifications connect user actions to recipients. They support both in-app notification records and optional push/email delivery.
 
+### Follows
+
+Follow records connect a follower to the person they follow. A compound unique index prevents duplicate relationships, while reverse lookups support follower counts, following counts, follow-back state, and connection lists.
+
+### Conversations and Messages
+
+Conversations use a stable participant key so the same two people share one thread. Messages reference their conversation and sender, keep a `readBy` list for seen receipts, and are indexed for chronological retrieval and unread aggregation.
+
 ### Comments, Likes, Saves, Reposts, Collections, Reports, Hashtags
 
 These models support the social and moderation layer around reflections: conversation, engagement, bookmarking, resharing, organization, reporting, and topic discovery.
@@ -287,6 +324,9 @@ MindFuel uses route handlers under `app/api`.
 | `/api/comments/[id]/like` | Comment likes |
 | `/api/saves` | Save and unsave reflections |
 | `/api/collections` | Saved reflection organization |
+| `/api/follows` | Follow toggles, counts, relationship state, and connection lists |
+| `/api/chat/conversations` | Conversation lookup and one-to-one thread creation |
+| `/api/chat/messages` | Message history, sending, and read-state updates |
 | `/api/notifications` | In-app notification retrieval and updates |
 | `/api/push/config` | Public VAPID key delivery |
 | `/api/push/subscribe` | Browser push subscription persistence |
@@ -457,6 +497,8 @@ MindFuel handles user-generated content, profile data, authentication, emails, a
 - Designed MongoDB/Mongoose schemas for a social content platform.
 - Implemented Firebase authentication with backend user synchronization.
 - Built reflection creation, feeds, comments, likes, saves, reposts, and quote posts.
+- Added follower/following relationships, follow-back actions, connection lists, and follower notifications.
+- Built durable one-to-one messaging with realtime delivery, typing, unread counts, and seen receipts.
 - Added hashtag discovery and trending hashtag support.
 - Implemented streaks and milestone logic to encourage long-term habit formation.
 - Added email workflows using React Email and Resend.
@@ -464,6 +506,7 @@ MindFuel handles user-generated content, profile data, authentication, emails, a
 - Built scheduled cron workflows for recurring engagement.
 - Integrated Cloudinary uploads for user media.
 - Added SEO-oriented pages and metadata support.
+- Improved responsive navigation, profile actions, landing-page routing, chat composition, and PWA UI polish.
 
 ## Product Philosophy
 
@@ -473,7 +516,7 @@ The product is built around a simple belief: when people reflect consistently, t
 
 ## Current Status
 
-MindFuel is an active full-stack application with production-oriented features, including authentication, database persistence, media uploads, notifications, PWA behavior, email delivery, cron jobs, and social engagement flows.
+MindFuel is an active full-stack application with production-oriented features, including authentication, database persistence, media uploads, follower relationships, realtime private messaging, notifications, PWA behavior, email delivery, cron jobs, and social engagement flows.
 
 ## Future Improvements
 
@@ -482,8 +525,37 @@ Potential next steps include:
 - Richer privacy controls for public, private, and followers-only reflections.
 - Better moderation tools for reports and content review.
 - Analytics dashboards for reflection streaks and growth patterns.
-- Follow system and personalized feeds.
+- Connection privacy controls and richer personalized-feed ranking.
 - AI-assisted reflection suggestions.
 - Exportable personal journal archive.
 - More advanced collections and tagging.
 - Mobile app wrapper using the existing PWA foundation.
+
+## Real-Time Chat
+
+MindFuel uses Socket.IO on the same host as the web app. Locally, `npm run dev`
+boots Next.js and Socket.IO together. On Vercel, `api/socket.ts` is deployed as
+a WebSocket-capable Vercel Function, so no second application host or
+`NEXT_PUBLIC_SOCKET_URL` is required.
+
+Because connected clients can land on different Vercel Function instances,
+add an Upstash Redis integration from the Vercel Marketplace and expose its
+connection string as `REDIS_URL`. Redis relays transient live events between
+instances; MongoDB remains the durable source of truth for conversations and
+messages. The HTTP API keeps chat history usable during socket reconnects.
+
+Chat events are authorized against conversation membership before a socket can
+join a room or publish a message. MongoDB remains authoritative for message
+history and read state; Socket.IO carries immediate delivery, typing, and seen
+events. Recipients with an active app connection receive realtime UI updates,
+hidden tabs can show browser notifications, and recipients with no live socket
+can receive web push on registered devices.
+
+## PWA Behavior
+
+The landing page includes an intentional install section and the signed-in app
+keeps an install action in the account/profile menus. Installed sessions always
+launch at `/feed`. The automatic in-app invitation waits until the third app
+visit and 45 seconds of engagement, appears at most once per browser session,
+and stays dismissed for 30 days. Dismissing it never removes the manual install
+actions.

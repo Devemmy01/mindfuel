@@ -29,11 +29,7 @@ import QuotedPostPreview from "@/components/QuotedPostPreview";
 import DownloadCardModal from "@/components/DownloadCardModal";
 import EditPostModal from "@/components/EditPostModal";
 import HashtagText from "@/components/HashtagText";
-import { MILESTONES } from "@/lib/milestones";
-
 // EmojiPicker removal from here as it is now in EditPostModal
-
-const ZEN_MASTER_TOTAL = MILESTONES.length;
 
 interface PostCardProps {
   post: PostType;
@@ -232,13 +228,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               className="block press-scale outline-none"
             >
               {(() => {
-                const isZenMaster = (post.userId.earnedMilestones?.length ?? 0) >= ZEN_MASTER_TOTAL;
                 const avatarImg = post.userId.image && !post.userId.image.startsWith("#") && !imgError ? (
                   <Image
                     src={post.userId.image}
                     alt={post.userId.name}
                     width={40}
                     height={40}
+                    unoptimized={process.env.NODE_ENV === "development"}
                     onError={() => setImgError(true)}
                     className="w-full h-full rounded-full object-cover"
                   />
@@ -251,19 +247,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   </div>
                 );
 
-                if (isZenMaster) {
-                  return (
-                    <div
-                      className="w-10 h-10 rounded-full p-[2px] zen-master-aura"
-                      title="Zen Master — all milestones earned"
-                    >
-                      <div className="w-full h-full rounded-full overflow-hidden">
-                        {avatarImg}
-                      </div>
-                    </div>
-                  );
-                }
-                return <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-brand-green/20 transition-all">{avatarImg}</div>;
+                return <div className="h-10 w-10 overflow-hidden rounded-full">{avatarImg}</div>;
               })()}
             </Link>
           </div>
@@ -397,6 +381,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   alt="Post image"
                   width={600}
                   height={400}
+                  unoptimized={process.env.NODE_ENV === "development"}
                   className="w-full object-cover max-h-[320px]"
                 />
               </div>
@@ -515,7 +500,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="modal-solid border border-border w-full max-w-md rounded-3xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">

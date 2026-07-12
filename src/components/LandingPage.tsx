@@ -57,7 +57,9 @@ const features = [
 ];
 
 const reveal = {
-  initial: { opacity: 0, y: 26 },
+  // Keep server-rendered content visible if hydration, an extension, or Fast
+  // Refresh fails. Motion should enhance the page, never gate its content.
+  initial: false as const,
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, margin: "-80px" },
   transition: { duration: 0.7, ease },
@@ -84,7 +86,7 @@ function AvatarStack() {
 function ProductPreview() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28, rotate: 1 }}
+      initial={false}
       animate={{ opacity: 1, y: 0, rotate: 0 }}
       transition={{ delay: 0.3, duration: 0.9, ease }}
       className="relative mx-auto w-full max-w-[560px] lg:ml-auto"
@@ -173,9 +175,9 @@ export default function LandingPage() {
     }
   }, [user, loading, routeReady, isIntentionalVisit, router]);
 
-  // Keep the full landing page in the server-rendered HTML so search engines,
-  // link unfurlers, and no-JS visitors receive the actual product story. Once
-  // Firebase resolves a returning session, show a brief transition to the app.
+  // Middleware redirects known signed-in visitors before this page renders.
+  // Keep the public landing content in server HTML for crawlers and new users,
+  // while showing a neutral transition once a restored session is confirmed.
   if (routeReady && !loading && user && !isIntentionalVisit) {
     return (
       <div
@@ -195,9 +197,7 @@ export default function LandingPage() {
               className="relative h-16 w-16 animate-pulse object-contain"
             />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.24em] text-white/35">
-            Opening your space
-          </span>
+          <span className="sr-only">Opening MindFuel</span>
         </div>
       </div>
     );
@@ -243,26 +243,26 @@ export default function LandingPage() {
         <section className="relative mx-auto grid min-h-screen max-w-7xl items-center gap-16 px-5 pb-20 pt-32 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:px-12 lg:pt-28">
           <div className="relative">
             <div className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
-            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
+            <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
               The personal growth network
             </motion.div>
-            <motion.h1 initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
+            <motion.h1 initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
               Less scrolling.<br />
               More <span className="bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200 bg-clip-text text-transparent">becoming.</span>
             </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.8, ease }} className="relative mt-7 max-w-xl text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
+            <motion.p initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.8, ease }} className="relative mt-7 max-w-xl text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
               MindFuel is a personal growth network where people grow together through reflection—sharing lessons, finding perspective, and turning everyday insight into lasting change.
             </motion.p>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.8, ease }} className="relative mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.8, ease }} className="relative mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               {primaryAction}
               <a href="#features" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-6 py-3.5 text-sm font-bold text-white/70 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white">See how it feels <ChevronRight className="h-4 w-4" /></a>
             </motion.div>
             {!user && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/35 sm:text-left">
+              <motion.p initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/35 sm:text-left">
                 Free to join · Continue with Google · Start in under a minute
               </motion.p>
             )}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
+            <motion.div initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
               <AvatarStack />
               <p className="text-xs leading-5 text-white/40"><span className="font-bold text-white/75">Built for thoughtful humans</span><br />Free to join. No pressure to perform.</p>
             </motion.div>

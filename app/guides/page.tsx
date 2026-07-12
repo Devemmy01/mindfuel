@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
-import { absoluteUrl, defaultOgImage } from "@/lib/seo";
+import { absoluteUrl, defaultOgImage, siteDescription, siteName } from "@/lib/seo";
 import { guides } from "@/lib/guides";
 
 export const metadata: Metadata = {
@@ -11,16 +11,59 @@ export const metadata: Metadata = {
     "Practical, thoughtful guides to daily reflection, journaling, self-awareness, and sustainable personal growth from MindFuel.",
   alternates: { canonical: absoluteUrl("/guides") },
   openGraph: {
+    type: "website",
     title: "MindFuel Guides: Reflection That Changes How You Live",
     description: "Practical guides for reflection, journaling, and personal growth.",
     url: absoluteUrl("/guides"),
+    siteName,
+    images: [{ url: defaultOgImage, width: 1200, height: 630, alt: "MindFuel personal growth and reflection guides" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Personal Growth & Daily Reflection Guides | MindFuel",
+    description: "Practical guides for reflection, journaling, self-awareness, and sustainable personal growth.",
     images: [defaultOgImage],
   },
 };
 
 export default function GuidesPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": `${absoluteUrl("/guides")}#collection`,
+        url: absoluteUrl("/guides"),
+        name: "Personal Growth & Daily Reflection Guides",
+        description: siteDescription,
+        inLanguage: "en",
+        isPartOf: { "@id": `${absoluteUrl("/")}#website` },
+        mainEntity: { "@id": `${absoluteUrl("/guides")}#list` },
+      },
+      {
+        "@type": "ItemList",
+        "@id": `${absoluteUrl("/guides")}#list`,
+        numberOfItems: guides.length,
+        itemListElement: guides.map((guide, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: guide.title,
+          url: absoluteUrl(`/guides/${guide.slug}`),
+        })),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+          { "@type": "ListItem", position: 2, name: "Guides", item: absoluteUrl("/guides") },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-[#020604] text-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <header className="border-b border-white/[0.07]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
           <Link href="/" aria-label="MindFuel home">

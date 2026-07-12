@@ -153,7 +153,14 @@ export async function GET(
         total,
         hasMore,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": firebaseId
+            ? "private, max-age=60, stale-while-revalidate=300"
+            : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+        },
+      }
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

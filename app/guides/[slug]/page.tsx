@@ -36,16 +36,33 @@ export default async function GuidePage({ params }: GuidePageProps) {
   const guide = getGuide((await params).slug);
   if (!guide) notFound();
   const related = guides.filter(({ slug }) => slug !== guide.slug);
+  const canonical = absoluteUrl(`/guides/${guide.slug}`);
+  const wordCount = [
+    guide.title,
+    guide.intro,
+    ...guide.sections.flatMap((section) => [
+      section.heading,
+      ...(section.paragraphs || []),
+      ...(section.bullets || []),
+      ...(section.prompts || []),
+    ]),
+  ].join(" ").trim().split(/\s+/).length;
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "Article",
+        "@id": `${canonical}#article`,
+        url: canonical,
         headline: guide.seoTitle,
         description: guide.description,
         datePublished: guide.updatedAt,
         dateModified: guide.updatedAt,
-        mainEntityOfPage: absoluteUrl(`/guides/${guide.slug}`),
+        mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
+        isPartOf: { "@id": `${absoluteUrl("/guides")}#collection` },
+        inLanguage: "en",
+        wordCount,
+        articleSection: guide.eyebrow,
         author: { "@type": "Organization", name: siteName, url: absoluteUrl("/") },
         publisher: { "@type": "Organization", name: siteName, logo: { "@type": "ImageObject", url: absoluteUrl("/splash-logo.png") } },
         image: defaultOgImage,
@@ -55,7 +72,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
           { "@type": "ListItem", position: 2, name: "Guides", item: absoluteUrl("/guides") },
-          { "@type": "ListItem", position: 3, name: guide.seoTitle, item: absoluteUrl(`/guides/${guide.slug}`) },
+          { "@type": "ListItem", position: 3, name: guide.seoTitle, item: canonical },
         ],
       },
     ],

@@ -260,7 +260,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute top-full left-0 mt-2 z-[9999] shadow-2xl rounded-2xl border border-border/50 bg-background min-w-[320px]"
+                      className="popover-solid absolute top-full left-0 mt-2 z-[9999] rounded-2xl border border-border/50 min-w-[320px]"
                     >
                       <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width="100%" height={350} />
                     </motion.div>

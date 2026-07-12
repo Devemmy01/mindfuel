@@ -14,7 +14,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    const userDoc = await User.findOne({ firebaseId });
+    const userDoc = await User.findOne({ firebaseId }).select(
+      "name username image firebaseId bio streakDays lastReflectionDate longestStreak earnedMilestones createdAt updatedAt"
+    );
     if (!userDoc) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -72,7 +74,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       await userDoc.save();
     }
 
-    return NextResponse.json({ user: userDoc.toObject() }, { status: 200 });
+    return NextResponse.json(
+      { user: userDoc.toObject() },
+      { status: 200, headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=86400" } }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

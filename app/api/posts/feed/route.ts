@@ -5,6 +5,7 @@ import User from "@/models/user";
 import Like, { ILike } from "@/models/like";
 import Save, { ISave } from "@/models/save";
 import Repost from "@/models/repost";
+import Follow from "@/models/follow";
 import { PostType } from "@/types";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 
@@ -18,7 +19,7 @@ interface CacheEntry {
   total: number;
 }
 const globalFeedCache: Record<string, CacheEntry> = {};
-const CACHE_TTL_MS = 30_000; // 30 seconds
+const CACHE_TTL_MS = 300_000; // five minutes; mutations refresh clients in the background
 export const maxDuration = 5;
 
 // ─── Projection: only select fields the feed UI actually renders ──────────────
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
     // We intentionally do NOT include the actual userId in the key so that all
     // authenticated users share the same ranked list — user-specific flags
     // (isLiked, isSaved, isReposted) are merged in step 2.
-    const cacheKey = `feed_${type ?? "all"}_${firebaseId ? "user" : "guest"}`;
+    const cacheKey = `feed_${type ?? "all"}`;
     const now = Date.now();
 
     let validPosts: PostType[] = [];
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
       //
       // Keeps a single DB round-trip for the ranked list.
       const aggregation = Post.aggregate([
+        { $match: matchFilter },
         // Step 1
         {
           $project: {
@@ -95,11 +97,16 @@ export async function GET(req: NextRequest) {
             repostedByUserId: { $literal: null },
           },
         },
+        // Keep the scoring candidate set bounded as the collection grows.
+        { $sort: { createdAt: -1 } },
+        { $limit: 45 },
         // Step 2
         {
           $unionWith: {
             coll: "reposts",
             pipeline: [
+              { $sort: { createdAt: -1 } },
+              { $limit: 20 },
               {
                 $project: {
                   _id: 1,
@@ -159,8 +166,9 @@ export async function GET(req: NextRequest) {
         },
         // Step 6
         { $sort: { feedScore: -1, createdAt: -1 } },
-        // Step 7 – cap at 60 (down from 100) to reduce memory + serialization
-        { $limit: 60 },
+        // Step 7 – the client currently renders one page, so avoid hydrating
+        // posts that cannot be seen in the initial session.
+        { $limit: 20 },
         // Step 8 – restore original post fields, carry repost metadata
         {
           $replaceRoot: {
@@ -280,7 +288,7 @@ export async function GET(req: NextRequest) {
       if (validPosts.length === 0 && totalCount > 0) {
         const fallbackPosts = await Post.find(matchFilter)
           .sort({ createdAt: -1 })
-          .limit(30)
+          .limit(20)
           .populate("userId", AUTHOR_PROJECTION)
           .populate({
             path: "quotedPostId",
@@ -317,7 +325,7 @@ export async function GET(req: NextRequest) {
       if (userDoc) {
         const postIds = validPosts.map((p) => p._id);
 
-        const [likedDocs, savedDocs, repostedDocs] = await Promise.all([
+        const [likedDocs, savedDocs, repostedDocs, followingRows] = await Promise.all([
           Like.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<Pick<ILike, "postId">[]>,
@@ -327,7 +335,18 @@ export async function GET(req: NextRequest) {
           Repost.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<{ postId: { toString(): string } }[]>,
+          type === "feed"
+            ? Follow.find({ follower: userDoc._id }).select("following").lean() as unknown as Promise<Array<{ following: { toString(): string } }>>
+            : Promise.resolve([]),
         ]);
+
+        if (followingRows.length > 0) {
+          const followingIds = new Set(followingRows.map((item) => item.following.toString()));
+          validPosts = validPosts
+            .map((post, index) => ({ post, index, followed: followingIds.has(String(post.userId?._id)) || post.userId?.firebaseId === firebaseId }))
+            .sort((a, b) => Number(b.followed) - Number(a.followed) || a.index - b.index)
+            .map(({ post }) => post);
+        }
 
         likedPostIds    = new Set(likedDocs.map((l) => l.postId.toString()));
         savedPostIds    = new Set(savedDocs.map((s) => s.postId.toString()));
@@ -370,9 +389,10 @@ export async function GET(req: NextRequest) {
       {
         status: 200,
         headers: {
-          // 30-second public CDN cache + stale-while-revalidate so repeated
-          // cold-start clients don't hammer the origin.
-          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=10",
+          // Authenticated responses include private like/save/repost state.
+          "Cache-Control": firebaseId
+            ? "private, max-age=60, stale-while-revalidate=300"
+            : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
         },
       }
     );

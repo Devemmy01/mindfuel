@@ -164,7 +164,7 @@ function Composer({
                 transform: pickerStyle ? undefined : "translateX(-50%)",
                 bottom: pickerStyle ? undefined : 84,
               }}
-              className="z-[100000] shadow-2xl rounded-2xl overflow-hidden border border-border bg-popover"
+              className="popover-solid z-[100000] rounded-2xl overflow-hidden border border-border"
             >
               <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
             </motion.div>
@@ -607,7 +607,7 @@ const CommentSection: React.FC<{
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="fixed bottom-[100px] md:bottom-10 left-1/2 w-full max-w-[500px] px-3 z-50 will-change-transform"
             >
-              <div className="bg-[#0f171a]/95 backdrop-blur-3xl border border-white/10 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-1.5">
+              <div className="modal-solid border border-white/10 rounded-[28px] p-1.5">
                 <div className="flex items-center gap-2 px-2">
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden flex-shrink-0">
                       {currentUserImage ? (

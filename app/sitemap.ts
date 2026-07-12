@@ -21,12 +21,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: contentUpdatedAt,
       changeFrequency: "weekly",
       priority: 1.0,
+      images: [`${siteUrl}/og-image-v2.png`],
     },
     {
       url: `${siteUrl}/guides`,
       lastModified: contentUpdatedAt,
       changeFrequency: "weekly",
       priority: 0.9,
+      images: [`${siteUrl}/og-image-v2.png`],
     },
     {
       url: `${siteUrl}/privacy`,
@@ -54,6 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(guide.updatedAt),
       changeFrequency: "monthly" as const,
       priority: 0.85,
+      images: [`${siteUrl}/og-image-v2.png`],
     })),
   );
 

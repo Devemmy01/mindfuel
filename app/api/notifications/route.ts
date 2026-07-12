@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import Notification from "@/models/notification";
 import User from "@/models/user";
+import Follow from "@/models/follow";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,13 +25,32 @@ export async function GET(req: NextRequest) {
       .populate("postId", "text backgroundStyle")
       .lean();
 
+    const followSenderIds = notifications
+      .filter((notification) => notification.type === "follow" && notification.sender)
+      .map((notification) => notification.sender._id);
+    const followedSenders = followSenderIds.length
+      ? await Follow.find({ follower: user._id, following: { $in: followSenderIds } })
+          .select("following")
+          .lean()
+      : [];
+    const followedSenderIds = new Set(
+      followedSenders.map((follow) => follow.following.toString()),
+    );
+    const notificationsWithFollowState = notifications.map((notification) => ({
+      ...notification,
+      isFollowingSender:
+        notification.type === "follow" && notification.sender
+          ? followedSenderIds.has(notification.sender._id.toString())
+          : undefined,
+    }));
+
     // Count unread notifications
     const unreadCount = await Notification.countDocuments({ 
       recipient: user._id, 
       isRead: false 
     });
 
-    return NextResponse.json({ notifications, unreadCount }, { status: 200 });
+    return NextResponse.json({ notifications: notificationsWithFollowState, unreadCount }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to fetch notifications:", errorMessage);

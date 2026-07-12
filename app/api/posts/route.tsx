@@ -15,6 +15,7 @@ import { IUser } from "@/models/user";
 import { PipelineStage } from "mongoose";
 import { syncPostHashtags } from "@/lib/hashtags";
 import { checkNewMilestones, getMilestoneById } from "@/lib/milestones";
+import { revalidateTag } from "next/cache";
 
 export const maxDuration = 10;
 
@@ -177,22 +178,29 @@ export async function GET(req: NextRequest) {
           .filter((p): p is PostType => !!p && !!p.userId);
       }
     } else {
-      // Profile feed (own posts + reposts): paginate using aggregation at DB level
-      const profileQuery = query;
+      // Profile feed: union only the requested page of posts and reposts.
+      // The previous implementation loaded every post into memory and sliced
+      // afterward, which made established profiles increasingly slow.
+      const profileItems = await Post.aggregate([
+        { $match: { userId: queryUser?._id } },
+        { $project: { postId: "$_id", isRepost: { $literal: false }, sortDate: "$createdAt" } },
+        {
+          $unionWith: {
+            coll: "reposts",
+            pipeline: [
+              { $match: { userId: queryUser?._id } },
+              { $project: { postId: 1, isRepost: { $literal: true }, sortDate: "$createdAt" } },
+            ],
+          },
+        },
+        { $sort: { sortDate: -1 } },
+        { $facet: { metadata: [{ $count: "total" }], data: [{ $skip: skip }, { $limit: limit }] } },
+      ] as PipelineStage[]);
 
-      // Fetch repost docs for this user so we can union and sort correctly
-      const repostDocs = await Repost.find({ userId: queryUser?._id })
-        .sort({ createdAt: -1 })
-        .lean() as unknown as Array<{ postId: { toString(): string }; createdAt: Date }>;
-      const repostMap = new Map(repostDocs.map((r) => [r.postId.toString(), r.createdAt]));
-      const repostedPostIds = repostDocs.map((r) => r.postId);
-
-      const combinedQuery = queryUser
-        ? { $or: [{ userId: queryUser._id }, { _id: { $in: repostedPostIds } }] }
-        : profileQuery;
-
-      const [rawPosts, rawTotal] = await Promise.all([
-        Post.find(combinedQuery)
+      const items = profileItems[0]?.data || [];
+      total = profileItems[0]?.metadata[0]?.total || 0;
+      const postIds = items.map((item: { postId: string }) => item.postId);
+      const rawPosts = await Post.find({ _id: { $in: postIds } })
           .populate("userId", "name username image firebaseId earnedMilestones")
           .populate({
             path: "quotedPostId",
@@ -204,39 +212,21 @@ export async function GET(req: NextRequest) {
               },
             ],
           })
-          .lean(),
-        Post.countDocuments(combinedQuery),
-      ]);
-
-      total = rawTotal;
-
-      // Attach repost metadata and sort, then paginate in JS
-      // (union of own posts + reposts requires in-memory sort for now)
-      let allPosts = (rawPosts as unknown as PostType[]).filter((p) => p.userId);
-      allPosts = allPosts.map((post) => {
-        const repostDate = repostMap.get(post._id.toString());
-        if (repostDate && queryUser) {
-          return {
-            ...post,
-            isRepost: true,
-            _sortDate: repostDate,
-            repostedBy: {
-              name: queryUser.name,
-              username: queryUser.username,
-              firebaseId: queryUser.firebaseId,
-            },
-          };
-        }
-        return { ...post, _sortDate: post.createdAt };
+          .lean();
+      const postMap = new Map((rawPosts as unknown as PostType[]).filter((post) => post.userId).map((post) => [post._id.toString(), post]));
+      validPosts = items.flatMap((item: { postId: { toString(): string }; isRepost: boolean }) => {
+        const post = postMap.get(item.postId.toString());
+        if (!post) return [];
+        return [{
+          ...post,
+          isRepost: item.isRepost,
+          repostedBy: item.isRepost && queryUser ? {
+            name: queryUser.name,
+            username: queryUser.username,
+            firebaseId: queryUser.firebaseId,
+          } : undefined,
+        }];
       });
-
-      allPosts.sort((a, b) => {
-        const dateA = new Date((a as PostType & { _sortDate: Date })._sortDate).getTime();
-        const dateB = new Date((b as PostType & { _sortDate: Date })._sortDate).getTime();
-        return dateB - dateA;
-      });
-
-      validPosts = allPosts.slice(skip, skip + limit);
     }
 
     const hasMore = total > skip + validPosts.length;
@@ -288,7 +278,17 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ posts: enrichedPosts, hasMore, total }, { status: 200 });
+    return NextResponse.json(
+      { posts: enrichedPosts, hasMore, total },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": currentUserId
+            ? "private, max-age=60, stale-while-revalidate=300"
+            : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+        },
+      }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
@@ -426,6 +426,11 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("Milestone check failed:", err);
     }
+
+    revalidateTag("feed");
+    revalidateTag("public-profile");
+    revalidateTag("public-post");
+    revalidateTag("public-hashtag");
 
     return NextResponse.json(
       { 

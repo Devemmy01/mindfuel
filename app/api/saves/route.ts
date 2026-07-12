@@ -25,15 +25,19 @@ export async function GET(req: NextRequest) {
     }
 
     const collectionId = req.nextUrl.searchParams.get("collectionId");
+    const postId = req.nextUrl.searchParams.get("postId");
+    const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") || 100), 1), 100);
 
     const query: Record<string, unknown> = { userId: user._id };
     if (collectionId) {
       // Handle the case where we want default saves (null collectionId)
       query.collectionId = collectionId === "null" ? null : collectionId;
     }
+    if (postId && Types.ObjectId.isValid(postId)) query.postId = postId;
 
     const saves = await Save.find(query)
       .sort({ createdAt: -1 })
+      .limit(limit)
       .populate({
         path: "postId",
         populate: [
@@ -100,7 +104,10 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ saves: enrichedSaves }, { status: 200 });
+    return NextResponse.json(
+      { saves: enrichedSaves },
+      { status: 200, headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

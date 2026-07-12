@@ -9,37 +9,101 @@ import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
 import MilestonesGrid from "@/components/MilestonesGrid";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import InstallAppButton from "@/components/InstallAppButton";
+import { getUserHandle } from "@/lib/userHandle";
+import useSWR from "swr";
 
 const profileTabs = ["Posts", "Liked", "Saved"] as const;
 type ProfileTab = (typeof profileTabs)[number];
+type FollowListType = "followers" | "following";
+type FollowListUser = Pick<ProfileUser, "_id" | "firebaseId" | "name" | "username" | "image" | "bio">;
+type FollowState = {
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  followsViewer: boolean;
+};
+
+const emptyFollowState: FollowState = {
+  followersCount: 0,
+  followingCount: 0,
+  isFollowing: false,
+  followsViewer: false,
+};
+
+const followStateFetcher = async (url: string): Promise<FollowState> => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Could not load follow status");
+  const data = await response.json();
+  return {
+    followersCount: data.followersCount || 0,
+    followingCount: data.followingCount || 0,
+    isFollowing: Boolean(data.isFollowing),
+    followsViewer: Boolean(data.followsViewer),
+  };
+};
+
+function FollowListRow({ user, onNavigate }: { user: FollowListUser; onNavigate: () => void }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <Link
+      href={`/profile/${user.firebaseId}`}
+      onClick={onNavigate}
+      className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-secondary/40"
+    >
+      {user.image && !user.image.startsWith("#") && !imageFailed ? (
+        <Image
+          src={user.image}
+          alt={user.name}
+          width={44}
+          height={44}
+          onError={() => setImageFailed(true)}
+          className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-border"
+        />
+      ) : (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-brand-green ring-1 ring-brand-green/20">
+          {user.name?.[0]?.toUpperCase() || "U"}
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <strong className="block truncate text-[14px]">{user.name}</strong>
+        <span className="block truncate text-[12px] text-muted-foreground">@{getUserHandle(user)}</span>
+        {user.bio && <span className="mt-1 block truncate text-[12px] text-foreground/70">{user.bio}</span>}
+      </span>
+    </Link>
+  );
+}
 
 export default function DynamicProfilePage({
   initialProfile,
   initialPostCount,
+  initialPosts = [],
 }: {
   initialProfile: ProfileUser;
   initialPostCount: number;
+  initialPosts?: PostType[];
 }) {
   const { id: profileId } = useParams() as { id: string };
-  const { user: currentUser, loading: authLoading, profile, logout, openSignInModal } = useAuth();
+  const { user: currentUser, loading: authLoading, logout, openSignInModal } = useAuth();
   const { showToast } = useToast();
   const { subscribeUser, isSubscribing } = usePushNotifications();
   const router = useRouter();
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(initialProfile);
-  const [posts, setPosts] = useState<PostType[]>([]);
-  const [allUserPosts, setAllUserPosts] = useState<PostType[]>([]);
+  const [posts, setPosts] = useState<PostType[]>(initialPosts);
+  const [allUserPosts, setAllUserPosts] = useState<PostType[]>(initialPosts.filter((post) => !post.isRepost));
   const [ownPostCount, setOwnPostCount] = useState(initialPostCount);
-  const [ownLikesCount, setOwnLikesCount] = useState(0);
-  const [streakDays, setStreakDays] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [ownLikesCount, setOwnLikesCount] = useState(initialPosts.reduce((total, post) => total + (post.likesCount || 0), 0));
+  const [streakDays, setStreakDays] = useState(initialProfile.streakDays || 0);
+  const [loading, setLoading] = useState(initialPosts.length === 0);
   const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
@@ -52,138 +116,174 @@ export default function DynamicProfilePage({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isProfilePicOpen, setIsProfilePicOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followListType, setFollowListType] = useState<FollowListType | null>(null);
+  const [followListUsers, setFollowListUsers] = useState<FollowListUser[]>([]);
+  const [followListLoading, setFollowListLoading] = useState(false);
+  const [followListError, setFollowListError] = useState(false);
+  const [followListReload, setFollowListReload] = useState(0);
 
   const isOwnProfile = currentUser?.uid === profileId;
+  const followStateKey = profileId
+    ? `/api/follows?profileId=${profileId}${currentUser?.uid ? `&viewerId=${currentUser.uid}` : ""}`
+    : null;
+  const { data: followState = emptyFollowState, mutate: mutateFollowState } = useSWR<FollowState>(
+    followStateKey,
+    followStateFetcher,
+    {
+      dedupingInterval: 60_000,
+      keepPreviousData: true,
+      revalidateOnFocus: true,
+    },
+  );
+
+  const toggleFollow = async () => {
+    if (!currentUser) { openSignInModal(); return; }
+    if (followLoading || isOwnProfile) return;
+    setFollowLoading(true);
+    const previous = followState;
+    const optimistic = {
+      ...followState,
+      isFollowing: !followState.isFollowing,
+      followersCount: Math.max(0, followState.followersCount + (followState.isFollowing ? -1 : 1)),
+    };
+    mutateFollowState(optimistic, false);
+    try {
+      const response = await fetch("/api/follows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ followerId: currentUser.uid, followingId: profileId }) });
+      if (!response.ok) throw new Error("Follow failed");
+      const data = await response.json();
+      mutateFollowState({ ...optimistic, isFollowing: Boolean(data.isFollowing) }, false);
+    } catch {
+      mutateFollowState(previous, false);
+      showToast("Could not update follow", "error");
+    } finally { setFollowLoading(false); }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    if (!followListType || !profileId) return;
+    const controller = new AbortController();
+    setFollowListLoading(true);
+    setFollowListError(false);
+    setFollowListUsers([]);
+
+    fetch(`/api/follows?profileId=${profileId}&list=${followListType}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load follow list");
+        return response.json();
+      })
+      .then((data) => setFollowListUsers(data.users || []))
+      .catch((error) => {
+        if (error instanceof Error && error.name !== "AbortError") setFollowListError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFollowListLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [followListType, profileId, followListReload]);
+
+  // Refresh profile metadata once per profile. Tab changes should never repeat
+  // this request or the expensive history request.
+  useEffect(() => {
+    if (!profileId) return;
+    const fetchProfile = async () => {
       try {
-        // Always fetch fresh profile data
-        if (profileId) {
-          const userRes = await fetch(`/api/users/${profileId}`);
-          
-          if (!userRes.ok) {
-            // If it's the current user but not in DB yet, we can try to use currentUser info
-            if (isOwnProfile && currentUser) {
-              const fallbackUser: ProfileUser = {
-                _id: "fallback",
-                firebaseId: currentUser.uid,
-                name: profile?.name || currentUser.displayName || "Unknown",
-                image: profile?.image || currentUser.photoURL || "",
-                createdAt: new Date().toISOString(),
-                bio: "",
-              };
-              setProfileUser(fallbackUser);
-              setEditName(fallbackUser.name);
-              setEditUsername(fallbackUser.username || fallbackUser.name.replace(/\s+/g, "").toLowerCase());
-              setEditBio("");
-              setEditImage(fallbackUser.image || "");
-            } else {
-              throw new Error("User not found");
-            }
-          } else {
-            const userData = await userRes.json();
-            setProfileUser(userData.user);
-            setStreakDays(userData.user.streakDays || 0);
-            setEditName(userData.user.name || "");
-            setEditUsername(userData.user.username || userData.user.name.replace(/\s+/g, "").toLowerCase());
-            setEditBio(userData.user.bio || "");
-            setEditImage(userData.user.image || "");
-
-            const statsRes = await fetch(`/api/posts?userId=${profileId}&limit=1000`);
-            const statsData = await statsRes.json();
-            const userPosts = statsData.posts || [];
-            
-            // Filter to only original posts (not reposts) for streak and reflection history
-            const originalPosts = userPosts.filter((p: PostType) => !p.isRepost);
-            setAllUserPosts(originalPosts);
-
-            // Count all thoughts: original posts, reposts, and quotes
-            setOwnPostCount(userPosts.length);
-
-            // Likes only from own posts + quote reposts (not plain reposts)
-            const ownAndQuotePosts = userPosts.filter((p: PostType) => !p.isRepost);
-            setOwnLikesCount(
-              ownAndQuotePosts.reduce(
-                (acc: number, p: { likesCount: number }) => acc + (p.likesCount || 0),
-                0
-              )
-            );
-          }
+        const response = await fetch(`/api/users/${profileId}`);
+        if (response.ok) {
+          const { user } = await response.json();
+          setProfileUser(user);
+          setStreakDays(user.streakDays || 0);
+          setEditName(user.name || "");
+          setEditUsername(user.username || user.name.replace(/\s+/g, "").toLowerCase());
+          setEditBio(user.bio || "");
+          setEditImage(user.image || "");
+          return;
         }
-
-        // Fetch Content based on activeTab
-        setPosts([]); // Clear immediately for better UX
-        let postsData: PostType[] = [];
-        const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
-        
-        if (activeTab === "Saved") {
-          const res = await fetch(`/api/saves?userId=${profileId}&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          // Transform saves to posts
-          postsData = (data.saves || [])
-            .map((s: { postId: PostType }) => s.postId)
-            .filter(Boolean);
-        } else if (activeTab === "Liked") {
-          const res = await fetch(`/api/posts?userId=${profileId}&type=liked&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          postsData = data.posts || [];
-        } else {
-          const res = await fetch(`/api/posts?userId=${profileId}&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          postsData = data.posts || [];
+        if (currentUser?.uid === profileId) {
+          const fallbackUser: ProfileUser = {
+            _id: "fallback",
+            firebaseId: currentUser.uid,
+            name: initialProfile.name || "Unknown",
+            image: initialProfile.image || "",
+            createdAt: new Date().toISOString(),
+            bio: "",
+          };
+          setProfileUser(fallbackUser);
         }
-        setPosts(postsData);
-      } catch (err) {
-        console.error("Fetch profile failed", err);
+      } catch (error) {
+        console.error("Profile refresh failed", error);
+      }
+    };
+    fetchProfile();
+  }, [profileId, currentUser?.uid, initialProfile.name, initialProfile.image]);
+
+  // One request per tab. The default Posts response also supplies calendar and
+  // aggregate display data, eliminating the previous duplicate posts request.
+  useEffect(() => {
+    if (!profileId) return;
+    const fetchTab = async () => {
+      const canKeepVisiblePosts = activeTab === "Posts" && initialPosts.length > 0;
+      setLoading(!canKeepVisiblePosts);
+      if (!canKeepVisiblePosts) setPosts([]);
+      try {
+        const viewer = currentUser?.uid ? `&currentUserId=${currentUser.uid}` : "";
+        const endpoint = activeTab === "Saved"
+          ? `/api/saves?userId=${profileId}&limit=30${viewer}`
+          : activeTab === "Liked"
+          ? `/api/posts?userId=${profileId}&type=liked&limit=30${viewer}`
+          : `/api/posts?userId=${profileId}&limit=30${viewer}`;
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        const tabPosts: PostType[] = activeTab === "Saved"
+          ? (data.saves || []).map((save: { postId: PostType }) => save.postId).filter(Boolean)
+          : data.posts || [];
+        setPosts(tabPosts);
+
+        if (activeTab === "Posts") {
+          const originalPosts = tabPosts.filter((post) => !post.isRepost);
+          setAllUserPosts(originalPosts);
+          setOwnPostCount(data.total ?? tabPosts.length);
+          setOwnLikesCount(originalPosts.reduce((total, post) => total + (post.likesCount || 0), 0));
+        }
+      } catch (error) {
+        console.error("Profile tab fetch failed", error);
       } finally {
         setLoading(false);
       }
     };
-
-    if (profileId) fetchData();
-  }, [profileId, activeTab, currentUser, isOwnProfile, profile?.image, profile?.name]);
+    fetchTab();
+  }, [profileId, activeTab, currentUser?.uid, initialPosts.length]);
 
   const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
     onRefresh: async () => {
       setLoading(true);
       setPosts([]);
-      const currentUserQuery = currentUser ? `&currentUserId=${currentUser.uid}` : "";
       try {
-        // Refresh user profile data (including streak)
-        if (profileId) {
-          const userRes = await fetch(`/api/users/${profileId}`);
-          if (userRes.ok) {
-            const userData = await userRes.json();
-            setProfileUser(userData.user);
-            setStreakDays(userData.user.streakDays || 0);
-          }
-
-          // Refresh all user posts for reflection calendar (only original posts, not reposts)
-          const statsRes = await fetch(`/api/posts?userId=${profileId}&limit=1000`);
-          const statsData = await statsRes.json();
-          const userPosts = statsData.posts || [];
-          const originalPosts = userPosts.filter((p: PostType) => !p.isRepost);
-          setAllUserPosts(originalPosts);
+        const viewer = currentUser?.uid ? `&currentUserId=${currentUser.uid}` : "";
+        const tabEndpoint = activeTab === "Saved"
+          ? `/api/saves?userId=${profileId}&limit=100${viewer}`
+          : activeTab === "Liked"
+          ? `/api/posts?userId=${profileId}&type=liked&limit=100${viewer}`
+          : `/api/posts?userId=${profileId}&limit=100${viewer}`;
+        const [profileResponse, tabResponse] = await Promise.all([
+          fetch(`/api/users/${profileId}`),
+          fetch(tabEndpoint),
+        ]);
+        const [profileData, tabData] = await Promise.all([profileResponse.json(), tabResponse.json()]);
+        if (profileResponse.ok && profileData.user) {
+          setProfileUser(profileData.user);
+          setStreakDays(profileData.user.streakDays || 0);
         }
-
-        // Refresh posts in current tab
-        let postsData: PostType[] = [];
-        if (activeTab === "Saved") {
-          const res = await fetch(`/api/saves?userId=${profileId}&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          postsData = (data.saves || []).map((s: { postId: PostType }) => s.postId).filter(Boolean);
-        } else if (activeTab === "Liked") {
-          const res = await fetch(`/api/posts?userId=${profileId}&type=liked&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          postsData = data.posts || [];
-        } else {
-          const res = await fetch(`/api/posts?userId=${profileId}&limit=1000${currentUserQuery}`);
-          const data = await res.json();
-          postsData = data.posts || [];
+        const refreshedPosts: PostType[] = activeTab === "Saved"
+          ? (tabData.saves || []).map((save: { postId: PostType }) => save.postId).filter(Boolean)
+          : tabData.posts || [];
+        setPosts(refreshedPosts);
+        if (activeTab === "Posts") {
+          const originals = refreshedPosts.filter((post) => !post.isRepost);
+          setAllUserPosts(originals);
+          setOwnPostCount(tabData.total ?? refreshedPosts.length);
+          setOwnLikesCount(originals.reduce((total, post) => total + (post.likesCount || 0), 0));
         }
-        setPosts(postsData);
       } catch (err) {
         console.error("Pull refresh failed", err);
       } finally {
@@ -253,7 +353,7 @@ export default function DynamicProfilePage({
     }
   };
 
-  if (authLoading || (loading && !profileUser))
+  if (loading && !profileUser)
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
@@ -280,7 +380,7 @@ export default function DynamicProfilePage({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="modal-solid border border-border w-full max-w-md rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-secondary/20 flex-shrink-0">
                 <h3 className="text-lg font-bold">Edit Profile</h3>
@@ -342,6 +442,69 @@ export default function DynamicProfilePage({
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {followListType && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            onClick={() => setFollowListType(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              onClick={(event) => event.stopPropagation()}
+              className="modal-solid flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-border shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h3 className="text-[17px] font-bold">Connections</h3>
+                <button
+                  type="button"
+                  onClick={() => setFollowListType(null)}
+                  aria-label="Close connections"
+                  className="rounded-full p-2 transition-colors hover:bg-secondary/60"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 border-b border-border">
+                {(["followers", "following"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFollowListType(type)}
+                    className={`relative py-3 text-[13px] font-bold capitalize transition-colors hover:bg-secondary/30 ${followListType === type ? "text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {type} {type === "followers" ? followState.followersCount : followState.followingCount}
+                    {followListType === type && <span className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-brand-green" />}
+                  </button>
+                ))}
+              </div>
+              <div className="min-h-52 overflow-y-auto scrollbar-hide">
+                {followListLoading ? (
+                  <div className="flex h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-green" /></div>
+                ) : followListError ? (
+                  <div className="flex h-52 flex-col items-center justify-center gap-3 px-6 text-center">
+                    <p className="text-sm text-muted-foreground">Couldn&apos;t load this list.</p>
+                    <button type="button" onClick={() => setFollowListReload((value) => value + 1)} className="text-sm font-bold text-brand-green">Try again</button>
+                  </div>
+                ) : followListUsers.length === 0 ? (
+                  <div className="flex h-52 items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                    No {followListType} yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/50">
+                    {followListUsers.map((user) => <FollowListRow key={user._id} user={user} onNavigate={() => setFollowListType(null)} />)}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -473,7 +636,6 @@ export default function DynamicProfilePage({
         </div>
         <div className="absolute left-4 -bottom-14">
           {(() => {
-            const isZenMaster = (profileUser.earnedMilestones?.length ?? 0) >= 12;
             const avatarInner = profileUser.image && !profileUser.image.startsWith("#") && !imgError ? (
               <Image
                 src={profileUser.image}
@@ -498,10 +660,10 @@ export default function DynamicProfilePage({
             return (
               <button
                 onClick={() => setIsProfilePicOpen(true)}
-                className={`${isZenMaster ? "p-[2px] bg-background" : "p-1 bg-background"} rounded-full cursor-pointer`}
-                title={isZenMaster ? "Zen Master — all milestones earned" : undefined}
+                className="cursor-pointer rounded-full bg-background p-1"
+                title={`View ${profileUser.name}'s profile picture`}
               >
-                <div className={isZenMaster ? "rounded-full overflow-hidden " : ""}>
+                <div className="overflow-hidden rounded-full">
                   {avatarInner}
                 </div>
               </button>
@@ -536,18 +698,30 @@ export default function DynamicProfilePage({
                 <Image
                   src={profileUser.image}
                   alt={profileUser.name}
-                  width={500}
-                  height={500}
-                  className="rounded-2xl object-contain max-h-[85vh] w-auto max-w-full shadow-2xl ring-1 ring-white/10"
+                  width={560}
+                  height={560}
+                  unoptimized
+                  className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-white/10 object-cover shadow-2xl"
                 />
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-        {isOwnProfile && (
-           <div className="absolute right-4">
-            <button onClick={() => setIsEditModalOpen(true)} className="px-5 py-2 bg-foreground text-background font-bold text-[13px] rounded-full hover:opacity-90 transition-opacity shadow-sm">
+        {isOwnProfile ? (
+           <div className="absolute -bottom-11 right-4">
+            <button onClick={() => setIsEditModalOpen(true)} className="h-10 rounded-full border border-border/70 bg-background/95 px-5 text-[13px] font-bold text-foreground shadow-lg backdrop-blur-xl transition-colors hover:bg-secondary">
               Edit profile
+            </button>
+          </div>
+        ) : (
+          <div className="absolute -bottom-14 right-4 flex items-center gap-2">
+            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-white/[0.12] bg-[#080d0a] px-4 text-[13px] font-bold text-foreground transition-colors hover:border-white/20 hover:bg-[#0d1510]" aria-label={`Message ${profileUser.name}`}>
+              <MessageCircle className="h-4 w-4" />
+              <span>Message</span>
+            </Link>
+            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-white/[0.12] bg-[#080d0a] text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-white hover:bg-[#00a855]"}`}>
+              {followLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : followState.isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              {followState.isFollowing ? "Unfollow" : followState.followsViewer ? "Follow back" : "Follow"}
             </button>
           </div>
         )}
@@ -556,27 +730,37 @@ export default function DynamicProfilePage({
       <div className="px-4 pt-16 pb-4 border-b border-border">
         <h2 className="text-[22px] font-bold tracking-tight leading-tight">{profileUser.name}</h2>
         <p className="text-muted-foreground text-[14px] mt-0.5">@{profileUser.username || profileUser.name.replace(/\s+/g, "").toLowerCase()}</p>
+        {!isOwnProfile && followState.followsViewer && (
+          <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-brand-green">
+            Follows you
+          </span>
+        )}
         
         {profileUser.bio && (
           <p className="text-[15px] text-foreground/90 mt-4 leading-relaxed whitespace-pre-wrap">{profileUser.bio}</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-4 md:gap-6 mt-5">
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-[16px]">{ownPostCount}</span>
-            <span className="text-muted-foreground text-[13px]">Thoughts</span>
-          </div>
+        <div className="mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground/75">
+          <CalendarDays className="h-3.5 w-3.5" />
+          <span>Joined {joinedDate}</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4 md:gap-6">
           <div className="flex items-baseline gap-1.5">
             <span className="font-bold text-[16px]">{ownLikesCount}</span>
             <span className="text-muted-foreground text-[13px]">Likes</span>
           </div>
+          <button type="button" onClick={() => setFollowListType("followers")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+            <span className="font-bold text-[16px]">{followState.followersCount}</span>
+            <span className="text-muted-foreground text-[13px]">Followers</span>
+          </button>
+          <button type="button" onClick={() => setFollowListType("following")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+            <span className="font-bold text-[16px]">{followState.followingCount}</span>
+            <span className="text-muted-foreground text-[13px]">Following</span>
+          </button>
           {streakDays > 0 && (
             <StreakDisplay streakDays={streakDays} size="sm" />
           )}
-          <div className="flex items-center gap-1.5 text-muted-foreground text-[13px]">
-            <CalendarDays className="w-3.5 h-3.5" />
-            <span className="pt-1">Joined {joinedDate}</span>
-          </div>
         </div>
 
         {allUserPosts.length > 0 && (
@@ -674,7 +858,7 @@ export default function DynamicProfilePage({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="bg-card border-t border-border w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 space-y-6 shadow-2xl relative"
+              className="modal-solid border-t border-border w-full max-w-md rounded-t-[32px] px-6 pt-4 pb-8 space-y-6 relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drag Handle */}
@@ -753,6 +937,7 @@ export default function DynamicProfilePage({
                       Cookies
                     </Link>
                   </div>
+                  <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-brand-green transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
                 </div>
 
                 {isOwnProfile && (

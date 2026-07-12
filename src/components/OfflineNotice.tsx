@@ -29,7 +29,7 @@ export default function OfflineNotice() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
-          className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-[100] md:w-80 bg-[#111827]/90 backdrop-blur-md border border-rose-500/20 shadow-2xl rounded-3xl overflow-hidden p-5"
+          className="modal-solid fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-[100] md:w-80 border border-rose-500/20 rounded-3xl overflow-hidden p-5"
         >
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">

@@ -20,7 +20,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
     warning: <AlertCircle className="w-4 h-4 text-amber-400" />,
   };
 
-  const bgStyles = "bg-popover/95 backdrop-blur-xl border border-white/10 shadow-2xl";
+  const bgStyles = "popover-solid border border-white/10";
 
   return (
     <motion.div

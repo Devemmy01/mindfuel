@@ -60,7 +60,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <ProfileDetailClient initialProfile={profile} initialPostCount={profile.postCount} />
+      <ProfileDetailClient initialProfile={profile} initialPostCount={profile.postCount} initialPosts={profile.recentPosts} />
     </>
   );
 }

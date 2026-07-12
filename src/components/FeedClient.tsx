@@ -13,7 +13,36 @@ import { useAuth } from "@/providers/AuthProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json()).then((data) => data.posts || []);
+const FEED_CACHE_PREFIX = "mindfuel:feed:";
+const fetcher = (url: string) => fetch(url).then((res) => {
+  if (!res.ok) throw new Error("Unable to load feed");
+  return res.json();
+}).then((data) => data.posts || []);
+
+function readCachedPosts(type: "feed" | "reflections") {
+  if (typeof window === "undefined") return [];
+  try {
+    const value = window.localStorage.getItem(`${FEED_CACHE_PREFIX}${type}`);
+    if (!value) return [];
+    const parsed = JSON.parse(value) as { posts?: PostType[]; timestamp?: number };
+    if (!parsed.timestamp || Date.now() - parsed.timestamp > 86_400_000) return [];
+    return parsed.posts || [];
+  } catch {
+    return [];
+  }
+}
+
+function persistPosts(type: "feed" | "reflections", posts?: PostType[]) {
+  if (!posts?.length || typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      `${FEED_CACHE_PREFIX}${type}`,
+      JSON.stringify({ posts: posts.slice(0, 20), timestamp: Date.now() })
+    );
+  } catch {
+    // Storage can be unavailable in private mode; SWR still retains memory cache.
+  }
+}
 
 // Skeleton card
 function SkeletonCard() {
@@ -33,10 +62,18 @@ function SkeletonCard() {
   );
 }
 
-export default function FeedClient() {
+export default function FeedClient({ initialReflectionPosts = [] }: { initialReflectionPosts?: PostType[] }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("reflections");
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [persistedFeed, setPersistedFeed] = useState<PostType[]>([]);
+  const [persistedReflections, setPersistedReflections] = useState<PostType[]>(initialReflectionPosts);
+
+  useEffect(() => {
+    setPersistedFeed(readCachedPosts("feed"));
+    const cachedReflections = readCachedPosts("reflections");
+    if (cachedReflections.length) setPersistedReflections(cachedReflections);
+  }, []);
 
   const userIdParam = user?.uid ? `&userId=${user.uid}` : "";
   const feedUrl = `/api/posts/feed?type=feed${userIdParam}`;
@@ -52,8 +89,12 @@ export default function FeedClient() {
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      keepPreviousData: true
+      revalidateIfStale: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 120000,
+      errorRetryInterval: 10000,
+      keepPreviousData: true,
+      fallbackData: activeTab === "feed" ? persistedFeed : undefined,
     }
   );
 
@@ -67,13 +108,42 @@ export default function FeedClient() {
     fetcher,
     {
       revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      keepPreviousData: true
+      revalidateIfStale: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 120000,
+      errorRetryInterval: 10000,
+      keepPreviousData: true,
+      fallbackData: initialReflectionPosts.length ? initialReflectionPosts : persistedReflections,
     }
   );
 
-  const posts = activeTab === "feed" ? (feedPosts || []) : (reflectionPosts || []);
-  const loading = activeTab === "feed" ? (!feedPosts && feedLoading) : (!reflectionPosts && reflectionLoading);
+  useEffect(() => persistPosts("feed", feedPosts), [feedPosts]);
+  useEffect(() => persistPosts("reflections", reflectionPosts), [reflectionPosts]);
+
+  const posts = activeTab === "feed"
+    ? (feedPosts?.length ? feedPosts : persistedFeed)
+    : (reflectionPosts?.length ? reflectionPosts : persistedReflections);
+  const activeReflectors = React.useMemo(() => {
+    const activity = new Map<string, { person: PostType["userId"]; count: number; firstSeen: number }>();
+    const visibleReflections = reflectionPosts?.length ? reflectionPosts : persistedReflections;
+    visibleReflections.forEach((post, index) => {
+      const author = post.userId;
+      if (!author?.firebaseId) return;
+      const current = activity.get(author.firebaseId);
+      activity.set(author.firebaseId, {
+        person: author,
+        count: (current?.count || 0) + 1,
+        firstSeen: current?.firstSeen ?? index,
+      });
+    });
+    return Array.from(activity.values())
+      .sort((a, b) => b.count - a.count || a.firstSeen - b.firstSeen)
+      .slice(0, 5)
+      .map((entry) => entry.person);
+  }, [reflectionPosts, persistedReflections]);
+  const loading = activeTab === "feed"
+    ? (!feedPosts?.length && !persistedFeed.length && feedLoading)
+    : (!reflectionPosts?.length && !persistedReflections.length && reflectionLoading);
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 520);
@@ -202,34 +272,34 @@ export default function FeedClient() {
         </div>
         {/* Feed view switcher */}
         <div className="px-3 pb-2" role="tablist" aria-label="Feed view">
-          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border/60 bg-secondary/20 p-1 shadow-inner shadow-black/5">
+          <div className="grid grid-cols-2 gap-1.5 rounded-full border border-white/[0.09] bg-[#050d09]/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_8px_24px_rgba(0,0,0,0.16)]">
             <button
               type="button"
               role="tab"
               aria-selected={activeTab === "reflections"}
               onClick={() => handleTabClick("reflections")}
-              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors ${
+              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
                 activeTab === "reflections"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                  ? "border-transparent text-white"
+                  : "border-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.035] hover:text-foreground"
               }`}
             >
               {activeTab === "reflections" && (
                 <motion.span
                   layoutId="feed-active-tab"
-                  className="absolute inset-0 rounded-xl border border-brand-green/15 bg-gradient-to-b from-brand-green/10 to-brand-green/[0.035] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                  className="absolute inset-0 rounded-full border border-brand-green/40 bg-gradient-to-b from-brand-green/[0.18] to-brand-green/[0.09] shadow-[0_8px_22px_rgba(0,191,99,0.10),inset_0_1px_0_rgba(255,255,255,0.06)]"
                   transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
               )}
               <BookOpen
                 className={`relative h-4 w-4 transition-colors ${
-                  activeTab === "reflections" ? "text-brand-green" : "text-muted-foreground"
+                  activeTab === "reflections" ? "text-emerald-300" : "text-muted-foreground"
                 }`}
                 strokeWidth={activeTab === "reflections" ? 2.5 : 2}
               />
               <span className="relative">Reflections</span>
               {activeTab === "reflections" && (
-                <span className="relative h-1.5 w-1.5 rounded-full bg-brand-green shadow-[0_0_8px_rgba(0,191,99,0.75)]" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
               )}
             </button>
 
@@ -238,28 +308,28 @@ export default function FeedClient() {
               role="tab"
               aria-selected={activeTab === "feed"}
               onClick={() => handleTabClick("feed")}
-              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-bold transition-colors ${
+              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
                 activeTab === "feed"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                  ? "border-transparent text-white"
+                  : "border-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.035] hover:text-foreground"
               }`}
             >
               {activeTab === "feed" && (
                 <motion.span
                   layoutId="feed-active-tab"
-                  className="absolute inset-0 rounded-xl border border-brand-green/15 bg-gradient-to-b from-brand-green/10 to-brand-green/[0.035] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                  className="absolute inset-0 rounded-full border border-brand-green/40 bg-gradient-to-b from-brand-green/[0.18] to-brand-green/[0.09] shadow-[0_8px_22px_rgba(0,191,99,0.10),inset_0_1px_0_rgba(255,255,255,0.06)]"
                   transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
               )}
               <Users
                 className={`relative h-4 w-4 transition-colors ${
-                  activeTab === "feed" ? "text-brand-green" : "text-muted-foreground"
+                  activeTab === "feed" ? "text-emerald-300" : "text-muted-foreground"
                 }`}
                 strokeWidth={activeTab === "feed" ? 2.5 : 2}
               />
               <span className="relative">Feed</span>
               {activeTab === "feed" && (
-                <span className="relative h-1.5 w-1.5 rounded-full bg-brand-green shadow-[0_0_8px_rgba(0,191,99,0.75)]" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
               )}
             </button>
           </div>
@@ -279,51 +349,36 @@ export default function FeedClient() {
               <SkeletonCard key={i} />
             ))}
           </motion.div>
-        ) : posts.length > 0 ? (
-          <motion.div
-            key={`${activeTab}-content`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="relative"
-          >
-            {activeTab === "reflections" ? (
-              <div className="px- pt-4">
-                <DailyReflectionPrompt responseCount={posts.length} />
+        ) : activeTab === "reflections" ? (
+          <div key={`${activeTab}-content`} className="relative">
+              <div className="pt-4">
+                <DailyReflectionPrompt reflectors={activeReflectors} />
                 <div className="mt-4">
                   {posts.map((post, i) => (
-                    <motion.div
+                    <div
                       key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.4,
-                        ease: [0.21, 0.47, 0.32, 0.98],
-                        delay: Math.min(i * 0.05, 0.3)
-                      }}
                     >
                       <PostCard post={post} isHighlighted={true} />
-                    </motion.div>
+                    </div>
                   ))}
+                  {posts.length === 0 && (
+                    <div className="px-6 py-16 text-center">
+                      <h3 className="text-lg font-bold">Be the first to reflect today</h3>
+                      <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">Your perspective may be exactly what someone else needs to read.</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <>
-                {posts.map((post, i) => (
-                  <motion.div
+          </div>
+        ) : posts.length > 0 ? (
+          <div key="feed-content" className="relative">
+              {posts.map((post, i) => (
+                  <div
                     key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.4,
-                      ease: [0.21, 0.47, 0.32, 0.98],
-                      delay: Math.min(i * 0.05, 0.3)
-                    }}
                   >
                     <PostCard post={post} />
-                  </motion.div>
+                  </div>
                 ))}
-              </>
-            )}
 
             {/* End of list indicator */}
             <div className="py-16 flex flex-col items-center justify-center opacity-40">
@@ -331,7 +386,7 @@ export default function FeedClient() {
               <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;re all caught up</p>
             </div>
             <div className="h-6 w-full" />
-          </motion.div>
+          </div>
         ) : (
           <motion.div
             key={`${activeTab}-empty`}
@@ -343,20 +398,16 @@ export default function FeedClient() {
               <div className="w-8 h-8 rounded-full bg-brand-green/50" aria-hidden="true" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold">
-                {activeTab === "reflections" ? "What lesson are you carrying today?" : "No reflections in your feed yet"}
-              </h3>
+              <h3 className="text-xl font-bold">No reflections in your feed yet</h3>
               <p className="text-muted-foreground text-[14px] max-w-[260px]">
-                {activeTab === "reflections"
-                  ? "Start your reflection journey. Share what life is teaching you."
-                  : "Follow others or share a reflection to get started."}
+                Follow others or share a reflection to get started.
               </p>
             </div>
             <Link
               href="/create"
               className="px-8 py-3 text-white rounded-full font-bold text-[15px] bg-[#00a855] transition-colors shadow-brand-sm press-scale"
             >
-              {activeTab === "feed" ? "Share a Reflection" : "Start Reflecting"}
+              Share a Reflection
             </Link>
           </motion.div>
         )}

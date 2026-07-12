@@ -11,7 +11,7 @@ export interface DailyPrompt {
 }
 
 // 365+ carefully curated daily prompts
-const ALL_PROMPTS: DailyPrompt[] = [
+export const LEGACY_PROMPTS: DailyPrompt[] = [
   { id: "p001", question: "What's one thing you're grateful for today?", category: "gratitude", date: "2026-01-01" },
   { id: "p002", question: "What would you attempt if you knew you couldn't fail?", category: "challenge", date: "2026-01-02" },
   { id: "p003", question: "How did you show up for yourself today?", category: "reflection", date: "2026-01-03" },
@@ -115,7 +115,7 @@ const ALL_PROMPTS: DailyPrompt[] = [
 ];
 
 // Additional prompts continue...
-const MORE_PROMPTS: DailyPrompt[] = [
+export const LEGACY_PROMPTS_CONTINUED: DailyPrompt[] = [
   { id: "p101", question: "What small act of kindness can you do?", category: "mindfulness", date: "2026-04-11" },
   { id: "p102", question: "What are you no longer willing to accept?", category: "challenge", date: "2026-04-12" },
   { id: "p103", question: "What blessing went unnoticed?", category: "gratitude", date: "2026-04-13" },
@@ -148,47 +148,81 @@ const MORE_PROMPTS: DailyPrompt[] = [
   { id: "p130", question: "What are you cultivating?", category: "growth", date: "2026-05-10" },
 ];
 
-// Combine all prompts
-const ALL_PROMPTS_COMBINED: DailyPrompt[] = [...ALL_PROMPTS, ...MORE_PROMPTS];
+// Specific questions are easier to answer well than broad, abstract prompts.
+// This tighter rotation favors a concrete moment, decision, or next step.
+const CURATED_PROMPTS: Omit<DailyPrompt, "date">[] = [
+  { id: "c001", question: "What happened today that you want to understand better?", category: "reflection" },
+  { id: "c002", question: "What did you handle better today than you would have a year ago?", category: "growth" },
+  { id: "c003", question: "Which small moment today felt unexpectedly meaningful?", category: "gratitude" },
+  { id: "c004", question: "What are you avoiding, and what is the smallest honest step toward it?", category: "challenge" },
+  { id: "c005", question: "When did you feel most present today, and what helped?", category: "mindfulness" },
+  { id: "c006", question: "What conversation is still on your mind, and why?", category: "reflection" },
+  { id: "c007", question: "Where did you spend energy today that you want to reclaim tomorrow?", category: "growth" },
+  { id: "c008", question: "Who made today lighter for you, even in a small way?", category: "gratitude" },
+  { id: "c009", question: "What truth have you been making harder than it needs to be?", category: "challenge" },
+  { id: "c010", question: "What does your body seem to be asking you for right now?", category: "mindfulness" },
+  { id: "c011", question: "What choice today felt most aligned with who you want to become?", category: "growth" },
+  { id: "c012", question: "What did today reveal about what matters to you?", category: "reflection" },
+  { id: "c013", question: "What ordinary part of your life would you miss if it disappeared tomorrow?", category: "gratitude" },
+  { id: "c014", question: "Where would courage look like one small action, not a dramatic leap?", category: "challenge" },
+  { id: "c015", question: "What can you notice right now without needing to change it?", category: "mindfulness" },
+  { id: "c016", question: "What mistake taught you something useful this week?", category: "growth" },
+  { id: "c017", question: "Which part of today deserves a second look instead of a quick judgment?", category: "reflection" },
+  { id: "c018", question: "What support did you receive recently that you do not want to take for granted?", category: "gratitude" },
+  { id: "c019", question: "What boundary would protect your attention tomorrow?", category: "challenge" },
+  { id: "c020", question: "What are you carrying that can wait until tomorrow?", category: "mindfulness" },
+  { id: "c021", question: "What pattern did you notice in yourself today?", category: "reflection" },
+  { id: "c022", question: "What are you practicing, even if you are not good at it yet?", category: "growth" },
+  { id: "c023", question: "What made you feel seen or understood recently?", category: "gratitude" },
+  { id: "c024", question: "What would you do next if you trusted yourself ten percent more?", category: "challenge" },
+  { id: "c025", question: "Which moment today asked you to slow down?", category: "mindfulness" },
+  { id: "c026", question: "What are you proud of that no one else may have noticed?", category: "growth" },
+  { id: "c027", question: "What expectation shaped your mood today?", category: "reflection" },
+  { id: "c028", question: "What is working in your life that deserves more attention?", category: "gratitude" },
+  { id: "c029", question: "What uncomfortable task would make tomorrow easier?", category: "challenge" },
+  { id: "c030", question: "What feeling needs space rather than a solution tonight?", category: "mindfulness" },
+  { id: "c031", question: "What did you say yes to today, and what did that yes cost?", category: "reflection" },
+  { id: "c032", question: "What is one adjustment that would make tomorrow feel more intentional?", category: "growth" },
+];
+
+function promptForDate(date: Date): DailyPrompt {
+  const year = date.getUTCFullYear();
+  const dayOfYear = Math.floor(
+    (Date.UTC(year, date.getUTCMonth(), date.getUTCDate()) - Date.UTC(year, 0, 0)) /
+      (1000 * 60 * 60 * 24)
+  );
+  const prompt = CURATED_PROMPTS[dayOfYear % CURATED_PROMPTS.length];
+  return { ...prompt, date: date.toISOString().slice(0, 10) };
+}
 
 /**
  * Get today's daily prompt
  * Rotates through prompts based on the current date
  */
 export function getTodayPrompt(): DailyPrompt {
-  const today = new Date();
-  const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
-      (1000 * 60 * 60 * 24)
-  );
-  const promptIndex = dayOfYear % ALL_PROMPTS_COMBINED.length;
-  return ALL_PROMPTS_COMBINED[promptIndex];
+  return promptForDate(new Date());
 }
 
 /**
  * Get a specific prompt by date
  */
 export function getPromptByDate(date: Date): DailyPrompt {
-  const dayOfYear = Math.floor(
-    (date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) /
-      (1000 * 60 * 60 * 24)
-  );
-  const promptIndex = dayOfYear % ALL_PROMPTS_COMBINED.length;
-  return ALL_PROMPTS_COMBINED[promptIndex];
+  return promptForDate(date);
 }
 
 /**
  * Get a random prompt
  */
 export function getRandomPrompt(): DailyPrompt {
-  return ALL_PROMPTS_COMBINED[Math.floor(Math.random() * ALL_PROMPTS_COMBINED.length)];
+  const prompt = CURATED_PROMPTS[Math.floor(Math.random() * CURATED_PROMPTS.length)];
+  return { ...prompt, date: new Date().toISOString().slice(0, 10) };
 }
 
 /**
  * Get prompt count
  */
 export function getPromptCount(): number {
-  return ALL_PROMPTS_COMBINED.length;
+  return CURATED_PROMPTS.length;
 }
 
-export default ALL_PROMPTS_COMBINED;
+export default CURATED_PROMPTS;

@@ -157,15 +157,9 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
         .then((r) => r.json())
         .then((d) => setIsLiked(d.liked))
         .catch(() => {});
-      fetch(`/api/saves?userId=${user.uid}`)
+      fetch(`/api/saves?userId=${user.uid}&postId=${post._id}&limit=1`)
         .then((r) => r.json())
-        .then((d) =>
-          setIsSaved(
-            !!d.saves?.some(
-              (s: { postId: { _id: string } }) => s.postId._id === post._id,
-            ),
-          ),
-        )
+        .then((d) => setIsSaved(Boolean(d.saves?.length)))
         .catch(() => {});
     }
   }, [post, user]);
@@ -744,7 +738,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="modal-solid border border-border w-full max-w-md rounded-3xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">

@@ -31,6 +31,20 @@ export function usePushNotifications() {
       return;
     }
 
+    // Never install the production caching worker on localhost. It can keep
+    // serving old app chunks after Fast Refresh and make newly wired controls
+    // appear unresponsive during development.
+    if (process.env.NODE_ENV === "development") {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+      if ("caches" in window) {
+        const cacheKeys = await caches.keys();
+        await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+      }
+      showToast("Push notifications are available in production builds", "warning");
+      return;
+    }
+
     if (!VAPID_PUBLIC_KEY) {
       console.error("Push: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing from environment");
       showToast("System configuration error (VAPID)", "error");

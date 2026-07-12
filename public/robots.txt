@@ -4,9 +4,11 @@ Allow: /
 Disallow: /api/
 Disallow: /create
 Disallow: /collections
+Disallow: /messages
 Disallow: /offline
 Disallow: /tip/download
 Disallow: /profile$
 Disallow: /search?
 
 Sitemap: https://mind-fuel.app/sitemap.xml
+Host: https://mind-fuel.app

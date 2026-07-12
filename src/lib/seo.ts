@@ -8,7 +8,13 @@ export const siteName = "MindFuel";
 export const defaultOgImage = `${siteUrl}/og-image-v2.png`;
 
 export const siteDescription =
-  "Build a daily reflection habit with MindFuel, the personal growth app for thoughtful prompts, shared lessons, meaningful conversations, and lasting change.";
+  "Build self-awareness with daily reflection prompts, practical journaling guides, and a thoughtful personal growth community. Join MindFuel for free.";
+
+export const homeTitle =
+  "Daily Reflection App & Personal Growth Community | MindFuel";
+
+export const homeOgDescription =
+  "Turn everyday experiences into clearer choices with guided reflection, personal journaling, and a community built for meaningful growth.";
 
 export const seoKeywords = [
   "MindFuel",

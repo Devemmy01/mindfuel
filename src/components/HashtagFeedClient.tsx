@@ -46,7 +46,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
     let cancelled = false;
 
     const loadPage = async () => {
-      setLoading(true);
+      setLoading(!initialData?.posts?.length);
       setPage(1);
       try {
         const userIdParam = user?.uid ? `&userId=${user.uid}` : "";

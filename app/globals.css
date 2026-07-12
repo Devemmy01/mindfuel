@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 
 
@@ -299,25 +300,6 @@
   animation: float-slow-2 30s ease-in-out infinite alternate;
 }
 
-/* === Zen Master Avatar Aura === */
-@keyframes zen-spin {
-  from { background: conic-gradient(from 0deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63); }
-  to   { background: conic-gradient(from 360deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63); }
-}
-
-.zen-master-aura {
-  position: relative;
-  background: conic-gradient(from 0deg, #00bf63, #a78bfa, #34d399, #a78bfa, #00bf63);
-  animation: zen-rotate 4s linear infinite;
-  box-shadow: none;
-}
-
-@keyframes zen-rotate {
-  0%   { filter: hue-rotate(0deg) brightness(1.1); }
-  50%  { filter: hue-rotate(30deg) brightness(1.25); }
-  100% { filter: hue-rotate(0deg) brightness(1.1); }
-}
-
 /* ===========================
    GLASS UTILITY
    =========================== */
@@ -334,28 +316,52 @@
   border: 1px solid hsl(var(--border) / 0.5);
 }
 
-/* App shell depth: a quiet workspace rather than a flat page. */
 .app-shell {
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(var(--brand-green-rgb), 0.07), transparent 28rem),
-    radial-gradient(circle at 92% 78%, rgba(16, 185, 129, 0.045), transparent 32rem);
+  background: #010302;
+  background-image: none;
 }
 
 .app-main {
-  background: hsl(var(--background) / 0.72);
-  box-shadow: 0 0 80px rgba(0, 0, 0, 0.14);
+  background: #010302;
+  box-shadow: none;
 }
 
-@media (min-width: 768px) {
+@media (display-mode: standalone) {
+  html,
+  body,
+  .app-shell,
   .app-main {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: #010302 !important;
+    background-image: none !important;
+  }
+
+  .app-ambient {
+    display: none !important;
   }
 }
 
 .popover-solid {
-  background-color: hsl(var(--popover)) !important;
+  background-color: #070b09 !important;
+  background-image: none !important;
   opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.modal-solid {
+  background-color: #070b09 !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  background-color: #070b09 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ===========================

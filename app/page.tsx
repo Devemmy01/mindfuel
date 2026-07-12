@@ -3,6 +3,8 @@ import LandingPage from "@/components/LandingPage";
 import {
   absoluteUrl,
   defaultOgImage,
+  homeOgDescription,
+  homeTitle,
   landingFaqs,
   seoKeywords,
   siteDescription,
@@ -11,16 +13,23 @@ import {
 
 export const metadata: Metadata = {
   title: {
-    absolute: "MindFuel: Daily Reflection & Personal Growth App",
+    absolute: homeTitle,
   },
   description: siteDescription,
   keywords: seoKeywords,
   alternates: {
     canonical: absoluteUrl("/"),
+    languages: {
+      "en": absoluteUrl("/"),
+      "x-default": absoluteUrl("/"),
+    },
   },
   openGraph: {
-    title: "MindFuel — Grow Together Through Reflection",
-    description: siteDescription,
+    type: "website",
+    locale: "en_US",
+    siteName: "MindFuel",
+    title: homeTitle,
+    description: homeOgDescription,
     url: absoluteUrl("/"),
     images: [
       {
@@ -33,8 +42,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MindFuel — Grow Together Through Reflection",
-    description: siteDescription,
+    title: homeTitle,
+    description: homeOgDescription,
     images: [defaultOgImage],
   },
 };
@@ -42,16 +51,30 @@ export const metadata: Metadata = {
 function HomeJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "@id": `${siteUrl}/#faq`,
-    mainEntity: landingFaqs.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${siteUrl}/#home`,
+        url: siteUrl,
+        name: homeTitle,
+        description: siteDescription,
+        inLanguage: "en",
+        isPartOf: { "@id": `${siteUrl}/#website` },
+        about: { "@id": `${siteUrl}/#app` },
       },
-    })),
+      {
+        "@type": "FAQPage",
+        "@id": `${siteUrl}/#faq`,
+        mainEntity: landingFaqs.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: item.answer,
+          },
+        })),
+      },
+    ],
   };
 
   return (
