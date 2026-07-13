@@ -8,6 +8,7 @@ import Repost from "@/models/repost";
 import Follow from "@/models/follow";
 import { PostType } from "@/types";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
+import type { PipelineStage } from "mongoose";
 
 // ─── In-process cache (survives across warm function invocations) ─────────────
 // Keyed by tab type + auth-status; TTL = 30 s for non-busted requests.
@@ -17,10 +18,11 @@ interface CacheEntry {
   timestamp: number;
   validPosts: PostType[];
   total: number;
+  hasMore: boolean;
 }
 const globalFeedCache: Record<string, CacheEntry> = {};
 const CACHE_TTL_MS = 300_000; // five minutes; mutations refresh clients in the background
-export const maxDuration = 5;
+export const maxDuration = 10;
 
 // ─── Projection: only select fields the feed UI actually renders ──────────────
 // Excluding `viewedBy` (large string array, select:false on schema) and other
@@ -34,28 +36,31 @@ export async function GET(req: NextRequest) {
     const firebaseId = searchParams.get("userId") ?? null;
     const type       = searchParams.get("type") ?? null;   // 'feed' | 'reflections' | null
     const bustCache  = searchParams.get("bust") === "1";
+    const page       = Math.max(1, Number.parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit      = Math.min(30, Math.max(1, Number.parseInt(searchParams.get("limit") || "20", 10) || 20));
+    const skip       = (page - 1) * limit;
 
     await connectToDB();
 
     // ── 1. Global post list (cached) ─────────────────────────────────────────
-    // Cache key: tab type + coarse auth bucket (guest vs. logged-in).
-    // We intentionally do NOT include the actual userId in the key so that all
-    // authenticated users share the same ranked list — user-specific flags
-    // (isLiked, isSaved, isReposted) are merged in step 2.
-    const cacheKey = `feed_${type ?? "all"}`;
+    // Ranked pages are viewer-specific because author affinity is part of the
+    // score. Interaction flags are still merged fresh below.
+    const cacheKey = `feed_${type ?? "all"}_${firebaseId ?? "guest"}_${page}_${limit}`;
     const now = Date.now();
 
     let validPosts: PostType[] = [];
     let total = 0;
+    let hasMore = false;
 
     const cached = globalFeedCache[cacheKey];
     if (!bustCache && cached && now - cached.timestamp < CACHE_TTL_MS) {
       validPosts = cached.validPosts;
       total      = cached.total;
+      hasMore    = cached.hasMore;
     } else {
       // ── Build match filter for the reflections tab ────────────────────────
-      // For the general feed tab matchFilter is intentionally empty so the
-      // pipeline operates on ALL posts before the scoring sort.
+      // Reflections contains prompt responses only. Feed keeps the filter empty
+      // so every original post can participate in ranking.
       const matchFilter: Record<string, unknown> =
         type === "reflections"
           ? { promptId: { $exists: true, $ne: null, $nin: ["", null] } }
@@ -69,6 +74,14 @@ export async function GET(req: NextRequest) {
       }
 
       const todayPrompt = getTodayPrompt();
+      let affinityAuthorIds: unknown[] = [];
+      if (firebaseId && type === "feed") {
+        const viewer = await User.findOne({ firebaseId }).select("_id").lean() as { _id: unknown } | null;
+        if (viewer) {
+          const followed = await Follow.find({ follower: viewer._id }).select("following").lean() as unknown as Array<{ following: unknown }>;
+          affinityAuthorIds = [viewer._id, ...followed.map((row) => row.following)];
+        }
+      }
 
       // ── Aggregation: ranked union of posts + reposts ──────────────────────
       //
@@ -79,7 +92,7 @@ export async function GET(req: NextRequest) {
       //   4  $unwind originalPost + apply tab match filter
       //   5  $addFields ageInHours + promptBoost + feedScore
       //   6  $sort feedScore desc, createdAt desc
-      //   7  $limit 60   ← reduced from 100; UI shows ≤ 30 before pagination
+      //   7  Apply page offset and fetch one extra event for hasMore
       //   8  $replaceRoot merging originalPost with repost metadata
       //   9  $lookup users on userId (author)
       //  10  $unwind author + strip sensitive fields via $project
@@ -97,16 +110,15 @@ export async function GET(req: NextRequest) {
             repostedByUserId: { $literal: null },
           },
         },
-        // Keep the scoring candidate set bounded as the collection grows.
+        // Rank the complete history. Pagination below keeps the response small
+        // without making older posts permanently unreachable.
         { $sort: { createdAt: -1 } },
-        { $limit: 45 },
-        // Step 2
-        {
+        // Step 2. Feed includes repost events; Reflections is originals only.
+        ...(type === "reflections" ? [] : ([{
           $unionWith: {
             coll: "reposts",
             pipeline: [
               { $sort: { createdAt: -1 } },
-              { $limit: 20 },
               {
                 $project: {
                   _id: 1,
@@ -118,7 +130,7 @@ export async function GET(req: NextRequest) {
               },
             ],
           },
-        },
+        }] as PipelineStage[])),
         // Step 3
         {
           $lookup: {
@@ -140,6 +152,9 @@ export async function GET(req: NextRequest) {
             promptBoost: {
               $cond: [{ $eq: ["$originalPost.promptId", todayPrompt.id] }, 3, 1],
             },
+            affinityBoost: {
+              $cond: [{ $in: ["$originalPost.userId", affinityAuthorIds] }, 1.75, 1],
+            },
           },
         },
         {
@@ -156,7 +171,12 @@ export async function GET(req: NextRequest) {
                         10, // base score — new posts always surface
                       ],
                     },
-                    { $ifNull: ["$promptBoost", 1] },
+                    {
+                      $multiply: [
+                        { $ifNull: ["$promptBoost", 1] },
+                        { $ifNull: ["$affinityBoost", 1] },
+                      ],
+                    },
                   ],
                 },
                 { $pow: [{ $add: [{ $ifNull: ["$ageInHours", 0] }, 1] }, 1.1] },
@@ -166,9 +186,9 @@ export async function GET(req: NextRequest) {
         },
         // Step 6
         { $sort: { feedScore: -1, createdAt: -1 } },
-        // Step 7 – the client currently renders one page, so avoid hydrating
-        // posts that cannot be seen in the initial session.
-        { $limit: 20 },
+        // Step 7 – fetch one extra event so the client knows another page exists.
+        { $skip: skip },
+        { $limit: limit + 10 },
         // Step 8 – restore original post fields, carry repost metadata
         {
           $replaceRoot: {
@@ -219,7 +239,9 @@ export async function GET(req: NextRequest) {
       const [populatedPosts, totalCount] = await Promise.all([aggregation, countQuery]);
 
       // ── Populate quoted posts (single extra round-trip) ───────────────────
-      const populatedWithQuotes = await Post.populate(populatedPosts, [
+      hasMore = populatedPosts.length > limit;
+      const pagePosts = populatedPosts.slice(0, limit);
+      const populatedWithQuotes = await Post.populate(pagePosts, [
         {
           path: "quotedPostId",
           select: `text backgroundStyle fontFamily imageUrl createdAt ${AUTHOR_PROJECTION}`,
@@ -285,10 +307,10 @@ export async function GET(req: NextRequest) {
       }
 
       // ── Fallback: if aggregation returned nothing but rows exist ──────────
-      if (validPosts.length === 0 && totalCount > 0) {
+      if (page === 1 && validPosts.length === 0 && totalCount > 0) {
         const fallbackPosts = await Post.find(matchFilter)
           .sort({ createdAt: -1 })
-          .limit(20)
+          .limit(limit)
           .populate("userId", AUTHOR_PROJECTION)
           .populate({
             path: "quotedPostId",
@@ -306,7 +328,7 @@ export async function GET(req: NextRequest) {
         validPosts = fallbackPosts as unknown as PostType[];
       }
 
-      globalFeedCache[cacheKey] = { timestamp: now, validPosts, total };
+      globalFeedCache[cacheKey] = { timestamp: now, validPosts, total, hasMore };
     }
 
     // ── 2. User-specific flags (likes / saves / reposts) ─────────────────────
@@ -325,7 +347,7 @@ export async function GET(req: NextRequest) {
       if (userDoc) {
         const postIds = validPosts.map((p) => p._id);
 
-        const [likedDocs, savedDocs, repostedDocs, followingRows] = await Promise.all([
+        const [likedDocs, savedDocs, repostedDocs] = await Promise.all([
           Like.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<Pick<ILike, "postId">[]>,
@@ -335,18 +357,7 @@ export async function GET(req: NextRequest) {
           Repost.find({ userId: userDoc._id, postId: { $in: postIds } })
             .select("postId")
             .lean() as unknown as Promise<{ postId: { toString(): string } }[]>,
-          type === "feed"
-            ? Follow.find({ follower: userDoc._id }).select("following").lean() as unknown as Promise<Array<{ following: { toString(): string } }>>
-            : Promise.resolve([]),
         ]);
-
-        if (followingRows.length > 0) {
-          const followingIds = new Set(followingRows.map((item) => item.following.toString()));
-          validPosts = validPosts
-            .map((post, index) => ({ post, index, followed: followingIds.has(String(post.userId?._id)) || post.userId?.firebaseId === firebaseId }))
-            .sort((a, b) => Number(b.followed) - Number(a.followed) || a.index - b.index)
-            .map(({ post }) => post);
-        }
 
         likedPostIds    = new Set(likedDocs.map((l) => l.postId.toString()));
         savedPostIds    = new Set(savedDocs.map((s) => s.postId.toString()));
@@ -385,7 +396,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { posts: enrichedPosts, hasMore: false, total },
+      { posts: enrichedPosts, hasMore, total, page },
       {
         status: 200,
         headers: {

@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
     const collectionId = req.nextUrl.searchParams.get("collectionId");
     const postId = req.nextUrl.searchParams.get("postId");
     const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") || 100), 1), 100);
+    const page = Math.max(Number(req.nextUrl.searchParams.get("page") || 1), 1);
+    const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = { userId: user._id };
     if (collectionId) {
@@ -35,8 +37,10 @@ export async function GET(req: NextRequest) {
     }
     if (postId && Types.ObjectId.isValid(postId)) query.postId = postId;
 
-    const saves = await Save.find(query)
+    const [saves, total] = await Promise.all([
+      Save.find(query)
       .sort({ createdAt: -1 })
+      .skip(skip)
       .limit(limit)
       .populate({
         path: "postId",
@@ -54,7 +58,9 @@ export async function GET(req: NextRequest) {
           }
         ]
       })
-      .lean();
+      .lean(),
+      Save.countDocuments(query),
+    ]);
     
     // Transform saves to include interaction status if currentUserId is provided
     let likedPostIds: Set<string> = new Set();
@@ -105,7 +111,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { saves: enrichedSaves },
+      { saves: enrichedSaves, total, hasMore: skip + saves.length < total, page },
       { status: 200, headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } }
     );
   } catch (error: unknown) {

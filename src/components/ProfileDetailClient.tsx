@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -104,6 +104,10 @@ export default function DynamicProfilePage({
   const [ownLikesCount, setOwnLikesCount] = useState(initialPosts.reduce((total, post) => total + (post.likesCount || 0), 0));
   const [streakDays, setStreakDays] = useState(initialProfile.streakDays || 0);
   const [loading, setLoading] = useState(initialPosts.length === 0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(initialPosts.length >= 20);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
@@ -224,6 +228,8 @@ export default function DynamicProfilePage({
     const fetchTab = async () => {
       const canKeepVisiblePosts = activeTab === "Posts" && initialPosts.length > 0;
       setLoading(!canKeepVisiblePosts);
+      setCurrentPage(1);
+      setHasMorePosts(false);
       if (!canKeepVisiblePosts) setPosts([]);
       try {
         const viewer = currentUser?.uid ? `&currentUserId=${currentUser.uid}` : "";
@@ -238,6 +244,7 @@ export default function DynamicProfilePage({
           ? (data.saves || []).map((save: { postId: PostType }) => save.postId).filter(Boolean)
           : data.posts || [];
         setPosts(tabPosts);
+        setHasMorePosts(Boolean(data.hasMore));
 
         if (activeTab === "Posts") {
           const originalPosts = tabPosts.filter((post) => !post.isRepost);
@@ -254,6 +261,64 @@ export default function DynamicProfilePage({
     fetchTab();
   }, [profileId, activeTab, currentUser?.uid, initialPosts.length]);
 
+  const loadMorePosts = useCallback(async () => {
+    if (!profileId || loading || loadingMore || !hasMorePosts) return;
+    const nextPage = currentPage + 1;
+    setLoadingMore(true);
+    try {
+      const viewer = currentUser?.uid ? `&currentUserId=${currentUser.uid}` : "";
+      const endpoint = activeTab === "Saved"
+        ? `/api/saves?userId=${profileId}&page=${nextPage}&limit=30${viewer}`
+        : activeTab === "Liked"
+        ? `/api/posts?userId=${profileId}&type=liked&page=${nextPage}&limit=30${viewer}`
+        : `/api/posts?userId=${profileId}&page=${nextPage}&limit=30${viewer}`;
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error("Could not load more posts");
+      const data = await response.json();
+      const nextPosts: PostType[] = activeTab === "Saved"
+        ? (data.saves || []).map((save: { postId: PostType }) => save.postId).filter(Boolean)
+        : data.posts || [];
+      setPosts((current) => {
+        const seen = new Set(current.map((post, index) => post.isRepost
+          ? `${post._id}:repost:${post.repostedBy?.firebaseId || index}`
+          : `${post._id}:post`));
+        return [...current, ...nextPosts.filter((post, index) => {
+          const key = post.isRepost
+            ? `${post._id}:repost:${post.repostedBy?.firebaseId || index}`
+            : `${post._id}:post`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })];
+      });
+      if (activeTab === "Posts") {
+        setAllUserPosts((current) => {
+          const ids = new Set(current.map((post) => post._id.toString()));
+          return [...current, ...nextPosts.filter((post) => !post.isRepost && !ids.has(post._id.toString()))];
+        });
+      }
+      setCurrentPage(nextPage);
+      setHasMorePosts(Boolean(data.hasMore));
+    } catch (error) {
+      console.error("Profile pagination failed", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeTab, currentPage, currentUser?.uid, hasMorePosts, loading, loadingMore, profileId]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasMorePosts || loading || loadingMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void loadMorePosts();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMorePosts, loadMorePosts, loading, loadingMore]);
+
   const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
     onRefresh: async () => {
       setLoading(true);
@@ -261,10 +326,10 @@ export default function DynamicProfilePage({
       try {
         const viewer = currentUser?.uid ? `&currentUserId=${currentUser.uid}` : "";
         const tabEndpoint = activeTab === "Saved"
-          ? `/api/saves?userId=${profileId}&limit=100${viewer}`
+          ? `/api/saves?userId=${profileId}&page=1&limit=30${viewer}`
           : activeTab === "Liked"
-          ? `/api/posts?userId=${profileId}&type=liked&limit=100${viewer}`
-          : `/api/posts?userId=${profileId}&limit=100${viewer}`;
+          ? `/api/posts?userId=${profileId}&type=liked&page=1&limit=30${viewer}`
+          : `/api/posts?userId=${profileId}&page=1&limit=30${viewer}`;
         const [profileResponse, tabResponse] = await Promise.all([
           fetch(`/api/users/${profileId}`),
           fetch(tabEndpoint),
@@ -278,6 +343,8 @@ export default function DynamicProfilePage({
           ? (tabData.saves || []).map((save: { postId: PostType }) => save.postId).filter(Boolean)
           : tabData.posts || [];
         setPosts(refreshedPosts);
+        setCurrentPage(1);
+        setHasMorePosts(Boolean(tabData.hasMore));
         if (activeTab === "Posts") {
           const originals = refreshedPosts.filter((post) => !post.isRepost);
           setAllUserPosts(originals);
@@ -832,11 +899,15 @@ export default function DynamicProfilePage({
               )
             ))}
             
-            {/* End of feed indicator */}
-            <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-40">
-              <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
-              <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;ve reached the end</p>
+            <div ref={loadMoreRef} className="col-span-full flex min-h-20 items-center justify-center py-6" aria-live="polite">
+              {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />}
             </div>
+            {!hasMorePosts && (
+              <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-40">
+                <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
+                <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;ve reached the end</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-24 text-center px-6">

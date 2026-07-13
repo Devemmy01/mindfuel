@@ -1,23 +1,77 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, BookOpen, RefreshCw, Users } from "lucide-react";
+import { ArrowUp, BookOpen, Loader2, RefreshCw, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
-import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
 const FEED_CACHE_PREFIX = "mindfuel:feed:";
-const fetcher = (url: string) => fetch(url).then((res) => {
+const FEED_VIEW_STATE_PREFIX = "mindfuel:feed:view-state:";
+const FEED_LAST_TAB_KEY = "mindfuel:feed:last-tab";
+type FeedPage = { posts: PostType[]; hasMore: boolean; total: number; page: number };
+type FeedReturnState = {
+  tab: "feed" | "reflections";
+  pages: number;
+  scrollY: number;
+  timestamp: number;
+  anchorKey?: string;
+  anchorOffset?: number;
+};
+
+const fetcher = (url: string): Promise<FeedPage> => fetch(url, { cache: "no-store" }).then((res) => {
   if (!res.ok) throw new Error("Unable to load feed");
   return res.json();
-}).then((data) => data.posts || []);
+});
+
+function getFeedScrollContainer() {
+  return document.querySelector<HTMLElement>(".app-main");
+}
+
+function getFeedViewStateKey(tab: "feed" | "reflections") {
+  return `${FEED_VIEW_STATE_PREFIX}${tab}`;
+}
+
+function getFeedEventKey(post: PostType, index: number) {
+  return post.isRepost
+    ? `${post._id}:repost:${post.repostedBy?.firebaseId || index}`
+    : `${post._id}:post`;
+}
+
+function getVisibleFeedAnchor(scrollContainer: HTMLElement) {
+  const containerTop = scrollContainer.getBoundingClientRect().top;
+  const items = scrollContainer.querySelectorAll<HTMLElement>("[data-feed-event-key]");
+  for (const item of items) {
+    const rect = item.getBoundingClientRect();
+    if (rect.bottom > containerTop) {
+      return {
+        anchorKey: item.dataset.feedEventKey,
+        anchorOffset: rect.top - containerTop,
+      };
+    }
+  }
+  return {};
+}
+
+function saveFeedViewState(tab: "feed" | "reflections", pages: number, scrollContainer: HTMLElement | null) {
+  if (!scrollContainer) return;
+  const anchor = getVisibleFeedAnchor(scrollContainer);
+  sessionStorage.setItem(FEED_LAST_TAB_KEY, tab);
+  sessionStorage.setItem(getFeedViewStateKey(tab), JSON.stringify({
+    tab,
+    pages: Math.max(1, pages),
+    scrollY: Math.max(0, scrollContainer.scrollTop),
+    timestamp: Date.now(),
+    ...anchor,
+  } satisfies FeedReturnState));
+}
 
 function readCachedPosts(type: "feed" | "reflections") {
   if (typeof window === "undefined") return [];
@@ -68,6 +122,11 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [persistedFeed, setPersistedFeed] = useState<PostType[]>([]);
   const [persistedReflections, setPersistedReflections] = useState<PostType[]>(initialReflectionPosts);
+  const [returnState, setReturnState] = useState<FeedReturnState | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const restoredReturnState = useRef(false);
+  const previousScrollRestoration = useRef<History["scrollRestoration"] | null>(null);
+  const currentView = useRef({ tab: activeTab, pages: 1 });
 
   useEffect(() => {
     setPersistedFeed(readCachedPosts("feed"));
@@ -75,57 +134,123 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
     if (cachedReflections.length) setPersistedReflections(cachedReflections);
   }, []);
 
+  useEffect(() => {
+    try {
+      const lastTabValue = sessionStorage.getItem(FEED_LAST_TAB_KEY);
+      const lastTab = lastTabValue === "feed" ? "feed" : "reflections";
+      const raw = sessionStorage.getItem(getFeedViewStateKey(lastTab));
+      if (!raw) return;
+      const saved = JSON.parse(raw) as FeedReturnState;
+      const isValidTab = saved.tab === "feed" || saved.tab === "reflections";
+      const isRecent = Date.now() - saved.timestamp < 30 * 60 * 1000;
+      if (!isValidTab || !isRecent) return;
+      previousScrollRestoration.current = history.scrollRestoration;
+      history.scrollRestoration = "manual";
+      setActiveTab(saved.tab);
+      setReturnState({
+        ...saved,
+        pages: Math.max(1, Math.min(saved.pages || 1, 50)),
+        scrollY: Math.max(0, saved.scrollY || 0),
+      });
+    } catch {}
+  }, []);
+
+  useEffect(() => () => {
+    if (previousScrollRestoration.current) {
+      history.scrollRestoration = previousScrollRestoration.current;
+    }
+  }, []);
+
   const userIdParam = user?.uid ? `&userId=${user.uid}` : "";
-  const feedUrl = `/api/posts/feed?type=feed${userIdParam}`;
-  const reflectionsUrl = `/api/posts/feed?type=reflections${userIdParam}`;
+  const getPageKey = useCallback((tab: "feed" | "reflections") =>
+    (pageIndex: number, previousPage: FeedPage | null) => {
+      if (tab !== activeTab || (previousPage && !previousPage.hasMore)) return null;
+      return `/api/posts/feed?type=${tab}&page=${pageIndex + 1}&limit=20&bust=1${userIdParam}`;
+    }, [activeTab, userIdParam]);
 
-  const {
-    data: feedPosts,
-    isLoading: feedLoading,
-    isValidating: feedValidating,
-    mutate: mutateFeed,
-  } = useSWR<PostType[]>(
-    activeTab === "feed" ? feedUrl : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 120000,
-      errorRetryInterval: 10000,
-      keepPreviousData: true,
-      fallbackData: activeTab === "feed" ? persistedFeed : undefined,
-    }
-  );
+  const reflectionFallback = initialReflectionPosts.length
+    ? [{ posts: initialReflectionPosts, hasMore: initialReflectionPosts.length >= 15, total: initialReflectionPosts.length, page: 1 }]
+    : undefined;
+  const feedFallback = persistedFeed.length
+    ? [{ posts: persistedFeed, hasMore: true, total: persistedFeed.length, page: 1 }]
+    : undefined;
 
-  const {
-    data: reflectionPosts,
-    isLoading: reflectionLoading,
-    isValidating: reflectionsValidating,
-    mutate: mutateReflections,
-  } = useSWR<PostType[]>(
-    activeTab === "reflections" ? reflectionsUrl : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 120000,
-      errorRetryInterval: 10000,
-      keepPreviousData: true,
-      fallbackData: initialReflectionPosts.length ? initialReflectionPosts : persistedReflections,
-    }
-  );
+  const feed = useSWRInfinite<FeedPage>(getPageKey("feed"), fetcher, {
+    fallbackData: feedFallback,
+    revalidateFirstPage: true,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+  });
+  const reflections = useSWRInfinite<FeedPage>(getPageKey("reflections"), fetcher, {
+    fallbackData: reflectionFallback,
+    revalidateFirstPage: true,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+  });
 
-  useEffect(() => persistPosts("feed", feedPosts), [feedPosts]);
-  useEffect(() => persistPosts("reflections", reflectionPosts), [reflectionPosts]);
+  const activeFeed = activeTab === "feed" ? feed : reflections;
+  currentView.current = { tab: activeTab, pages: activeFeed.size };
 
-  const posts = activeTab === "feed"
-    ? (feedPosts?.length ? feedPosts : persistedFeed)
-    : (reflectionPosts?.length ? reflectionPosts : persistedReflections);
+  useEffect(() => {
+    if (!returnState || returnState.tab !== activeTab) return;
+    const setSize = activeTab === "feed" ? feed.setSize : reflections.setSize;
+    void setSize(returnState.pages);
+  }, [activeTab, feed.setSize, reflections.setSize, returnState]);
+  const remotePosts = React.useMemo(() => {
+    const seen = new Set<string>();
+    return (activeFeed.data || []).flatMap((page) => page.posts || []).filter((post, index) => {
+      const eventKey = getFeedEventKey(post, index);
+      if (seen.has(eventKey)) return false;
+      seen.add(eventKey);
+      return true;
+    });
+  }, [activeFeed.data]);
+  const fallbackPosts = activeTab === "feed" ? persistedFeed : persistedReflections;
+  const posts = remotePosts.length ? remotePosts : fallbackPosts;
+  const lastPage = activeFeed.data?.[activeFeed.data.length - 1];
+  const hasMore = Boolean(lastPage?.hasMore);
+  const isLoadingMore = activeFeed.isValidating && activeFeed.size > 1 && !activeFeed.data?.[activeFeed.size - 1];
+  const loading = activeFeed.isLoading && posts.length === 0;
+
+  useEffect(() => {
+    if (!returnState || restoredReturnState.current || returnState.tab !== activeTab) return;
+    const loadedPages = activeFeed.data?.length || 0;
+    const loadedEnough = loadedPages >= returnState.pages || (loadedPages > 0 && !hasMore);
+    if (!loadedEnough) return;
+
+    restoredReturnState.current = true;
+    const restore = () => {
+      const scrollContainer = getFeedScrollContainer();
+      if (!scrollContainer) return;
+      let top = returnState.scrollY;
+      if (returnState.anchorKey && returnState.anchorOffset != null) {
+        const anchor = Array.from(
+          scrollContainer.querySelectorAll<HTMLElement>("[data-feed-event-key]"),
+        ).find((item) => item.dataset.feedEventKey === returnState.anchorKey);
+        if (anchor) {
+          const containerTop = scrollContainer.getBoundingClientRect().top;
+          top = scrollContainer.scrollTop
+            + anchor.getBoundingClientRect().top
+            - containerTop
+            - returnState.anchorOffset;
+        }
+      }
+      scrollContainer.scrollTo({ top, behavior: "auto" });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(restore));
+    window.setTimeout(restore, 60);
+    window.setTimeout(restore, 180);
+    window.setTimeout(() => {
+      restore();
+      history.scrollRestoration = previousScrollRestoration.current || "auto";
+      setReturnState(null);
+    }, 400);
+  }, [activeFeed.data?.length, activeTab, hasMore, returnState]);
+
+  useEffect(() => persistPosts(activeTab, posts), [activeTab, posts]);
   const activeReflectors = React.useMemo(() => {
     const activity = new Map<string, { person: PostType["userId"]; count: number; firstSeen: number }>();
-    const visibleReflections = reflectionPosts?.length ? reflectionPosts : persistedReflections;
+    const visibleReflections = activeTab === "reflections" ? posts : persistedReflections;
     visibleReflections.forEach((post, index) => {
       const author = post.userId;
       if (!author?.firebaseId) return;
@@ -140,29 +265,78 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
       .sort((a, b) => b.count - a.count || a.firstSeen - b.firstSeen)
       .slice(0, 5)
       .map((entry) => entry.person);
-  }, [reflectionPosts, persistedReflections]);
-  const loading = activeTab === "feed"
-    ? (!feedPosts?.length && !persistedFeed.length && feedLoading)
-    : (!reflectionPosts?.length && !persistedReflections.length && reflectionLoading);
+  }, [activeTab, posts, persistedReflections]);
+
   useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasMore || isLoadingMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void activeFeed.setSize((size) => size + 1);
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeFeed, hasMore, isLoadingMore]);
+  useEffect(() => {
+    const scrollContainer = getFeedScrollContainer();
+    if (!scrollContainer) return;
+    let saveFrame: number | null = null;
+
+    const saveViewState = () => {
+      const view = currentView.current;
+      saveFeedViewState(view.tab, view.pages, scrollContainer);
+    };
+
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 520);
+      setShowScrollTop(scrollContainer.scrollTop > 520);
+      if (saveFrame !== null) cancelAnimationFrame(saveFrame);
+      saveFrame = requestAnimationFrame(() => {
+        saveFrame = null;
+        saveViewState();
+      });
     };
 
     handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      if (saveFrame !== null) cancelAnimationFrame(saveFrame);
+      saveViewState();
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    getFeedScrollContainer()?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleTabClick = (tab: "feed" | "reflections") => {
     if (activeTab === tab) {
       scrollToTop();
     } else {
+      const scrollContainer = getFeedScrollContainer();
+      saveFeedViewState(activeTab, activeFeed.size, scrollContainer);
+      let nextState: FeedReturnState = {
+        tab,
+        pages: 1,
+        scrollY: 0,
+        timestamp: Date.now(),
+      };
+      try {
+        const raw = sessionStorage.getItem(getFeedViewStateKey(tab));
+        if (raw) nextState = JSON.parse(raw) as FeedReturnState;
+      } catch {
+        sessionStorage.removeItem(getFeedViewStateKey(tab));
+      }
+      restoredReturnState.current = false;
+      setReturnState({
+        ...nextState,
+        tab,
+        pages: Math.max(1, Math.min(nextState.pages || 1, 50)),
+        scrollY: Math.max(0, nextState.scrollY || 0),
+      });
       setActiveTab(tab);
     }
   };
@@ -170,25 +344,19 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
   // Pull-to-refresh
   const { containerRef, pullDistance, isRefreshing: isPullRefreshing } = usePullToRefresh({
     onRefresh: async () => {
-      if (activeTab === "feed") {
-        await mutateFeed();
-      } else {
-        await mutateReflections();
-      }
+      await activeFeed.setSize(1);
+      await activeFeed.mutate();
     },
   });
   const isRefreshing =
     isPullRefreshing ||
-    (activeTab === "feed" ? feedValidating : reflectionsValidating);
+    (activeFeed.isValidating && activeFeed.size === 1);
 
   const handleRefresh = async () => {
     if (isRefreshing) return;
 
-    if (activeTab === "feed") {
-      await mutateFeed();
-    } else {
-      await mutateReflections();
-    }
+    await activeFeed.setSize(1);
+    await activeFeed.mutate();
   };
 
   return (
@@ -357,6 +525,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
                   {posts.map((post, i) => (
                     <div
                       key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
+                      data-feed-event-key={getFeedEventKey(post, i)}
                     >
                       <PostCard post={post} isHighlighted={true} />
                     </div>
@@ -375,16 +544,18 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
               {posts.map((post, i) => (
                   <div
                     key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
+                    data-feed-event-key={getFeedEventKey(post, i)}
                   >
                     <PostCard post={post} />
                   </div>
                 ))}
 
-            {/* End of list indicator */}
-            <div className="py-16 flex flex-col items-center justify-center opacity-40">
-              <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
-              <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;re all caught up</p>
-            </div>
+            {!hasMore && (
+              <div className="py-16 flex flex-col items-center justify-center opacity-40">
+                <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
+                <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;re all caught up</p>
+              </div>
+            )}
             <div className="h-6 w-full" />
           </div>
         ) : (
@@ -412,6 +583,12 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
           </motion.div>
         )}
       </AnimatePresence>
+
+      <div ref={loadMoreRef} className="flex min-h-20 items-center justify-center py-6" aria-live="polite">
+        {hasMore && (isLoadingMore || activeFeed.isValidating) && (
+          <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />
+        )}
+      </div>
 
       {/* Bottom padding for mobile nav */}
       <div className="mobile-content-offset" />

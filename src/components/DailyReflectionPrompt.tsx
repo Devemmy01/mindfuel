@@ -18,9 +18,17 @@ interface DailyReflectionPromptProps {
   reflectors?: ActiveReflector[];
 }
 
-function ReflectorAvatar({ reflector, size = 36 }: { reflector: ActiveReflector; size?: number }) {
+function ReflectorAvatar({
+  reflector,
+  size = 36,
+}: {
+  reflector: ActiveReflector;
+  size?: number;
+}) {
   const [imageFailed, setImageFailed] = React.useState(false);
-  const showImage = Boolean(reflector.image && !reflector.image.startsWith("#") && !imageFailed);
+  const showImage = Boolean(
+    reflector.image && !reflector.image.startsWith("#") && !imageFailed,
+  );
 
   return showImage ? (
     <Image
@@ -97,7 +105,6 @@ export default function DailyReflectionPrompt({
               Today&apos;s Reflection
             </p>
           </div>
-
         </div>
 
         {/* Question */}
@@ -121,21 +128,42 @@ export default function DailyReflectionPrompt({
             </span>
           </div>
           {reflectors.length > 0 && (
-            <div className="group/reflectors relative flex items-center" tabIndex={0} aria-label={`${Math.min(reflectors.length, 5)} active reflectors`}>
+            <div
+              className="group/reflectors relative flex items-center"
+              tabIndex={0}
+              aria-label={`${Math.min(reflectors.length, 5)} active reflectors`}
+            >
               <div className="flex -space-x-2.5">
                 {reflectors.slice(0, 5).map((reflector) => (
-                  <ReflectorAvatar key={reflector.firebaseId} reflector={reflector} />
+                  <ReflectorAvatar
+                    key={reflector.firebaseId}
+                    reflector={reflector}
+                  />
                 ))}
               </div>
-              <span className="ml-3 text-[11px] font-medium text-muted-foreground">reflecting consistently</span>
-              <div role="tooltip" className="pointer-events-none absolute left-0 top-[calc(100%+12px)] z-[80] w-[292px] translate-y-1 rounded-2xl border border-white/[0.12] bg-[#070b09] p-4 opacity-0 transition-all duration-150 group-hover/reflectors:translate-y-0 group-hover/reflectors:opacity-100 group-focus/reflectors:translate-y-0 group-focus/reflectors:opacity-100">
-                <strong className="block text-[13px] font-bold text-white">Consistent reflectors</strong>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/55">Five people actively making reflection a habit.</p>
+              <span className="ml-3 text-[11px] font-medium text-muted-foreground">
+                reflecting consistently
+              </span>
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute left-0 top-[calc(100%+12px)] z-[80] w-[292px] translate-y-1 rounded-2xl border border-white/[0.12] bg-[#070b09] p-4 opacity-0 transition-all duration-150 group-hover/reflectors:translate-y-0 group-hover/reflectors:opacity-100 group-focus/reflectors:translate-y-0 group-focus/reflectors:opacity-100"
+              >
+                <strong className="block text-[13px] font-bold text-white">
+                  Consistent reflectors
+                </strong>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/55">
+                  Five people actively making reflection a habit.
+                </p>
                 <div className="mt-3 space-y-2.5">
                   {reflectors.slice(0, 5).map((item) => (
-                    <div key={item.firebaseId} className="flex items-center gap-2.5">
+                    <div
+                      key={item.firebaseId}
+                      className="flex items-center gap-2.5"
+                    >
                       <ReflectorAvatar reflector={item} size={30} />
-                      <span className="min-w-0 truncate text-[11px] font-semibold text-white/85">{item.name}</span>
+                      <span className="min-w-0 truncate text-[11px] font-semibold text-white/85">
+                        {item.name}
+                      </span>
                     </div>
                   ))}
                 </div>

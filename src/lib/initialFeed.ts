@@ -31,6 +31,6 @@ export const getInitialReflectionPosts = unstable_cache(
     // Client component boundaries require plain JSON values, not ObjectIds.
     return JSON.parse(JSON.stringify(posts)) as PostType[];
   },
-  ["initial-reflection-feed-v1"],
+  ["initial-reflection-feed-v3"],
   { revalidate: 300, tags: ["feed"] }
 );

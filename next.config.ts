@@ -39,9 +39,10 @@ const withPWA = withPWAInit({
     },
     {
       urlPattern: /\/api\/posts\/feed(?:\?.*)?$/i,
-      handler: "StaleWhileRevalidate",
+      handler: "NetworkFirst",
       options: {
-        cacheName: "mindfuel-feed-data-v1",
+        cacheName: "mindfuel-feed-data-v2",
+        networkTimeoutSeconds: 5,
         expiration: { maxEntries: 24, maxAgeSeconds: 86_400 },
         cacheableResponse: { statuses: [0, 200] },
       },
