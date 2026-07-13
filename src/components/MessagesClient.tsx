@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Check,
   CheckCheck,
+  ChevronsDown,
   CircleAlert,
   Copy,
   Info,
@@ -86,6 +87,7 @@ type Conversation = {
 
 const CHAT_CACHE_PREFIX = "mindfuel:chat:v1:";
 const CHAT_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const REPLY_TIP_PREFIX = "mindfuel:reply-tip:v1:";
 
 function readChatCache<T>(key: string): T | undefined {
   if (typeof window === "undefined") return undefined;
@@ -171,15 +173,20 @@ export default function MessagesClient() {
   const [startingRecipientId, setStartingRecipientId] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [showReplyTip, setShowReplyTip] = useState(false);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIdRef = useRef<string | null>(null);
   const conversationMessageIdsRef = useRef<Map<string, string>>(new Map());
   const conversationSnapshotReadyRef = useRef(false);
-  const swipeStartRef = useRef<{ x: number; y: number; messageId: string } | null>(null);
   const lastMarkedReadIdRef = useRef("");
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const conversationCacheKey = user ? `conversations:${user.uid}` : "";
   const cachedConversations = useMemo(
@@ -499,6 +506,20 @@ export default function MessagesClient() {
   );
 
   useEffect(() => {
+    if (!user || !active) return;
+    const key = `${REPLY_TIP_PREFIX}${user.uid}`;
+    if (window.localStorage.getItem(key)) return;
+    setShowReplyTip(true);
+  }, [active, user]);
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
     window.dispatchEvent(
       new CustomEvent("mindfuel:conversation-state", {
         detail: { active: Boolean(active) },
@@ -737,13 +758,38 @@ export default function MessagesClient() {
     }, 0);
   };
 
-  const finishSwipe = (event: React.PointerEvent, message: ChatMessage) => {
-    const start = swipeStartRef.current;
-    swipeStartRef.current = null;
-    if (!start || start.messageId !== message._id || event.pointerType !== "touch") return;
-    const horizontal = event.clientX - start.x;
-    const vertical = Math.abs(event.clientY - start.y);
-    if (horizontal > 55 && vertical < 45) setReplyingTo(message);
+  const closeReplyTip = () => {
+    if (user) window.localStorage.setItem(`${REPLY_TIP_PREFIX}${user.uid}`, "seen");
+    setShowReplyTip(false);
+  };
+
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleMessagesScroll = () => {
+    const container = messagesScrollRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowJumpToBottom(distanceFromBottom > 180);
+  };
+
+  const registerMessageRef = (messageId: string) => (node: HTMLDivElement | null) => {
+    if (node) messageRefs.current.set(messageId, node);
+    else messageRefs.current.delete(messageId);
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const node = messageRefs.current.get(messageId);
+    if (!node) {
+      showToast("That message is not loaded yet", "info");
+      return;
+    }
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightedMessageId(""), 1600);
   };
 
   if (authLoading)
@@ -841,6 +887,42 @@ export default function MessagesClient() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {showReplyTip && (
+        <div
+          className="fixed inset-0 z-[230] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={closeReplyTip}
+        >
+          <div
+            className="modal-solid w-full max-w-sm rounded-3xl border border-white/[0.12] p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
+                <Reply className="h-5 w-5" />
+              </div>
+              <button
+                type="button"
+                onClick={closeReplyTip}
+                className="rounded-full p-2 text-white/55 hover:bg-white/[0.07] hover:text-white"
+                aria-label="Close reply tip"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <h2 className="text-lg font-bold">Replying is easier now</h2>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Tap or click any message to reply to it. When a message includes a quoted reply, tap the quote to jump back to the original message.
+            </p>
+            <button
+              type="button"
+              onClick={closeReplyTip}
+              className="mt-5 w-full rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white"
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
@@ -1108,7 +1190,11 @@ export default function MessagesClient() {
                 </aside>
               </div>
             )}
-            <div className="thin-scrollbar flex-1 overflow-y-auto px-4 py-6">
+            <div
+              ref={messagesScrollRef}
+              onScroll={handleMessagesScroll}
+              className="thin-scrollbar relative flex-1 overflow-y-auto px-4 py-6"
+            >
               <div className="mx-auto flex max-w-2xl flex-col gap-1.5">
                 {messages.map((message, index) => {
                   const own = message.sender.firebaseId === user.uid;
@@ -1129,40 +1215,40 @@ export default function MessagesClient() {
                         </div>
                       )}
                       <div
-                        className={`group flex touch-pan-y items-center gap-2 ${own ? "justify-end" : "justify-start"}`}
-                        onPointerDown={(event) => {
-                          if (event.pointerType === "touch") {
-                            swipeStartRef.current = { x: event.clientX, y: event.clientY, messageId: message._id };
-                          }
-                        }}
-                        onPointerUp={(event) => finishSwipe(event, message)}
-                        onPointerCancel={() => { swipeStartRef.current = null; }}
-                        onClick={() => {
-                          if (window.matchMedia("(min-width: 768px)").matches) setReplyingTo(message);
-                        }}
+                        ref={registerMessageRef(message._id)}
+                        className={`group flex scroll-mt-24 items-center gap-2 transition-all duration-300 ${own ? "justify-end" : "justify-start"} ${highlightedMessageId === message._id ? "scale-[1.015]" : ""}`}
                       >
-                        {own && (
-                          <button
-                            type="button"
-                            onClick={(event) => { event.stopPropagation(); setReplyingTo(message); }}
-                            className="hidden items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/55 opacity-0 transition hover:text-brand-green group-hover:opacity-100 focus:opacity-100 md:flex"
-                            aria-label="Reply to message"
-                          >
-                            <Reply className="h-3.5 w-3.5" /> Reply
-                          </button>
-                        )}
                         <div
-                          className={`min-w-0 max-w-[78%] rounded-[20px] border px-3.5 py-2 text-[14px] leading-relaxed shadow-sm ${own ? "rounded-br-[5px] border-[#087766] bg-[#075e54] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#202522] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setReplyingTo(message)}
+                          onKeyDown={(event) => {
+                            if (event.target !== event.currentTarget) return;
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setReplyingTo(message);
+                            }
+                          }}
+                          className={`min-w-0 max-w-[78%] cursor-pointer rounded-[20px] border px-3.5 py-2 text-left text-[14px] leading-relaxed shadow-sm transition ${own ? "rounded-br-[5px] border-[#087766] bg-[#075e54] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#202522] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/15 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          aria-label="Reply to message"
                         >
                           {message.replyTo && (
-                            <div className="mb-2 rounded-xl border-l-2 border-brand-green bg-black/20 px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                scrollToMessage(message.replyTo?._id || "");
+                              }}
+                              className="mb-2 block w-full rounded-xl border-l-2 border-brand-green bg-black/20 px-3 py-2 text-left transition hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-brand-green/60"
+                              aria-label="Jump to replied message"
+                            >
                               <strong className="block text-[11px] text-brand-green">
                                 {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
                               </strong>
                               <span className="block max-w-sm truncate text-[12px] text-white/60">
                                 {message.replyTo.text}
                               </span>
-                            </div>
+                            </button>
                           )}
                           <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
                             {message.text}
@@ -1174,16 +1260,6 @@ export default function MessagesClient() {
                             {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
                         </div>
-                        {!own && (
-                          <button
-                            type="button"
-                            onClick={(event) => { event.stopPropagation(); setReplyingTo(message); }}
-                            className="hidden items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/55 opacity-0 transition hover:text-brand-green group-hover:opacity-100 focus:opacity-100 md:flex"
-                            aria-label="Reply to message"
-                          >
-                            <Reply className="h-3.5 w-3.5" /> Reply
-                          </button>
-                        )}
                       </div>
                     </React.Fragment>
                   );
@@ -1195,6 +1271,16 @@ export default function MessagesClient() {
                 )}
                 <div ref={bottomRef} />
               </div>
+              {showJumpToBottom && (
+                <button
+                  type="button"
+                  onClick={scrollToBottom}
+                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.1] bg-[#111713]/95 text-white shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
+                  aria-label="Jump to latest messages"
+                >
+                  <ChevronsDown className="h-5 w-5" />
+                </button>
+              )}
             </div>
             <form
               onSubmit={send}
