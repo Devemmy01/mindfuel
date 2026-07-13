@@ -187,6 +187,11 @@ export default function MessagesClient() {
   const conversationSnapshotReadyRef = useRef(false);
   const lastMarkedReadIdRef = useRef("");
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingStateRef = useRef<{
+    conversationId: string;
+    isTyping: boolean;
+    sentAt: number;
+  } | null>(null);
 
   const conversationCacheKey = user ? `conversations:${user.uid}` : "";
   const cachedConversations = useMemo(
@@ -269,6 +274,30 @@ export default function MessagesClient() {
       );
     },
     [mutateMessages],
+  );
+  const updateTypingState = useCallback(
+    (conversationId: string, isTyping: boolean, force = false) => {
+      if (!user) return;
+      const previous = lastTypingStateRef.current;
+      const now = Date.now();
+      if (
+        !force &&
+        previous?.conversationId === conversationId &&
+        previous.isTyping === isTyping &&
+        now - previous.sentAt < 1800
+      ) {
+        return;
+      }
+      lastTypingStateRef.current = { conversationId, isTyping, sentAt: now };
+      fetch("/api/chat/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid, conversationId, isTyping }),
+      }).catch(() => {
+        // Socket events still carry typing when the HTTP fallback is unavailable.
+      });
+    },
+    [user],
   );
 
   useEffect(() => {
@@ -435,6 +464,7 @@ export default function MessagesClient() {
     if (!user || !active) return;
     const socket = getSocket(user.uid);
     socket.emit("conversation:join", active._id);
+    let cancelled = false;
     const onTyping = ({
       conversationId,
       name,
@@ -481,6 +511,22 @@ export default function MessagesClient() {
     };
     socket.on("typing:update", onTyping);
     socket.on("messages:read", onRead);
+    const loadTypingState = async () => {
+      try {
+        const response = await fetch(
+          `/api/chat/typing?conversationId=${encodeURIComponent(active._id)}&userId=${encodeURIComponent(user.uid)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok || cancelled) return;
+        const data = await response.json();
+        const firstTyping = data.typing?.[0];
+        setTypingName(firstTyping?.name || "");
+      } catch {
+        // Socket typing remains the primary realtime path when polling misses.
+      }
+    };
+    const typingPoll = window.setInterval(loadTypingState, 1500);
+    void loadTypingState();
     fetch("/api/chat/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -499,15 +545,18 @@ export default function MessagesClient() {
       ),
     );
     return () => {
+      cancelled = true;
+      window.clearInterval(typingPoll);
       socket.emit("typing:stop", {
         conversationId: active._id,
         name: profile?.name || user.displayName || "Someone",
       });
+      void updateTypingState(active._id, false, true);
       socket.emit("conversation:leave", active._id);
       socket.off("typing:update", onTyping);
       socket.off("messages:read", onRead);
     };
-  }, [active, user, profile?.name, setConversations, setMessages]);
+  }, [active, user, profile?.name, setConversations, setMessages, updateTypingState]);
 
   useEffect(
     () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
@@ -689,6 +738,7 @@ export default function MessagesClient() {
       conversationId,
       name: profile?.name || user.displayName || "Someone",
     });
+    updateTypingState(conversationId, false, true);
     setDraft("");
     const replyToId = replyingTo?._id;
     setReplyingTo(null);
@@ -752,6 +802,7 @@ export default function MessagesClient() {
         conversationId: active._id,
         name: profile?.name || user.displayName || "Someone",
       });
+      updateTypingState(active._id, false, true);
       if (typingTimer.current) clearTimeout(typingTimer.current);
       return;
     }
@@ -759,13 +810,16 @@ export default function MessagesClient() {
       conversationId: active._id,
       name: profile?.name || user.displayName || "Someone",
     });
+    updateTypingState(active._id, true);
     if (typingTimer.current) clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(
-      () =>
+      () => {
         socket.emit("typing:stop", {
           conversationId: active._id,
           name: profile?.name || user.displayName || "Someone",
-        }),
+        });
+        updateTypingState(active._id, false, true);
+      },
       900,
     );
   };
@@ -1288,13 +1342,16 @@ export default function MessagesClient() {
                   );
                 })}
                 {typingName && (
-                  <div className="flex justify-start px-1 py-1" aria-live="polite">
-                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-white/[0.06] bg-[#202522] px-3 py-2 text-xs text-white/55 shadow-sm">
-                      <span className="max-w-28 truncate">{typingName} is typing</span>
-                      <span className="flex items-center gap-1" aria-hidden="true">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green [animation-delay:-0.24s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green [animation-delay:-0.12s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green" />
+                  <div className="flex items-end gap-2 px-1 py-2" aria-live="polite">
+                    {person && <Avatar person={person} size={28} />}
+                    <div className="relative max-w-[78%] rounded-[20px] rounded-bl-[6px] border border-white/[0.07] bg-[#202522] px-3.5 py-2.5 shadow-sm">
+                      <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-brand-green">
+                        {typingName}
+                      </span>
+                      <span className="flex h-5 items-center gap-1.5" aria-label={`${typingName} is typing`}>
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.24s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.12s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70" />
                       </span>
                     </div>
                   </div>
