@@ -8,6 +8,46 @@ import User from "@/models/user";
 
 export function configureSocketServer(io: Server) {
   let closeRedis: (() => Promise<void>) | undefined;
+  const participantCache = new Map<string, { ids: string[]; expiresAt: number }>();
+
+  const getConversationParticipantFirebaseIds = async (conversationId: string) => {
+    const cached = participantCache.get(conversationId);
+    if (cached && cached.expiresAt > Date.now()) return cached.ids;
+    await connectToDB();
+    const conversation = await Conversation.findById(conversationId)
+      .populate("participants", "firebaseId")
+      .lean() as unknown as { participants: Array<{ firebaseId: string }> } | null;
+    const ids = conversation?.participants.map((participant) => participant.firebaseId).filter(Boolean) || [];
+    participantCache.set(conversationId, {
+      ids,
+      expiresAt: Date.now() + 30_000,
+    });
+    return ids;
+  };
+
+  const publishTypingUpdate = async (
+    userId: string,
+    conversationId: string,
+    name: string,
+    isTyping: boolean,
+  ) => {
+    if (!conversationId || !userId) return;
+    try {
+      const participantIds = await getConversationParticipantFirebaseIds(conversationId);
+      if (!participantIds.includes(userId)) return;
+      for (const participantId of participantIds) {
+        if (participantId === userId) continue;
+        io.to(`user:${participantId}`).emit("typing:update", {
+          conversationId,
+          userId,
+          name,
+          isTyping,
+        });
+      }
+    } catch (error) {
+      console.error("Typing publication failed", error);
+    }
+  };
 
   if (process.env.REDIS_URL) {
     try {
@@ -87,14 +127,10 @@ export function configureSocketServer(io: Server) {
       }
     });
     socket.on("typing:start", ({ conversationId, name }) => {
-      if (socket.rooms.has(`conversation:${conversationId}`)) {
-        socket.to(`conversation:${conversationId}`).emit("typing:update", { userId, name, isTyping: true });
-      }
+      void publishTypingUpdate(userId, conversationId, name, true);
     });
     socket.on("typing:stop", ({ conversationId, name }) => {
-      if (socket.rooms.has(`conversation:${conversationId}`)) {
-        socket.to(`conversation:${conversationId}`).emit("typing:update", { userId, name, isTyping: false });
-      }
+      void publishTypingUpdate(userId, conversationId, name, false);
     });
     socket.on("messages:read", async ({ conversationId }) => {
       if (!conversationId || !userId) return;

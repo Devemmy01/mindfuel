@@ -436,12 +436,17 @@ export default function MessagesClient() {
     const socket = getSocket(user.uid);
     socket.emit("conversation:join", active._id);
     const onTyping = ({
+      conversationId,
       name,
       isTyping,
     }: {
+      conversationId: string;
       name: string;
       isTyping: boolean;
-    }) => setTypingName(isTyping ? name : "");
+    }) => {
+      if (conversationId !== active._id) return;
+      setTypingName(isTyping ? name : "");
+    };
     const onRead = ({ conversationId, userId }: { conversationId: string; userId: string }) => {
       if (conversationId !== active._id) return;
       setMessages((rows) =>
@@ -494,11 +499,15 @@ export default function MessagesClient() {
       ),
     );
     return () => {
+      socket.emit("typing:stop", {
+        conversationId: active._id,
+        name: profile?.name || user.displayName || "Someone",
+      });
       socket.emit("conversation:leave", active._id);
       socket.off("typing:update", onTyping);
       socket.off("messages:read", onRead);
     };
-  }, [active, user, setConversations, setMessages]);
+  }, [active, user, profile?.name, setConversations, setMessages]);
 
   useEffect(
     () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
@@ -652,6 +661,7 @@ export default function MessagesClient() {
     const text = draft.trim();
     const conversationId = active._id;
     const temporaryId = `pending-${crypto.randomUUID()}`;
+    const socket = getSocket(user.uid);
     const optimisticMessage: ChatMessage = {
       _id: temporaryId,
       text,
@@ -674,6 +684,11 @@ export default function MessagesClient() {
         : null,
       deliveryState: "sending",
     };
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    socket.emit("typing:stop", {
+      conversationId,
+      name: profile?.name || user.displayName || "Someone",
+    });
     setDraft("");
     const replyToId = replyingTo?._id;
     setReplyingTo(null);
@@ -712,7 +727,7 @@ export default function MessagesClient() {
         };
         return [updated, ...rows.filter((row) => row._id !== conversationId)];
       });
-      getSocket(user.uid).emit("message:published", {
+      socket.emit("message:published", {
         conversationId,
         message: data.message,
       });
@@ -732,6 +747,14 @@ export default function MessagesClient() {
     setDraft(value);
     if (!user || !active) return;
     const socket = getSocket(user.uid);
+    if (!value.trim()) {
+      socket.emit("typing:stop", {
+        conversationId: active._id,
+        name: profile?.name || user.displayName || "Someone",
+      });
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      return;
+    }
     socket.emit("typing:start", {
       conversationId: active._id,
       name: profile?.name || user.displayName || "Someone",
@@ -741,7 +764,7 @@ export default function MessagesClient() {
       () =>
         socket.emit("typing:stop", {
           conversationId: active._id,
-          name: profile?.name,
+          name: profile?.name || user.displayName || "Someone",
         }),
       900,
     );
@@ -1265,9 +1288,16 @@ export default function MessagesClient() {
                   );
                 })}
                 {typingName && (
-                  <span className="px-2 text-xs text-muted-foreground">
-                    typing…
-                  </span>
+                  <div className="flex justify-start px-1 py-1" aria-live="polite">
+                    <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-white/[0.06] bg-[#202522] px-3 py-2 text-xs text-white/55 shadow-sm">
+                      <span className="max-w-28 truncate">{typingName} is typing</span>
+                      <span className="flex items-center gap-1" aria-hidden="true">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green [animation-delay:-0.24s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green [animation-delay:-0.12s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-green" />
+                      </span>
+                    </div>
+                  </div>
                 )}
                 <div ref={bottomRef} />
               </div>
