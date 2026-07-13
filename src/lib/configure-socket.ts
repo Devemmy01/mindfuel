@@ -5,23 +5,26 @@ import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
 import User from "@/models/user";
-import webpush from "@/lib/push";
-import type { PushSubscription } from "web-push";
-
-const APP_URL = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") || "https://mind-fuel.app";
 
 export function configureSocketServer(io: Server) {
   let closeRedis: (() => Promise<void>) | undefined;
 
   if (process.env.REDIS_URL) {
-    const publisher = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-    const subscriber = publisher.duplicate();
-    publisher.on("error", (error) => console.error("Redis publisher error", error.message));
-    subscriber.on("error", (error) => console.error("Redis subscriber error", error.message));
-    io.adapter(createAdapter(publisher, subscriber));
-    closeRedis = async () => {
-      await Promise.allSettled([publisher.quit(), subscriber.quit()]);
-    };
+    try {
+      if (!/^rediss?:\/\//i.test(process.env.REDIS_URL)) {
+        throw new Error("REDIS_URL must use the redis:// or rediss:// protocol");
+      }
+      const publisher = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+      const subscriber = publisher.duplicate();
+      publisher.on("error", (error) => console.error("Redis publisher error", error.message));
+      subscriber.on("error", (error) => console.error("Redis subscriber error", error.message));
+      io.adapter(createAdapter(publisher, subscriber));
+      closeRedis = async () => {
+        await Promise.allSettled([publisher.quit(), subscriber.quit()]);
+      };
+    } catch (error) {
+      console.error("Redis socket adapter disabled:", error);
+    }
   }
 
   io.on("connection", (socket) => {
@@ -47,50 +50,36 @@ export function configureSocketServer(io: Server) {
       if (conversationId) socket.leave(`conversation:${conversationId}`);
     });
     socket.on("message:published", async ({ conversationId, message }) => {
-      if (!conversationId || !message?._id || !userId || !socket.rooms.has(`conversation:${conversationId}`)) return;
+      if (!conversationId || !message?._id || !userId) return;
       try {
         await connectToDB();
         const sender = await User.findOne({ firebaseId: userId }).select("_id").lean() as unknown as { _id: string } | null;
         if (!sender) return;
         const [conversation, storedMessage] = await Promise.all([
           Conversation.findOne({ _id: conversationId, participants: sender._id })
-            .populate("participants", "name username image firebaseId preferences pushSubscriptions")
+            .populate("participants", "name username image firebaseId")
             .lean(),
           Message.findOne({ _id: message._id, conversation: conversationId, sender: sender._id })
             .populate("sender", "name username image firebaseId")
+            .populate({
+              path: "replyTo",
+              select: "text sender createdAt",
+              populate: { path: "sender", select: "name username image firebaseId" },
+            })
             .lean(),
         ]) as unknown as [
-          { participants: Array<{ firebaseId: string; preferences?: { notifications?: boolean }; pushSubscriptions?: PushSubscription[] }> } | null,
+          { participants: Array<{ firebaseId: string }> } | null,
           { sender?: { name?: string; image?: string }; text?: string } & Record<string, unknown> | null,
         ];
         if (!conversation || !storedMessage) return;
         for (const participant of conversation.participants) {
           if (participant.firebaseId !== userId) {
             const recipientRoom = `user:${participant.firebaseId}`;
-            const connectedRecipients = await io.in(recipientRoom).fetchSockets();
             io.to(recipientRoom).emit("conversation:message", {
               conversationId,
               conversation,
               message: storedMessage,
             });
-            if (
-              connectedRecipients.length === 0 &&
-              participant.preferences?.notifications !== false &&
-              participant.pushSubscriptions?.length
-            ) {
-              const payload = JSON.stringify({
-                title: storedMessage.sender?.name || "New message",
-                body: storedMessage.text || "Sent you a message",
-                icon: storedMessage.sender?.image || `${APP_URL}/icon-192.png`,
-                badge: `${APP_URL}/icon-192.png`,
-                url: `${APP_URL}/messages?with=${encodeURIComponent(userId)}`,
-              });
-              await Promise.allSettled(
-                participant.pushSubscriptions.map((subscription) =>
-                  webpush.sendNotification(subscription, payload),
-                ),
-              );
-            }
           }
         }
       } catch (error) {

@@ -349,7 +349,7 @@ export async function POST(req: NextRequest) {
 
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
-      streakUpdate,
+      { $set: { ...streakUpdate, lastInactivityReminderAt: null } },
       { new: true }
     );
 

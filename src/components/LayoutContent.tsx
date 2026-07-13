@@ -34,7 +34,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <Navbar />
 
         {/* ── Main Feed Column ── */}
-        <main className={`app-main flex-grow w-full min-w-0 md:border-x md:border-border/70 overflow-y-auto h-full no-scrollbar ${isMessages ? "md:max-w-none" : "md:max-w-[600px]"}`}>
+        <main className={`app-main flex-grow w-full min-w-0 md:border-x md:border-border/70 h-full no-scrollbar ${isMessages ? "overflow-hidden md:max-w-none" : "overflow-y-auto md:max-w-[600px]"}`}>
           {children}
         </main>
 

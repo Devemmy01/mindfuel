@@ -3,6 +3,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const PUSH_DEVICE_KEY = "mindfuel_push_device_id";
 
 export function usePushNotifications() {
   const { user } = useAuth();
@@ -175,6 +176,12 @@ export function usePushNotifications() {
 
       console.log("Push: Subscription successful, syncing with backend...");
 
+      let deviceId = localStorage.getItem(PUSH_DEVICE_KEY);
+      if (!deviceId) {
+        deviceId = crypto.randomUUID();
+        localStorage.setItem(PUSH_DEVICE_KEY, deviceId);
+      }
+
       // 4. Send to Backend
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
@@ -182,12 +189,13 @@ export function usePushNotifications() {
         body: JSON.stringify({
           subscription,
           userId: user.uid,
+          deviceId,
         }),
       });
 
       if (res.ok) {
         console.log("Push: Successfully synced with backend!");
-        showToast("You're all set! Daily Fuel alerts are active.", "success");
+        showToast("You're all set for daily tips alerts!", "success");
       } else {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to sync subscription");

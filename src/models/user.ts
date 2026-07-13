@@ -14,6 +14,7 @@ export interface IUser extends Document {
   };
   pushSubscriptions: Array<{
     endpoint: string;
+    deviceId?: string;
     keys: {
       p256dh: string;
       auth: string;
@@ -21,6 +22,9 @@ export interface IUser extends Document {
   }>;
   streakDays: number;
   lastReflectionDate?: Date;
+  lastDailyTipEmailAt?: Date;
+  dailyTipHistory: string[];
+  lastInactivityReminderAt?: Date;
   longestStreak: number;
   earnedMilestones: Array<{ id: string; earnedAt: Date }>;
   createdAt: Date;
@@ -77,6 +81,7 @@ const UserSchema = new Schema(
       type: [
         {
           endpoint: String,
+          deviceId: String,
           keys: {
             p256dh: String,
             auth: String,
@@ -90,6 +95,18 @@ const UserSchema = new Schema(
       default: 0,
     },
     lastReflectionDate: {
+      type: Date,
+      default: null,
+    },
+    lastDailyTipEmailAt: {
+      type: Date,
+      default: null,
+    },
+    dailyTipHistory: {
+      type: [String],
+      default: [],
+    },
+    lastInactivityReminderAt: {
       type: Date,
       default: null,
     },

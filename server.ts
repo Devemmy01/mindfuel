@@ -13,7 +13,7 @@ async function start() {
  const httpServer = createServer(handler);
  const io = new Server(httpServer, {
   path: "/api/socket",
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
  });
  const cleanupSocketServer = configureSocketServer(io);
 

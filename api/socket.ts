@@ -11,7 +11,7 @@ const server = createServer((_request, response) => {
 
 const io = new Server(server, {
   path: "/api/socket",
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
 });
 
 configureSocketServer(io);

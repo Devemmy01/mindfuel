@@ -5,20 +5,13 @@ import Tip from "@/models/tip";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
 import { getPromptForToday } from "@/lib/prompts";
-import webpush from "web-push";
+import { DAILY_PROMPTS } from "@/lib/prompts";
+import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
+import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import React from "react";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-// Configure Web Push if keys are available
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    "mailto:dominicgeorge974@gmail.com",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -34,22 +27,32 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
 
-    // 1. Fetch a mindful tip (try DB first, fallback to prompt library)
-    let tip = getPromptForToday();
+    // Build one quality-controlled pool. Selection happens per user so every
+    // person gets a fresh tip until they have exhausted the entire pool.
+    let tipPool = [...DAILY_TIPS, ...DAILY_PROMPTS];
     try {
-      const randomTips = await Tip.aggregate([{ $sample: { size: 1 } }]);
-      if (randomTips && randomTips.length > 0) {
-        tip = randomTips[0].text;
-      }
+      const storedTips = await Tip.find({}).select("text -_id").limit(1000).lean();
+      tipPool = [...new Set([...DAILY_TIPS, ...DAILY_PROMPTS, ...storedTips.map((tip) => tip.text).filter(Boolean)])];
     } catch (tipError) {
       console.error("Failed to fetch local tip for cron:", tipError);
     }
+
+    if (tipPool.length === 0) tipPool = [getPromptForToday()];
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const dateKey = startOfToday.toISOString().slice(0, 10);
 
     // 2. Fetch users (Unlocked for all users)
     const users = await User.find({
       "preferences.dailyEmail": { $ne: false },
       email: { $exists: true, $ne: "" },
-    }).select("name email preferences pushSubscriptions");
+      $or: [
+        { lastDailyTipEmailAt: { $lt: startOfToday } },
+        { lastDailyTipEmailAt: null },
+        { lastDailyTipEmailAt: { $exists: false } },
+      ],
+    }).select("name email preferences pushSubscriptions dailyTipHistory lastDailyTipEmailAt");
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -69,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const sendDailyTipEmail = async (userEmail: string, userName: string) => {
+    const sendDailyTipEmail = async (userEmail: string, userName: string, tip: string) => {
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
           const response = (await resend.emails.send({
@@ -108,11 +111,26 @@ export async function GET(req: NextRequest) {
 
     // 3. Process Notifications
     for (const user of users) {
+      const history = new Set((user.dailyTipHistory || []).map(String));
+      let availableTips = tipPool.filter((tip) => !history.has(tip));
+      const exhaustedPool = availableTips.length === 0;
+      if (exhaustedPool) availableTips = tipPool;
+      const tip = availableTips[stableTipIndex(`${user.email}:${dateKey}`, availableTips.length)];
+
       // EMAIL
       try {
-        const sent = await sendDailyTipEmail(user.email, user.name || "Friend");
+        const sent = await sendDailyTipEmail(user.email, user.name || "Friend", tip);
         if (sent) {
           results.emailsSent++;
+          await User.updateOne(
+            { _id: user._id },
+            exhaustedPool
+              ? { $set: { dailyTipHistory: [tip], lastDailyTipEmailAt: new Date() } }
+              : {
+                  $set: { lastDailyTipEmailAt: new Date() },
+                  $push: { dailyTipHistory: { $each: [tip], $slice: -1000 } },
+                },
+          );
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unknown error";
@@ -128,32 +146,23 @@ export async function GET(req: NextRequest) {
           body: tip,
           icon: "/icon-192.png",
           badge: "/icon-192.png",
+          tag: "daily-fuel",
           data: { url: "https://mind-fuel.app" }
         });
 
-        for (const sub of user.pushSubscriptions) {
-          try {
-            await webpush.sendNotification(sub, payload);
-            results.pushSent++;
-          } catch (error: unknown) {
-            if (error && typeof error === 'object' && 'statusCode' in error) {
-              const err = error as { statusCode: number };
-              if (err.statusCode === 410 || err.statusCode === 404) {
-                await User.updateOne(
-                  { _id: user._id },
-                  { $pull: { pushSubscriptions: { endpoint: sub.endpoint } } }
-                );
-              }
-            }
-          }
-        }
+        const delivery = await sendPushNotifications({
+          recipientId: user._id,
+          subscriptions: user.pushSubscriptions as unknown as StoredPushSubscription[],
+          payload,
+        });
+        results.pushSent += delivery.sent;
       }
     }
 
     return NextResponse.json(
       {
         success: true,
-        tip,
+        tipPoolSize: tipPool.length,
         results
       },
       { status: 200 },

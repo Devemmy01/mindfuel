@@ -50,6 +50,11 @@ export default function InstallPWA() {
     manifest.href = "/manifest.json";
     manifest.dataset.mindfuelPwa = "true";
     document.head.appendChild(manifest);
+    const mobileCapable = document.createElement("meta");
+    mobileCapable.name = "mobile-web-app-capable";
+    mobileCapable.content = "yes";
+    mobileCapable.dataset.mindfuelPwa = "true";
+    document.head.appendChild(mobileCapable);
     const capable = document.createElement("meta");
     capable.name = "apple-mobile-web-app-capable";
     capable.content = "yes";

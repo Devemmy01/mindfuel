@@ -23,21 +23,32 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
 
-    // Calculate date 3 days ago
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // 1. Find users who haven't posted in 3+ days.
+    // Find users who have not posted in 7+ days and have not already received
+    // an inactivity reminder during the last week.
     // This uses the denormalized lastReflectionDate maintained on User instead
     // of querying Post once per user.
     const inactiveUsers = await User.find({
       "preferences.dailyEmail": { $ne: false },
       email: { $exists: true, $ne: "" },
-      $or: [
-        { lastReflectionDate: { $lte: threeDaysAgo } },
-        { lastReflectionDate: null, createdAt: { $lte: threeDaysAgo } },
-        { lastReflectionDate: { $exists: false }, createdAt: { $lte: threeDaysAgo } },
+      $and: [
+        {
+          $or: [
+            { lastReflectionDate: { $lte: sevenDaysAgo } },
+            { lastReflectionDate: null, createdAt: { $lte: sevenDaysAgo } },
+            { lastReflectionDate: { $exists: false }, createdAt: { $lte: sevenDaysAgo } },
+          ],
+        },
+        {
+          $or: [
+            { lastInactivityReminderAt: { $lte: sevenDaysAgo } },
+            { lastInactivityReminderAt: null },
+            { lastInactivityReminderAt: { $exists: false } },
+          ],
+        },
       ],
-    }).select("_id name email createdAt lastReflectionDate");
+    }).select("_id name email createdAt lastReflectionDate lastInactivityReminderAt");
 
     const usersMissingReflectionDate = inactiveUsers.filter((user) => !user.lastReflectionDate);
     const lastPostByUserId = new Map<string, Date>();
@@ -148,6 +159,7 @@ export async function GET(req: NextRequest) {
           );
           if (sent) {
             results.neverPostedEmails++;
+            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() } });
           }
         } else {
           const lastPostDate = new Date(lastReflectionDate);
@@ -162,6 +174,7 @@ export async function GET(req: NextRequest) {
           );
           if (sent) {
             results.inactiveEmails++;
+            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() } });
           }
         }
       } catch (error: unknown) {

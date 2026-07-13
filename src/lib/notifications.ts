@@ -1,7 +1,6 @@
 import Notification from "@/models/notification";
 import User, { IUser } from "@/models/user";
-import webpush from "@/lib/push";
-import { PushSubscription } from "web-push";
+import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import { Types } from "mongoose";
 
 const BASE_URL =
@@ -72,17 +71,14 @@ export async function createNotification({
         icon: `${BASE_URL}/icon-192.png`,
         badge: `${BASE_URL}/icon-192.png`,
         url: absoluteUrl,
+        tag: `${type}-${postId}-${senderId}`,
       });
 
-      // Send to all registered devices
-      await Promise.all(
-        recipient.pushSubscriptions.map((sub) =>
-          webpush.sendNotification(sub as unknown as PushSubscription, payload).catch((err) => {
-            console.error("Failed to send push notification to a subscription:", err);
-            // If subscription is expired/invalid, we could potentially remove it here
-          })
-        )
-      );
+      await sendPushNotifications({
+        recipientId: recipient._id,
+        subscriptions: recipient.pushSubscriptions as unknown as StoredPushSubscription[],
+        payload,
+      });
     }
   } catch (err) {
     console.error("Error creating notification:", err);

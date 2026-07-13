@@ -10,7 +10,23 @@ const withPWA = withPWAInit({
   skipWaiting: false,
   customWorkerDir: "worker",
   buildExcludes: [/dev-sw\.js$/, /app-build-manifest\.json$/],
+  fallbacks: {
+    document: "/offline",
+    image: "",
+    audio: "",
+    video: "",
+    font: "",
+  },
   runtimeCaching: [
+    {
+      urlPattern: ({ url }: { url: URL }) =>
+        url.origin === self.location.origin &&
+        (url.pathname === "/api/socket" || url.pathname.startsWith("/api/chat/")),
+      handler: "NetworkOnly",
+      options: {
+        cacheName: "mindfuel-realtime-network-only",
+      },
+    },
     {
       urlPattern: ({ url }: { url: URL }) =>
         url.origin === self.location.origin && url.pathname === "/feed",

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }));
     return NextResponse.json(
       { conversations: withUnread },
-      { headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=20" } }
+      { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
     console.error("Conversation lookup failed", error);

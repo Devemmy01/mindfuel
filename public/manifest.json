@@ -6,6 +6,9 @@
   "start_url": "/feed?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "background_color": "#010302",
   "theme_color": "#010302",
   "orientation": "portrait-primary",
@@ -49,6 +52,7 @@
   "share_target": {
     "action": "/create",
     "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
       "text": "share_text",

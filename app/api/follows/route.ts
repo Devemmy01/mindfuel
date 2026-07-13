@@ -3,8 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Follow from "@/models/follow";
 import User from "@/models/user";
 import Notification from "@/models/notification";
-import webpush from "@/lib/push";
-import type { PushSubscription } from "web-push";
+import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
@@ -102,13 +101,14 @@ export async function POST(req: NextRequest) {
         icon,
         badge: `${APP_URL}/icon-192.png`,
         url: `${APP_URL}/profile/${encodeURIComponent(follower.firebaseId)}`,
+        tag: `follow-${follower.firebaseId}`,
       });
 
-      await Promise.allSettled(
-        following.pushSubscriptions.map((subscription: PushSubscription) =>
-          webpush.sendNotification(subscription, payload),
-        ),
-      );
+      await sendPushNotifications({
+        recipientId: following._id,
+        subscriptions: following.pushSubscriptions as unknown as StoredPushSubscription[],
+        payload,
+      });
     }
 
     return NextResponse.json({ isFollowing: true }, { status: 201 });

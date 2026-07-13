@@ -32,11 +32,19 @@ export default function Navbar() {
   const [imgError, setImgError] = useState(false);
   const [notificationsReady, setNotificationsReady] = useState(false);
   const [isConversationOpen, setIsConversationOpen] = useState(false);
+  const chatMessageIdsRef = useRef<Map<string, string>>(new Map());
+  const chatSnapshotReadyRef = useRef(false);
 
+  type NavMessage = {
+    _id?: string;
+    text?: string;
+    createdAt?: string;
+    sender?: { firebaseId?: string; name?: string; image?: string };
+  };
   type NavConversation = {
     _id: string;
     unreadCount?: number;
-    lastMessage?: unknown;
+    lastMessage?: NavMessage;
     lastMessageAt?: string;
   };
 
@@ -56,14 +64,21 @@ export default function Navbar() {
   const chatUrl = user
     ? `/api/chat/conversations?userId=${encodeURIComponent(user.uid)}`
     : null;
-  const { data: chatConversations = [], mutate: mutateChatConversations } = useSWR<NavConversation[]>(
+  const { data: chatConversationData, mutate: mutateChatConversations } = useSWR<NavConversation[]>(
     chatUrl,
-    (url: string) => fetch(url).then(async (response) => {
+    (url: string) => fetch(url, { cache: "no-store" }).then(async (response) => {
       if (!response.ok) throw new Error("Unable to load unread messages");
       return (await response.json()).conversations || [];
     }),
-    { revalidateOnFocus: true, dedupingInterval: 30_000 },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      refreshInterval: 5_000,
+      refreshWhenHidden: false,
+      dedupingInterval: 2_000,
+    },
   );
+  const chatConversations = chatConversationData || [];
   const unreadMessageCount = chatConversations.reduce(
     (total, conversation) => total + (conversation.unreadCount || 0),
     0,
@@ -75,7 +90,7 @@ export default function Navbar() {
     const notifyAboutMessage = ({ conversationId, conversation, message }: {
       conversationId?: string;
       conversation?: NavConversation;
-      message?: { text?: string; createdAt?: string; sender?: { name?: string; image?: string } };
+      message?: NavMessage;
     }) => {
       if (!message || !conversationId || pathname.startsWith("/messages")) return;
       void mutateChatConversations((rows = []) => {
@@ -88,19 +103,33 @@ export default function Navbar() {
         };
         return [updated, ...rows.filter((row) => row._id !== conversationId)];
       }, { revalidate: false });
-      const senderName = message.sender?.name || "Someone";
-      const firstName = senderName.trim().split(/\s+/)[0] || "Someone";
-      showToast(`New message from ${firstName}`, "info", 5000);
-      if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-        new Notification(senderName, {
-          body: message.text || "Sent you a message",
-          icon: message.sender?.image || "/icon-192.png",
-        });
-      }
     };
     socket.on("conversation:message", notifyAboutMessage);
     return () => { socket.off("conversation:message", notifyAboutMessage); };
   }, [pathname, showToast, user, mutateChatConversations]);
+
+  useEffect(() => {
+    if (!user || !chatConversationData) return;
+    const nextIds = new Map<string, string>();
+    for (const conversation of chatConversationData) {
+      const message = conversation.lastMessage;
+      if (!message?._id) continue;
+      nextIds.set(conversation._id, message._id);
+      const previousId = chatMessageIdsRef.current.get(conversation._id);
+      if (
+        chatSnapshotReadyRef.current &&
+        previousId !== message._id &&
+        message.sender?.firebaseId !== user.uid &&
+        !pathname.startsWith("/messages")
+      ) {
+        const senderName = message.sender?.name || "Someone";
+        const firstName = senderName.trim().split(/\s+/)[0] || "Someone";
+        showToast(`New message from ${firstName}`, "info", 5000);
+      }
+    }
+    chatMessageIdsRef.current = nextIds;
+    chatSnapshotReadyRef.current = true;
+  }, [chatConversationData, pathname, showToast, user]);
 
   useEffect(() => {
     if (!user) {

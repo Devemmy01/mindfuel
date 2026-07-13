@@ -24,6 +24,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   PenSquare,
+  Reply,
   Search,
   Send,
   Smile,
@@ -51,9 +52,30 @@ type ChatMessage = {
   text: string;
   createdAt: string;
   sender: Person;
+  replyTo?: {
+    _id: string;
+    text: string;
+    createdAt: string;
+    sender: Person;
+  } | null;
   readBy?: string[];
   deliveryState?: "sending" | "failed";
 };
+
+function messageDayKey(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function messageDateLabel(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (messageDayKey(value) === messageDayKey(today.toISOString())) return "Today";
+  if (messageDayKey(value) === messageDayKey(yesterday.toISOString())) return "Yesterday";
+  return date.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
+}
 type Conversation = {
   _id: string;
   participants: Person[];
@@ -97,14 +119,14 @@ function writeChatCache<T>(key: string, data: T) {
 }
 
 async function conversationsFetcher(url: string): Promise<Conversation[]> {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error("Unable to load conversations");
   const data = await response.json();
   return data.conversations || [];
 }
 
 async function messagesFetcher(url: string): Promise<ChatMessage[]> {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error("Unable to load messages");
   const data = await response.json();
   return data.messages || [];
@@ -148,11 +170,16 @@ export default function MessagesClient() {
   const [recipientSearchLoading, setRecipientSearchLoading] = useState(false);
   const [startingRecipientId, setStartingRecipientId] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIdRef = useRef<string | null>(null);
+  const conversationMessageIdsRef = useRef<Map<string, string>>(new Map());
+  const conversationSnapshotReadyRef = useRef(false);
+  const swipeStartRef = useRef<{ x: number; y: number; messageId: string } | null>(null);
+  const lastMarkedReadIdRef = useRef("");
 
   const conversationCacheKey = user ? `conversations:${user.uid}` : "";
   const cachedConversations = useMemo(
@@ -176,6 +203,8 @@ export default function MessagesClient() {
     revalidateOnReconnect: true,
     shouldRetryOnError: true,
     errorRetryInterval: 10_000,
+    refreshInterval: 5_000,
+    refreshWhenHidden: false,
   });
   const conversations = useMemo(
     () => conversationData || [],
@@ -217,6 +246,8 @@ export default function MessagesClient() {
       revalidateOnReconnect: true,
       shouldRetryOnError: true,
       errorRetryInterval: 10_000,
+      refreshInterval: 3_500,
+      refreshWhenHidden: false,
     },
   );
   const messages = useMemo(() => messageData || [], [messageData]);
@@ -243,6 +274,23 @@ export default function MessagesClient() {
       writeChatCache(messageCacheKey, messageData);
   }, [messageCacheKey, messageData]);
 
+  useEffect(() => {
+    if (!user || !active || !messageData?.length) return;
+    const latest = messageData[messageData.length - 1];
+    if (latest.sender.firebaseId === user.uid || lastMarkedReadIdRef.current === latest._id) return;
+    lastMarkedReadIdRef.current = latest._id;
+    const socket = getSocket(user.uid);
+    fetch("/api/chat/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.uid, conversationId: active._id }),
+    })
+      .then((response) => {
+        if (response.ok) socket.emit("messages:read", { conversationId: active._id });
+      })
+      .catch(() => undefined);
+  }, [active, messageData, user]);
+
   const otherPerson = useCallback(
     (conversation: Conversation) =>
       conversation.participants.find(
@@ -252,14 +300,20 @@ export default function MessagesClient() {
   );
   const visibleConversations = useMemo(
     () =>
-      conversations.filter((conversation) => {
-        const person = otherPerson(conversation);
-        const search = query.trim().toLowerCase();
-        if (!search) return true;
-        return `${person?.name || ""} ${person?.username || ""} ${conversation.lastMessage?.text || ""}`
-          .toLowerCase()
-          .includes(search);
-      }),
+      conversations
+        .filter((conversation) => {
+          const person = otherPerson(conversation);
+          const search = query.trim().toLowerCase();
+          if (!search) return true;
+          return `${person?.name || ""} ${person?.username || ""} ${conversation.lastMessage?.text || ""}`
+            .toLowerCase()
+            .includes(search);
+        })
+        .sort(
+          (left, right) =>
+            new Date(right.lastMessageAt || 0).getTime() -
+            new Date(left.lastMessageAt || 0).getTime(),
+        ),
     [conversations, query, otherPerson],
   );
 
@@ -293,6 +347,7 @@ export default function MessagesClient() {
 
   useEffect(() => {
     activeIdRef.current = active?._id || null;
+    lastMarkedReadIdRef.current = "";
   }, [active?._id]);
 
   useEffect(() => {
@@ -337,15 +392,8 @@ export default function MessagesClient() {
             // The read receipt can be retried when the conversation is reopened.
           });
       } else {
-        const firstName =
-          message.sender.name.trim().split(/\s+/)[0] || "Someone";
-        showToast(`New message from ${firstName}`, "info", 4500);
-        if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-          new Notification(message.sender.name, {
-            body: message.text,
-            icon: message.sender.image || "/icon-192.png",
-          });
-        }
+        // The conversation cache update below drives the unified toast effect,
+        // which also covers polling fallback when sockets reconnect.
       }
     };
     socket.on("conversation:message", onConversationMessage);
@@ -353,6 +401,28 @@ export default function MessagesClient() {
       socket.off("conversation:message", onConversationMessage);
     };
   }, [user, showToast, setConversations, setMessages]);
+
+  useEffect(() => {
+    if (!user || !conversationData) return;
+    const nextIds = new Map<string, string>();
+    for (const conversation of conversationData) {
+      const message = conversation.lastMessage;
+      if (!message?._id) continue;
+      nextIds.set(conversation._id, message._id);
+      const previousId = conversationMessageIdsRef.current.get(conversation._id);
+      if (
+        conversationSnapshotReadyRef.current &&
+        previousId !== message._id &&
+        message.sender?.firebaseId !== user.uid &&
+        activeIdRef.current !== conversation._id
+      ) {
+        const firstName = message.sender.name.trim().split(/\s+/)[0] || "Someone";
+        showToast(`New message from ${firstName}`, "info", 4500);
+      }
+    }
+    conversationMessageIdsRef.current = nextIds;
+    conversationSnapshotReadyRef.current = true;
+  }, [conversationData, showToast, user]);
 
   useEffect(() => {
     if (!user || !active) return;
@@ -452,6 +522,7 @@ export default function MessagesClient() {
     setShowConversationMenu(false);
     setProfileLinkCopied(false);
     setShowEmojiPicker(false);
+    setReplyingTo(null);
   }, [active?._id]);
 
   useEffect(() => {
@@ -572,27 +643,36 @@ export default function MessagesClient() {
         image: profile?.image || user.photoURL || undefined,
       },
       readBy: [],
+      replyTo: replyingTo
+        ? {
+            _id: replyingTo._id,
+            text: replyingTo.text,
+            createdAt: replyingTo.createdAt,
+            sender: replyingTo.sender,
+          }
+        : null,
       deliveryState: "sending",
     };
     setDraft("");
+    const replyToId = replyingTo?._id;
+    setReplyingTo(null);
     setMessages((rows) => [...rows, optimisticMessage]);
-    setConversations((rows) =>
-      rows.map((row) =>
-        row._id === conversationId
-          ? {
-              ...row,
-              lastMessage: optimisticMessage,
-              lastMessageAt: optimisticMessage.createdAt,
-            }
-          : row,
-      ),
-    );
+    setConversations((rows) => {
+      const current = rows.find((row) => row._id === conversationId);
+      if (!current) return rows;
+      const updated = {
+        ...current,
+        lastMessage: optimisticMessage,
+        lastMessageAt: optimisticMessage.createdAt,
+      };
+      return [updated, ...rows.filter((row) => row._id !== conversationId)];
+    });
 
     try {
       const response = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, conversationId, text }),
+        body: JSON.stringify({ userId: user.uid, conversationId, text, replyTo: replyToId }),
       });
       if (!response.ok) throw new Error("Message failed to send");
       const data = await response.json();
@@ -601,17 +681,16 @@ export default function MessagesClient() {
           message._id === temporaryId ? data.message : message,
         ),
       );
-      setConversations((rows) =>
-        rows.map((row) =>
-          row._id === conversationId
-            ? {
-                ...row,
-                lastMessage: data.message,
-                lastMessageAt: data.message.createdAt,
-              }
-            : row,
-        ),
-      );
+      setConversations((rows) => {
+        const current = rows.find((row) => row._id === conversationId);
+        if (!current) return rows;
+        const updated = {
+          ...current,
+          lastMessage: data.message,
+          lastMessageAt: data.message.createdAt,
+        };
+        return [updated, ...rows.filter((row) => row._id !== conversationId)];
+      });
       getSocket(user.uid).emit("message:published", {
         conversationId,
         message: data.message,
@@ -658,6 +737,15 @@ export default function MessagesClient() {
     }, 0);
   };
 
+  const finishSwipe = (event: React.PointerEvent, message: ChatMessage) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start || start.messageId !== message._id || event.pointerType !== "touch") return;
+    const horizontal = event.clientX - start.x;
+    const vertical = Math.abs(event.clientY - start.y);
+    if (horizontal > 55 && vertical < 45) setReplyingTo(message);
+  };
+
   if (authLoading)
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
@@ -683,7 +771,7 @@ export default function MessagesClient() {
 
   const person = active ? otherPerson(active) : null;
   return (
-    <div className="flex h-full min-h-0 bg-[#010302]">
+    <div className="flex h-full max-h-[100dvh] min-h-0 overflow-hidden bg-[#010302]">
       {showNewMessage && (
         <div
           className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
@@ -897,7 +985,7 @@ export default function MessagesClient() {
       >
         {active && person ? (
           <>
-            <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-white/[0.09] bg-[#010302]/90 px-4 backdrop-blur-xl">
+            <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-white/[0.09] bg-[#010302]/95 px-4 backdrop-blur-xl">
               <button
                 onClick={() => setActive(null)}
                 className="rounded-full p-2 hover:bg-white/[0.07] md:hidden"
@@ -906,7 +994,7 @@ export default function MessagesClient() {
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <Avatar person={person} size={40} />
-              <span className="min-w-0 flex flex-col items-center">
+              <span className="min-w-0 flex flex-col items-start text-left">
                 <strong className="block truncate text-[15px] ">
                   {person.name}
                 </strong>
@@ -1022,28 +1110,82 @@ export default function MessagesClient() {
             )}
             <div className="thin-scrollbar flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto flex max-w-2xl flex-col gap-1.5">
-                {messages.map((message) => {
+                {messages.map((message, index) => {
                   const own = message.sender.firebaseId === user.uid;
                   const hasBeenRead = own && (message.readBy?.length || 0) > 1;
+                  const showDate =
+                    index === 0 ||
+                    messageDayKey(messages[index - 1].createdAt) !== messageDayKey(message.createdAt);
                   return (
-                    <div
-                      key={message._id}
-                      className={`flex ${own ? "justify-end" : "justify-start"}`}
-                    >
+                    <React.Fragment key={message._id}>
+                      {showDate && (
+                        <div className="sticky top-2 z-10 my-3 flex justify-center">
+                          <time
+                            dateTime={message.createdAt}
+                            className="rounded-full border border-white/[0.07] bg-[#17231e]/95 px-3 py-1 text-[11px] font-bold text-white/80 backdrop-blur-md"
+                          >
+                            {messageDateLabel(message.createdAt)}
+                          </time>
+                        </div>
+                      )}
                       <div
-                        className={`min-w-0 max-w-[78%] rounded-[20px] border px-3.5 py-2 text-[14px] leading-relaxed shadow-sm ${own ? "rounded-br-[5px] border-[#087766] bg-[#075e54] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#202522] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""}`}
+                        className={`group flex touch-pan-y items-center gap-2 ${own ? "justify-end" : "justify-start"}`}
+                        onPointerDown={(event) => {
+                          if (event.pointerType === "touch") {
+                            swipeStartRef.current = { x: event.clientX, y: event.clientY, messageId: message._id };
+                          }
+                        }}
+                        onPointerUp={(event) => finishSwipe(event, message)}
+                        onPointerCancel={() => { swipeStartRef.current = null; }}
+                        onClick={() => {
+                          if (window.matchMedia("(min-width: 768px)").matches) setReplyingTo(message);
+                        }}
                       >
-                        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-                          {message.text}
-                        </p>
-                        <span className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${own ? "text-white/65" : "text-white/45"}`}>
-                          <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                          {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
-                          {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
-                          {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
-                        </span>
+                        {own && (
+                          <button
+                            type="button"
+                            onClick={(event) => { event.stopPropagation(); setReplyingTo(message); }}
+                            className="hidden items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/55 opacity-0 transition hover:text-brand-green group-hover:opacity-100 focus:opacity-100 md:flex"
+                            aria-label="Reply to message"
+                          >
+                            <Reply className="h-3.5 w-3.5" /> Reply
+                          </button>
+                        )}
+                        <div
+                          className={`min-w-0 max-w-[78%] rounded-[20px] border px-3.5 py-2 text-[14px] leading-relaxed shadow-sm ${own ? "rounded-br-[5px] border-[#087766] bg-[#075e54] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#202522] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""}`}
+                        >
+                          {message.replyTo && (
+                            <div className="mb-2 rounded-xl border-l-2 border-brand-green bg-black/20 px-3 py-2">
+                              <strong className="block text-[11px] text-brand-green">
+                                {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
+                              </strong>
+                              <span className="block max-w-sm truncate text-[12px] text-white/60">
+                                {message.replyTo.text}
+                              </span>
+                            </div>
+                          )}
+                          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+                            {message.text}
+                          </p>
+                          <span className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${own ? "text-white/65" : "text-white/45"}`}>
+                            <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+                            {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
+                            {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
+                            {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
+                          </span>
+                        </div>
+                        {!own && (
+                          <button
+                            type="button"
+                            onClick={(event) => { event.stopPropagation(); setReplyingTo(message); }}
+                            className="hidden items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold text-white/55 opacity-0 transition hover:text-brand-green group-hover:opacity-100 focus:opacity-100 md:flex"
+                            aria-label="Reply to message"
+                          >
+                            <Reply className="h-3.5 w-3.5" /> Reply
+                          </button>
+                        )}
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
                 {typingName && (
@@ -1056,8 +1198,22 @@ export default function MessagesClient() {
             </div>
             <form
               onSubmit={send}
-              className="shrink-0 border-t border-white/[0.09] bg-[#010302]/95 p-3 pb-safe backdrop-blur-xl"
+              className="sticky bottom-0 z-20 shrink-0 border-t border-white/[0.09] bg-[#010302]/95 p-3 pb-safe backdrop-blur-xl"
             >
+              {replyingTo && (
+                <div className="mx-auto mb-2 flex max-w-2xl items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#101713] px-3 py-2">
+                  <Reply className="h-4 w-4 shrink-0 text-brand-green" />
+                  <div className="min-w-0 flex-1">
+                    <strong className="block text-[11px] text-brand-green">
+                      Replying to {replyingTo.sender.firebaseId === user.uid ? "yourself" : replyingTo.sender.name}
+                    </strong>
+                    <p className="truncate text-xs text-white/50">{replyingTo.text}</p>
+                  </div>
+                  <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-white/45 hover:bg-white/[0.07] hover:text-white" aria-label="Cancel reply">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               <div className="relative mx-auto flex max-w-2xl items-end gap-1 rounded-[24px] bg-[#151a18] p-1.5 pl-2 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50">
                 <div ref={emojiPickerRef} className="relative shrink-0 self-end">
                   <button

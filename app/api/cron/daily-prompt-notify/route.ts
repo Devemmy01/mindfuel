@@ -2,18 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
-import webpush from "web-push";
+import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 
 export const dynamic = "force-dynamic";
-
-// Configure web-push with VAPID keys
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    process.env.VAPID_EMAIL || "https://mind-fuel.app",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-}
 
 export async function GET(req: NextRequest) {
   // Simple auth check using a secret header
@@ -54,49 +45,37 @@ export async function GET(req: NextRequest) {
     };
 
     for (const user of users) {
-      // Each user may have multiple push subscriptions (multiple devices)
       if (user.pushSubscriptions && Array.isArray(user.pushSubscriptions)) {
-        for (const subscription of user.pushSubscriptions) {
-          try {
-            const payload = JSON.stringify({
-              title: "✨ Daily Reflection",
-              body: todayPrompt.question,
-              icon: "/splash-logo.png",
-              badge: "/splash-logo.png",
-              tag: "daily-prompt",
-              requireInteraction: false,
-              actions: [
-                {
-                  action: "open",
-                  title: "Share your reflection",
-                },
-              ],
-              data: {
-                url: `/create?prompt=${encodeURIComponent(todayPrompt.question)}&promptId=${todayPrompt.id}`,
-                promptId: todayPrompt.id,
-              },
-            });
+        const payload = JSON.stringify({
+          title: "✨ Daily Reflection",
+          body: todayPrompt.question,
+          icon: "/splash-logo.png",
+          badge: "/splash-logo.png",
+          tag: "daily-prompt",
+          requireInteraction: false,
+          actions: [
+            {
+              action: "open",
+              title: "Share your reflection",
+            },
+          ],
+          data: {
+            url: `/create?prompt=${encodeURIComponent(todayPrompt.question)}&promptId=${todayPrompt.id}`,
+            promptId: todayPrompt.id,
+          },
+        });
 
-            await webpush.sendNotification(subscription, payload);
-            results.sent++;
-          } catch (error) {
-            results.failed++;
-            const errorMsg = error instanceof Error ? error.message : "Unknown error";
-            results.errors.push(errorMsg);
-
-            // If subscription is invalid, optionally remove it
-            if (error instanceof Error && error.message.includes("410")) {
-              // 410 Gone means subscription is invalid
-              try {
-                await User.findByIdAndUpdate(
-                  { pushSubscriptions: { $elemMatch: { endpoint: subscription.endpoint } } },
-                  { $pull: { pushSubscriptions: { endpoint: subscription.endpoint } } }
-                );
-              } catch (removeError) {
-                console.error("Failed to remove invalid subscription:", removeError);
-              }
-            }
-          }
+        try {
+          const delivery = await sendPushNotifications({
+            recipientId: user._id,
+            subscriptions: user.pushSubscriptions as unknown as StoredPushSubscription[],
+            payload,
+          });
+          results.sent += delivery.sent;
+          results.failed += delivery.removed;
+        } catch (error) {
+          results.failed++;
+          results.errors.push(error instanceof Error ? error.message : "Unknown error");
         }
       }
     }

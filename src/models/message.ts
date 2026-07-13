@@ -3,6 +3,7 @@ import { Schema, model, models, Document, Types } from "mongoose";
 export interface IMessage extends Document {
   conversation: Types.ObjectId;
   sender: Types.ObjectId;
+  replyTo?: Types.ObjectId;
   text: string;
   readBy: Types.ObjectId[];
   createdAt: Date;
@@ -13,6 +14,7 @@ const MessageSchema = new Schema(
   {
     conversation: { type: Schema.Types.ObjectId, ref: "Conversation", required: true, index: true },
     sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    replyTo: { type: Schema.Types.ObjectId, ref: "Message", default: null },
     text: { type: String, required: true, trim: true, maxlength: 2000 },
     readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
@@ -21,5 +23,6 @@ const MessageSchema = new Schema(
 
 MessageSchema.index({ conversation: 1, createdAt: -1 });
 MessageSchema.index({ conversation: 1, sender: 1, readBy: 1 });
+MessageSchema.index({ replyTo: 1 });
 
 export default models.Message || model<IMessage>("Message", MessageSchema);
