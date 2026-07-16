@@ -8,6 +8,8 @@ import {
   User as FirebaseUser,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
+import { chatFetch } from "@/lib/chat-api";
+import { ensureChatIdentity } from "@/lib/chat-crypto";
 
 interface UserProfile {
   name?: string;
@@ -106,6 +108,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             } else {
               // Only fetch the profile if already synced this session
               await fetchUserProfile(firebaseUser.uid);
+            }
+
+            // Publish this device's public chat key during the normal app
+            // session. Recipients can then start an encrypted conversation
+            // without requiring this user to visit Messages first.
+            const identity = await ensureChatIdentity(firebaseUser.uid);
+            const keyResponse = await chatFetch(firebaseUser, "/api/chat/keys", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ publicKey: identity.publicKey }),
+            });
+            if (!keyResponse.ok && keyResponse.status !== 409) {
+              console.error("Failed to register secure chat key:", keyResponse.status);
             }
           } catch (error) {
             console.error("Failed to sync user:", error);

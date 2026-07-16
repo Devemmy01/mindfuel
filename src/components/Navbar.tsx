@@ -74,7 +74,8 @@ export default function Navbar() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      refreshInterval: 5_000,
+      shouldRetryOnError: false,
+      refreshInterval: 0,
       refreshWhenHidden: false,
       dedupingInterval: 2_000,
     },

@@ -37,43 +37,7 @@ import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
 import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, unwrapConversationKey } from "@/lib/chat-crypto";
-
-const EMOJI_CATEGORIES = [
-  { label: "Smileys", icon: "😊", emojis: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕".split(" ") },
-  { label: "Gestures", icon: "👍", emojis: "👍 👎 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤝 👏 🙌 🫶 👐 🤲 🙏 ✍️ 💪 🦾 🖕 🫵 👀 👁️ 👄 🫦 💋 🧠 🫂".split(" ") },
-  { label: "Hearts", icon: "❤️", emojis: "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 💋 🌹 🥀 🌷 🌸 💐 ✨ ⭐ 🌟 💫 🔥 💯".split(" ") },
-  { label: "People", icon: "🙋", emojis: "👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 👷 💂 🕵️ 👩‍⚕️ 👩‍🌾 👩‍🍳 👩‍🎓 👩‍🎤 👩‍🏫 👩‍💻 👩‍💼 👩‍🔧 👩‍🔬 👩‍🎨 👩‍🚒 👩‍✈️ 👩‍🚀 👩‍⚖️ 👰 🤵 👸 🤴 🦸 🦹 🧙 🧚 🧛 🧜 🧝".split(" ") },
-  { label: "Nature", icon: "🐶", emojis: "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🪳 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦀 🐠 🐟 🐡 🐬 🐳 🦈 🐊 🐅 🐆 🦓 🦍 🦧 🐘 🦛 🦏 🐪 🦒 🦘 🦬 🐃 🐄 🐎 🐖 🐏 🦙 🐐 🦌 🐕 🐈 🪶 🌿 ☘️ 🍀 🎍 🪴 🌵 🌴 🌳 🌲 🍁 🍂 🍃".split(" ") },
-  { label: "Food", icon: "🍕", emojis: "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🫑 🌽 🥕 🫒 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🫓 🥪 🌮 🌯 🫔 🥙 🧆 🍜 🍝 🍣 🍤 🍚 🍛 🍲 🥗 🍿 🧂 🍩 🍪 🎂 🍰 🧁 🍫 🍬 🍭 🍮 🍯 🍼 ☕ 🍵 🧃 🥤 🧋 🍺 🍻 🥂 🍷 🍸 🍹".split(" ") },
-  { label: "Activities", icon: "⚽", emojis: "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🎪 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎲 ♟️ 🎯 🎳 🎮 🧩".split(" ") },
-  { label: "Travel", icon: "🚗", emojis: "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🚨 🚔 🚍 🚘 🚖 ✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 🚉 🚞 🚆 🚄 🚅 🚈 🚂 🚊 🚝 🚟 🚠 🚡 🛰️ ⛵ 🛶 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏕️ ⛺ 🛖 🏠 🏡 🏢 🏥 🏦 🏨 🏪 🏫 ⛪ 🕌 🛕 🕍".split(" ") },
-];
-
-function NativeEmojiPicker({ onSelect, title = "Choose an emoji" }: { onSelect: (emoji: string) => void; title?: string }) {
-  const [activeCategory, setActiveCategory] = useState(0);
-  const category = EMOJI_CATEGORIES[activeCategory];
-  return (
-    <div className="flex h-[310px] w-[min(332px,calc(100vw-24px))] flex-col bg-[#101512] text-white">
-      <div className="flex h-11 shrink-0 items-center px-3 text-[13px] font-semibold text-white/85">{title}</div>
-      <div className="no-scrollbar flex shrink-0 items-center gap-0.5 overflow-x-auto border-y border-white/[0.07] px-1.5 py-1">
-        {EMOJI_CATEGORIES.map((item, index) => (
-          <button key={item.label} type="button" onClick={() => setActiveCategory(index)} className={`relative flex h-9 min-w-9 items-center justify-center rounded-lg text-lg transition ${activeCategory === index ? "bg-brand-green/15" : "opacity-60 hover:bg-white/[0.06] hover:opacity-100"}`} aria-label={item.label} aria-pressed={activeCategory === index}>
-            {item.icon}
-            {activeCategory === index && <span className="absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-brand-green" />}
-          </button>
-        ))}
-      </div>
-      <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-white/40">{category.label}</div>
-      <div className="thin-scrollbar grid flex-1 grid-cols-8 content-start gap-0.5 overflow-y-auto px-2 pb-2">
-        {category.emojis.map((emoji, index) => (
-          <button key={`${emoji}-${index}`} type="button" onClick={() => onSelect(emoji)} className="flex h-9 w-9 items-center justify-center rounded-lg text-[22px] leading-none transition hover:bg-white/[0.09] active:scale-90" aria-label={`Choose ${emoji}`}>
-            {emoji}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 
 type Person = {
   _id: string;
@@ -120,6 +84,37 @@ function messageDateLabel(value: string) {
   if (messageDayKey(value) === messageDayKey(yesterday.toISOString())) return "Yesterday";
   return date.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 }
+
+const EMOJI_TOKEN_PATTERN = /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu;
+
+function isEmojiOnlyMessage(value: string) {
+  const emojiTokens = value.match(EMOJI_TOKEN_PATTERN);
+  if (!emojiTokens?.length) return false;
+  return value.replace(EMOJI_TOKEN_PATTERN, "").trim().length === 0;
+}
+
+function renderMessageText(value: string, emojiOnly: boolean) {
+  if (emojiOnly) return value;
+  const parts: React.ReactNode[] = [];
+  const pattern = new RegExp(EMOJI_TOKEN_PATTERN.source, "gu");
+  let cursor = 0;
+  for (const match of value.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push(value.slice(cursor, index));
+    parts.push(
+      <span
+        key={`${index}-${match[0]}`}
+        className="inline-block align-[-0.08em] text-[1.2em] leading-none"
+      >
+        {match[0]}
+      </span>,
+    );
+    cursor = index + match[0].length;
+  }
+  if (cursor < value.length) parts.push(value.slice(cursor));
+  return parts;
+}
+
 type Conversation = {
   _id: string;
   participants: Person[];
@@ -191,7 +186,8 @@ export default function MessagesClient() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const [active, setActive] = useState<Conversation | null>(null);
-  const [draft, setDraft] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draft = active ? drafts[active._id] || "" : "";
   const [typingName, setTypingName] = useState("");
   const [query, setQuery] = useState("");
   const [showConversationInfo, setShowConversationInfo] = useState(false);
@@ -251,9 +247,8 @@ export default function MessagesClient() {
     dedupingInterval: 30_000,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
-    shouldRetryOnError: true,
-    errorRetryInterval: 10_000,
-    refreshInterval: 5_000,
+    shouldRetryOnError: false,
+    refreshInterval: 0,
     refreshWhenHidden: false,
   });
   const conversations = useMemo(
@@ -300,9 +295,8 @@ export default function MessagesClient() {
       dedupingInterval: 15_000,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      shouldRetryOnError: true,
-      errorRetryInterval: 10_000,
-      refreshInterval: 3_500,
+      shouldRetryOnError: false,
+      refreshInterval: 0,
       refreshWhenHidden: false,
     },
   );
@@ -351,12 +345,31 @@ export default function MessagesClient() {
     }
 
     const identity = await ensureChatIdentity(user.uid);
-    const keys = conversation.participants.map((person) => ({
+    let keyParticipants = conversation.participants;
+    let keys = keyParticipants.map((person) => ({
       userId: person.firebaseId,
       publicKey: person.firebaseId === user.uid ? identity.publicKey : person.chatPublicKey || "",
     }));
     if (keys.some((row) => !row.publicKey)) {
-      throw new Error("The other participant must open Messages once before encrypted chat can begin");
+      // The conversation in memory may predate the recipient publishing their
+      // key. Refresh once before showing an actionable error to the sender.
+      const refreshResponse = await chatFetch(user, "/api/chat/conversations", { cache: "no-store" });
+      if (refreshResponse.ok) {
+        const refreshedRows: Conversation[] = (await refreshResponse.json()).conversations || [];
+        const refreshed = refreshedRows.find((row) => row._id === conversation._id);
+        if (refreshed) {
+          keyParticipants = refreshed.participants;
+          keys = keyParticipants.map((person) => ({
+            userId: person.firebaseId,
+            publicKey: person.firebaseId === user.uid ? identity.publicKey : person.chatPublicKey || "",
+          }));
+          setActive((current) => current?._id === refreshed._id ? refreshed : current);
+          setConversations((rows) => rows.map((row) => row._id === refreshed._id ? refreshed : row));
+        }
+      }
+      if (keys.some((row) => !row.publicKey)) {
+        throw new Error("Encrypted chat is not ready for this person yet. They need to sign in to the updated MindFuel app once, then you can try again.");
+      }
     }
     const created = await createConversationKey(keys);
     const response = await chatFetch(user, "/api/chat/conversations", {
@@ -686,7 +699,7 @@ export default function MessagesClient() {
 
   useEffect(
     () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
-    [messages, typingName],
+    [active?._id, messages.length, typingName],
   );
 
   useEffect(() => {
@@ -884,7 +897,11 @@ export default function MessagesClient() {
       name: profile?.name || user.displayName || "Someone",
     });
     updateTypingState(conversationId, false, true);
-    setDraft("");
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[conversationId];
+      return next;
+    });
     const replyToId = replyingTo?._id;
     setReplyingTo(null);
     setMessages((rows) => [...rows, optimisticMessage]);
@@ -980,31 +997,32 @@ export default function MessagesClient() {
   };
 
   const changeDraft = (value: string) => {
-    setDraft(value);
     if (!user || !active) return;
+    const conversationId = active._id;
+    setDrafts((current) => ({ ...current, [conversationId]: value }));
     const socket = getSocket(user.uid);
     if (!value.trim()) {
       socket.emit("typing:stop", {
-        conversationId: active._id,
+        conversationId,
         name: profile?.name || user.displayName || "Someone",
       });
-      updateTypingState(active._id, false, true);
+      updateTypingState(conversationId, false, true);
       if (typingTimer.current) clearTimeout(typingTimer.current);
       return;
     }
     socket.emit("typing:start", {
-      conversationId: active._id,
+      conversationId,
       name: profile?.name || user.displayName || "Someone",
     });
-    updateTypingState(active._id, true);
+    updateTypingState(conversationId, true);
     if (typingTimer.current) clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(
       () => {
         socket.emit("typing:stop", {
-          conversationId: active._id,
+          conversationId,
           name: profile?.name || user.displayName || "Someone",
         });
-        updateTypingState(active._id, false, true);
+        updateTypingState(conversationId, false, true);
       },
       900,
     );
@@ -1190,9 +1208,9 @@ export default function MessagesClient() {
         </div>
       )}
       <section
-        className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-white/[0.09] md:w-[390px] lg:w-[410px]`}
+        className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-white/[0.09] bg-[#010302] md:w-[390px] lg:w-[410px]`}
       >
-        <header className="border-b border-white/[0.09] px-4 pb-3 pt-4">
+        <header className="border-b border-white/[0.09] bg-[#010302] px-4 pb-3 pt-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-extrabold tracking-tight">Messages</h1>
             <button
@@ -1330,7 +1348,7 @@ export default function MessagesClient() {
       >
         {active && person ? (
           <>
-            <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-white/[0.09] bg-[#010302]/95 px-4 backdrop-blur-xl">
+            <header className="sticky top-0 z-20 flex h-[64px] shrink-0 items-center gap-3 border-b border-white/[0.09] bg-[#010302]/95 px-4 backdrop-blur-xl">
               <button
                 onClick={() => setActive(null)}
                 className="rounded-full p-2 hover:bg-white/[0.07] md:hidden"
@@ -1462,11 +1480,12 @@ export default function MessagesClient() {
             <div
               ref={messagesScrollRef}
               onScroll={handleMessagesScroll}
-              className="thin-scrollbar relative flex-1 overflow-y-auto px-4 py-6"
+              className="chat-wallpaper thin-scrollbar relative flex-1 overflow-y-auto px-3 py-5 sm:px-5"
             >
-              <div className="mx-auto flex max-w-2xl flex-col gap-1.5">
+              <div className="relative z-[1] mx-auto flex max-w-3xl flex-col gap-0.5">
                 {messages.map((message, index) => {
                   const own = message.sender.firebaseId === user.uid;
+                  const emojiOnly = isEmojiOnlyMessage(message.text);
                   const hasBeenRead = own && (message.readBy?.length || 0) > 1;
                   const showDate =
                     index === 0 ||
@@ -1477,7 +1496,7 @@ export default function MessagesClient() {
                         <div className="relative z-10 my-4 flex w-full shrink-0 justify-center">
                           <time
                             dateTime={message.createdAt}
-                            className="rounded-full border border-white/[0.07] bg-[#17231e]/95 px-3 py-1 text-[11px] font-bold text-white/80 backdrop-blur-md"
+                            className="rounded-full border border-white/[0.07] bg-[#17231e]/95 px-3 py-1.5 text-[11px] font-semibold text-white/80 shadow-sm backdrop-blur-md"
                           >
                             {messageDateLabel(message.createdAt)}
                           </time>
@@ -1485,7 +1504,7 @@ export default function MessagesClient() {
                       )}
                       <div
                         ref={registerMessageRef(message._id)}
-                        className={`group flex w-full scroll-mt-24 items-center gap-1.5 transition-all duration-300 ${own ? "justify-end" : "justify-start"} ${highlightedMessageId === message._id ? "scale-[1.015]" : ""}`}
+                        className={`group flex w-full scroll-mt-24 items-center gap-1 transition-all duration-300 ${message.reactions?.length ? "mb-5" : "mb-0.5"} ${own ? "justify-end" : "justify-start"} ${highlightedMessageId === message._id ? "scale-[1.015]" : ""}`}
                       >
                         <div
                           role="button"
@@ -1498,7 +1517,7 @@ export default function MessagesClient() {
                               setReplyingTo(message);
                             }
                           }}
-                          className={`min-w-0 max-w-[78%] cursor-pointer rounded-[20px] border px-3.5 py-2 text-left text-[14px] leading-relaxed shadow-sm transition ${own ? "rounded-br-[5px] border-[#07685b] bg-[#064f46] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/15 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-[#07685b] bg-[#064f46] text-white" : "rounded-tl-[3px] border-white/[0.06] bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
                           aria-label="Reply to message"
                         >
                           {message.replyTo && (
@@ -1508,37 +1527,44 @@ export default function MessagesClient() {
                                 event.stopPropagation();
                                 scrollToMessage(message.replyTo?._id || "");
                               }}
-                              className="mb-2 block w-full rounded-xl border-l-2 border-brand-green bg-black/20 px-3 py-2 text-left transition hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-brand-green/60"
+                              className="mb-1.5 block w-full rounded-md border-l-4 bg-brand-green/15 px-2.5 py-1.5 text-left transition hover:bg-brand-green/20 focus:outline-none focus:ring-1 focus:ring-brand-green/50"
+                              style={{ borderLeftColor: "var(--brand-green, #00bf63)" }}
                               aria-label="Jump to replied message"
                             >
-                              <strong className="block text-[11px] text-brand-green">
+                              <strong
+                                className="block text-[11px] font-semibold"
+                                style={{ color: "var(--brand-green, #00bf63)" }}
+                              >
                                 {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
                               </strong>
-                              <span className="block max-w-sm truncate text-[12px] text-white/60">
+                              <span className="block max-w-sm truncate text-[12px] text-[#d1d7db]/75">
                                 {message.replyTo.text}
                               </span>
                             </button>
                           )}
-                          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-                            {message.text}
+                          <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${emojiOnly ? "text-[30px] leading-none" : ""}`}>
+                            {renderMessageText(message.text, emojiOnly)}
                           </p>
-                          <span className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${own ? "text-white/65" : "text-white/45"}`}>
+                          <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-white/65" : "text-white/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
                             {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
                             {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
                             {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
                           {!!message.reactions?.length && (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
+                            <div className="absolute -bottom-[18px] left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-0.5">
                               {message.reactions.map((reaction) => (
-                                <button key={reaction.emoji} type="button" onClick={(event) => { event.stopPropagation(); void reactToMessage(message._id, reaction.emoji); }} className="inline-flex h-4 w-4 items-center justify-center p-0 text-[20px] leading-none transition hover:scale-110 active:scale-90" aria-label={`React with ${reaction.emoji}`}>
+                                <button key={reaction.emoji} type="button" onClick={(event) => { event.stopPropagation(); void reactToMessage(message._id, reaction.emoji); }} className="inline-flex h-6 min-w-6 items-center justify-center p-0 text-[20px] leading-none drop-shadow-md transition hover:scale-110 active:scale-90" aria-label={`React with ${reaction.emoji}`}>
                                   {reaction.emoji}
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
-                        <div ref={reactionPickerMessageId === message._id ? reactionPickerRef : undefined} className="relative shrink-0">
+                        <div
+                          ref={reactionPickerMessageId === message._id ? reactionPickerRef : undefined}
+                          className={`relative shrink-0 ${own ? "order-first" : ""}`}
+                        >
                           <button
                             type="button"
                             onClick={(event) => {
@@ -1570,7 +1596,7 @@ export default function MessagesClient() {
                 {typingName && (
                   <div className="flex items-end gap-2 px-1 py-2" aria-live="polite">
                     {person && <Avatar person={person} size={28} />}
-                    <div className="relative max-w-[78%] rounded-[20px] rounded-bl-[6px] border border-white/[0.07] bg-[#202522] px-3.5 py-2.5 shadow-sm">
+                    <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-[#191e1b] px-3 py-2 shadow-sm">
                       <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-brand-green">
                         {typingName}
                       </span>
@@ -1597,13 +1623,19 @@ export default function MessagesClient() {
             </div>
             <form
               onSubmit={send}
-              className="sticky bottom-0 z-20 shrink-0 border-t border-white/[0.09] bg-[#010302]/95 p-3 pb-safe backdrop-blur-xl"
+              className="sticky bottom-0 z-20 shrink-0 border-t border-white/[0.09] bg-[#010302]/95 px-2.5 py-2 pb-safe backdrop-blur-xl"
             >
               {replyingTo && (
-                <div className="mx-auto mb-2 flex max-w-2xl items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#101713] px-3 py-2">
-                  <Reply className="h-4 w-4 shrink-0 text-brand-green" />
+                <div
+                  className="mx-auto mb-1.5 flex max-w-3xl items-center gap-3 rounded-lg border-l-4 bg-brand-green/15 px-3 py-2 shadow-sm"
+                  style={{ borderLeftColor: "var(--brand-green, #00bf63)" }}
+                >
+                  <Reply className="h-4 w-4 shrink-0" style={{ color: "var(--brand-green, #00bf63)" }} />
                   <div className="min-w-0 flex-1">
-                    <strong className="block text-[11px] text-brand-green">
+                    <strong
+                      className="block text-[11px]"
+                      style={{ color: "var(--brand-green, #00bf63)" }}
+                    >
                       Replying to {replyingTo.sender.firebaseId === user.uid ? "yourself" : replyingTo.sender.name}
                     </strong>
                     <p className="truncate text-xs text-white/50">{replyingTo.text}</p>
@@ -1613,7 +1645,7 @@ export default function MessagesClient() {
                   </button>
                 </div>
               )}
-              <div className="relative mx-auto flex max-w-2xl items-end gap-1 rounded-[24px] bg-[#151a18] p-1.5 pl-2 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50">
+              <div className="relative mx-auto flex max-w-3xl items-end gap-1 rounded-full bg-[#151a18] p-1 pl-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50">
                 <div ref={emojiPickerRef} className="relative shrink-0 self-end">
                   <button
                     type="button"
@@ -1638,7 +1670,7 @@ export default function MessagesClient() {
                   value={draft}
                   onChange={(e) => changeDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && !e.shiftKey && window.innerWidth >= 768) {
                       e.preventDefault();
                       e.currentTarget.form?.requestSubmit();
                     }
@@ -1646,11 +1678,14 @@ export default function MessagesClient() {
                   placeholder="Start a new message"
                   rows={1}
                   maxLength={2000}
-                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent py-2 text-sm [overflow-wrap:anywhere] outline-none"
+                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent py-2 text-sm text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none"
                 />
                 <button
+                  type="submit"
                   disabled={!draft.trim()}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-green text-white transition-opacity disabled:opacity-35"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                  style={{ backgroundColor: "var(--brand-green, #00bf63)" }}
+                  aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />
                 </button>

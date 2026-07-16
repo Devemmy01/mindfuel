@@ -3,8 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Loader2, Smile } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import dynamic from "next/dynamic";
-import { Theme } from "emoji-picker-react";
 import { PostType } from "@/types";
 import { backgroundOptions, BackgroundStyle } from "@/lib/backgrounds";
 import { FontOption, getFontById } from "@/lib/fonts";
@@ -12,11 +10,7 @@ import { CardWatermark } from "@/components/CardCreator";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { mutate } from "swr";
-
-const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
-  ssr: false,
-  loading: () => <div className="w-[280px] h-[320px] bg-secondary/50 rounded-2xl animate-pulse" />,
-});
+import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 
 const isColorLight = (hex: string) => {
   if (!hex || !hex.startsWith("#")) return true;
@@ -262,7 +256,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
                       className="popover-solid absolute top-full left-0 mt-2 z-[9999] rounded-2xl border border-border/50 min-w-[320px]"
                     >
-                      <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width="100%" height={350} />
+                      <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
                     </motion.div>
                   )}
                 </AnimatePresence>

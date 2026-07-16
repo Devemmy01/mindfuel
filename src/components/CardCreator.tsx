@@ -4,9 +4,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { X, Smile, Image as ImageIcon, Trash2, Plus, Loader2 } from "lucide-react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Theme } from "emoji-picker-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/providers/ToastProvider";
@@ -18,11 +16,7 @@ import HashtagSuggestions, { HashtagSuggestionItem } from "@/components/HashtagS
 import MilestoneModal from "@/components/MilestoneModal";
 
 import QuotedPostPreview from "@/components/QuotedPostPreview";
-
-const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
-  ssr: false,
-  loading: () => <div className="w-[280px] h-[350px] bg-secondary/50 rounded-2xl animate-pulse" />,
-});
+import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 
 const RECENT_HASHTAGS_KEY = "mindfuel_recent_hashtags";
 
@@ -585,7 +579,7 @@ const CardCreator: React.FC = () => {
             </button>
             {showEmojiPicker && (
               <div className="absolute bottom-[calc(100%+12px)] left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-border/50 animate-in fade-in zoom-in-95 duration-200">
-                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={350} />
+                <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { Heart, Loader2, Smile, CornerDownRight } from "lucide-react";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -119,7 +119,7 @@ function Composer({
       const el = emojiRef.current?.querySelector("button");
       if (!el) return setPickerStyle(null);
       const rect = (el as HTMLElement).getBoundingClientRect();
-      const pickerW = 280, pickerH = 320, margin = 8;
+      const pickerW = Math.min(332, window.innerWidth - 24), pickerH = 310, margin = 8;
       let left = rect.left + rect.width / 2 - pickerW / 2;
       left = Math.max(margin, Math.min(window.innerWidth - pickerW - margin, left));
       let top = rect.top - pickerH - 12;
@@ -166,7 +166,7 @@ function Composer({
               }}
               className="popover-solid z-[100000] rounded-2xl overflow-hidden border border-border"
             >
-              <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.AUTO} width={280} height={320} />
+              <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
             </motion.div>
           </AnimatePresence>,
           document.body
