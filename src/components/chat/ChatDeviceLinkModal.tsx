@@ -186,6 +186,14 @@ export default function ChatDeviceLinkModal({
           </button>
         </div>
 
+        {mode === "target" && !waitingForTransfer && (
+          <ol className="mt-5 space-y-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 text-sm text-white/70">
+            <li className="flex gap-3"><span className="font-bold text-brand-green">1.</span><span>On the trusted device, open <strong className="text-white/90">Messages</strong> and tap the link icon beside the new-message icon.</span></li>
+            <li className="flex gap-3"><span className="font-bold text-brand-green">2.</span><span>Choose <strong className="text-white/90">Link another device</strong> and enter its one-time code below.</span></li>
+            <li className="flex gap-3"><span className="font-bold text-brand-green">3.</span><span>Compare the six-digit number on both devices, then approve on the trusted device.</span></li>
+          </ol>
+        )}
+
         {error && <div className="mt-4 rounded-2xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>}
 
         {mode === "source" && !requested && !transferReady && !complete && (

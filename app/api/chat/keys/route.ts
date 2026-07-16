@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
           encryptionVersion: 1,
         });
         if (hasEncryptedConversations) {
-          return NextResponse.json({ error: "Encrypted history is linked to another browser" }, { status: 409 });
+          return NextResponse.json({ error: "This device is not linked to the account's encrypted chats" }, { status: 409 });
         }
         existing.chatPublicKey = publicKey;
         await existing.save();

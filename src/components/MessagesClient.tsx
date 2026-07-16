@@ -130,6 +130,7 @@ type Conversation = {
 const CHAT_CACHE_PREFIX = "mindfuel:chat:v1:";
 const CHAT_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const REPLY_TIP_PREFIX = "mindfuel:reply-tip:v2:";
+const ENCRYPTION_BANNER_PREFIX = "mindfuel:encryption-banner-dismissed:v1:";
 
 function readChatCache<T>(key: string): T | undefined {
   if (typeof window === "undefined") return undefined;
@@ -208,6 +209,7 @@ export default function MessagesClient() {
   const [hasChatKeyConflict, setHasChatKeyConflict] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [showReplyTip, setShowReplyTip] = useState(false);
+  const [showEncryptionBanner, setShowEncryptionBanner] = useState(true);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -336,8 +338,20 @@ export default function MessagesClient() {
         }
         else if (response.status === 409) {
           setHasChatKeyConflict(true);
-          setDeviceLinkMode("target");
-          showToast("Link this device to the browser that already has your encrypted chats.", "error", 7000);
+          showToast(
+            <span>
+              This browser is not linked to your encrypted chats. You can keep using the trusted device or{" "}
+              <button
+                type="button"
+                onClick={() => setDeviceLinkMode("target")}
+                className="font-bold text-brand-green underline underline-offset-2"
+              >
+                link this device
+              </button>.
+            </span>,
+            "error",
+            12_000,
+          );
         }
       } catch {
         showToast("Secure messaging could not be initialized", "error");
@@ -351,7 +365,7 @@ export default function MessagesClient() {
     if (cached) return cached;
     if (conversation.encryptionVersion) {
       const wrapped = conversation.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
-      if (!wrapped) throw new Error("This device has no key for the conversation");
+      if (!wrapped) throw new Error("This device is not linked to this encrypted conversation");
       const key = await unwrapConversationKey(user.uid, wrapped);
       conversationKeysRef.current.set(conversation._id, key);
       return key;
@@ -722,6 +736,13 @@ export default function MessagesClient() {
     setShowReplyTip(true);
   }, [active, user]);
 
+  useEffect(() => {
+    if (!user) return;
+    setShowEncryptionBanner(
+      window.localStorage.getItem(`${ENCRYPTION_BANNER_PREFIX}${user.uid}`) !== "true",
+    );
+  }, [user]);
+
   useEffect(
     () => () => {
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
@@ -883,6 +904,10 @@ export default function MessagesClient() {
       const key = await prepareConversationKey(active);
       encryptedPayload = await encryptChatText(key, text);
     } catch (error) {
+      if (error instanceof Error && error.message.includes("not linked")) {
+        setHasChatKeyConflict(true);
+        setDeviceLinkMode("target");
+      }
       showToast(error instanceof Error ? error.message : "Encrypted chat could not be started", "error", 6000);
       return;
     }
@@ -1059,6 +1084,13 @@ export default function MessagesClient() {
   const closeReplyTip = () => {
     if (user) window.localStorage.setItem(`${REPLY_TIP_PREFIX}${user.uid}`, "seen");
     setShowReplyTip(false);
+  };
+
+  const dismissEncryptionBanner = () => {
+    if (user) {
+      window.localStorage.setItem(`${ENCRYPTION_BANNER_PREFIX}${user.uid}`, "true");
+    }
+    setShowEncryptionBanner(false);
   };
 
   const scrollToBottom = () => {
@@ -1302,14 +1334,25 @@ export default function MessagesClient() {
         <header className="border-b border-white/[0.09] bg-[#010302] px-4 pb-3 pt-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-extrabold tracking-tight">Messages</h1>
-            <button
-              type="button"
-              onClick={() => setShowNewMessage(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]"
-              aria-label="New message"
-            >
-              <PenSquare className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setDeviceLinkMode(hasChatKeyConflict ? "target" : "source")}
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]"
+                aria-label={hasChatKeyConflict ? "Link this device" : "Link another device"}
+                title={hasChatKeyConflict ? "Link this device" : "Link another device"}
+              >
+                <Link2 className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewMessage(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]"
+                aria-label="New message"
+              >
+                <PenSquare className="h-5 w-5" />
+              </button>
+            </div>
           </div>
           <label className="mt-4 flex items-center gap-2 rounded-full bg-[#151a18] px-4 focus-within:ring-1 focus-within:ring-brand-green/60">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -1496,17 +1539,6 @@ export default function MessagesClient() {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => {
-                            setDeviceLinkMode(hasChatKeyConflict ? "target" : "source");
-                            setShowConversationMenu(false);
-                          }}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
-                        >
-                          <Link2 className="h-4 w-4" />
-                          {hasChatKeyConflict ? "Link this device" : "Link another device"}
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => copyProfileLink(person)}
                           className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
                         >
@@ -1521,12 +1553,24 @@ export default function MessagesClient() {
                 </div>
               </div>
             </header>
-            <div className="flex items-center justify-center gap-1.5 border-b border-white/[0.06] bg-brand-green/[0.06] px-4 py-1.5 text-[11px] text-brand-green">
-              <LockKeyhole className="h-3.5 w-3.5" />
-              {active.encryptionVersion
-                ? "New messages are end-to-end encrypted. Only you and this person can read them."
-                : "End-to-end encryption will be enabled before your first new message is sent."}
-            </div>
+            {showEncryptionBanner && (
+              <div className="flex items-center gap-2 border-b border-white/[0.06] bg-brand-green/[0.06] py-1.5 pl-4 pr-2 text-[11px] text-brand-green">
+                <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 text-center">
+                  {active.encryptionVersion
+                    ? "New messages are end-to-end encrypted. Only you and this person can read them."
+                    : "End-to-end encryption will be enabled before your first new message is sent."}
+                </span>
+                <button
+                  type="button"
+                  onClick={dismissEncryptionBanner}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-green/70 hover:bg-brand-green/10 hover:text-brand-green"
+                  aria-label="Dismiss encryption notice"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             {showConversationInfo && (
               <div
                 className="absolute inset-0 z-30 flex justify-end bg-black/65 backdrop-blur-sm"
