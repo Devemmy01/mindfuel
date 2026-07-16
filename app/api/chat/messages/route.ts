@@ -5,6 +5,7 @@ import Message from "@/models/message";
 import User from "@/models/user";
 import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import { isValidObjectId } from "mongoose";
+import { requireFirebaseUser } from "@/lib/firebase-admin";
 
 export const maxDuration = 15;
 
@@ -19,16 +20,18 @@ async function participant(firebaseId: string, conversationId: string) {
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const userId = req.nextUrl.searchParams.get("userId") || "";
     const conversationId = req.nextUrl.searchParams.get("conversationId") || "";
-    const access = await participant(userId, conversationId);
+    const access = await participant(auth.uid, conversationId);
     if (!access) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     const messages = await Message.find({ conversation: conversationId }).sort({ createdAt: -1 }).limit(200)
       .populate("sender", "name username image firebaseId")
+      .populate("reactions.users", "firebaseId")
       .populate({
         path: "replyTo",
-        select: "text sender createdAt",
+        select: "text ciphertext iv encryptionVersion sender createdAt",
         populate: { path: "sender", select: "name username image firebaseId" },
       })
       .lean();
@@ -45,9 +48,11 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const { userId, conversationId } = await req.json();
-    const access = await participant(String(userId || ""), String(conversationId || ""));
+    const { conversationId } = await req.json();
+    const access = await participant(auth.uid, String(conversationId || ""));
     if (!access) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     const result = await Message.updateMany(
       { conversation: conversationId, sender: { $ne: access.user._id }, readBy: { $ne: access.user._id } },
@@ -62,11 +67,14 @@ export async function PATCH(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const { userId, conversationId, text, replyTo } = await req.json();
-    const cleanText = String(text || "").trim().slice(0, 2000);
-    const access = await participant(userId, conversationId);
-    if (!access || !cleanText) return NextResponse.json({ error: "Invalid message" }, { status: 400 });
+    const { conversationId, ciphertext, iv, encryptionVersion, replyTo } = await req.json();
+    const access = await participant(auth.uid, conversationId);
+    const encrypted = encryptionVersion === 1 && typeof ciphertext === "string" && typeof iv === "string";
+    if (!access || !encrypted || !access.conversation.encryptionVersion) return NextResponse.json({ error: "Invalid encrypted message" }, { status: 400 });
+    if (ciphertext.length > 12000 || iv.length > 64) return NextResponse.json({ error: "Message is too large" }, { status: 400 });
     if (replyTo && !isValidObjectId(replyTo)) {
       return NextResponse.json({ error: "Invalid reply message" }, { status: 400 });
     }
@@ -79,7 +87,9 @@ export async function POST(req: NextRequest) {
     const message = await Message.create({
       conversation: conversationId,
       sender: access.user._id,
-      text: cleanText,
+      ciphertext,
+      iv,
+      encryptionVersion: 1,
       readBy: [access.user._id],
       replyTo: replyMessage?._id,
     });
@@ -90,7 +100,7 @@ export async function POST(req: NextRequest) {
       { path: "sender", select: "name username image firebaseId" },
       {
         path: "replyTo",
-        select: "text sender createdAt",
+        select: "text ciphertext iv encryptionVersion sender createdAt",
         populate: { path: "sender", select: "name username image firebaseId" },
       },
     ]);
@@ -133,5 +143,43 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Message send failed", error);
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await connectToDB();
+    const { conversationId, messageId, emoji } = await req.json();
+    const cleanEmoji = typeof emoji === "string" ? emoji.trim() : "";
+    if (!cleanEmoji || cleanEmoji.length > 32 || /\s/u.test(cleanEmoji) || !isValidObjectId(messageId)) {
+      return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
+    }
+    const access = await participant(auth.uid, String(conversationId || ""));
+    if (!access) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    const message = await Message.findOne({ _id: messageId, conversation: conversationId });
+    if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    const userId = access.user._id.toString();
+    const selectedReaction = message.reactions?.find((row: { emoji: string }) => row.emoji === cleanEmoji);
+    const isRemovingSelection = selectedReaction?.users.some((id: { toString(): string }) => id.toString() === userId);
+
+    // Each participant can have only one reaction on a message. Choosing a
+    // different emoji moves their reaction; choosing the same emoji removes it.
+    for (const row of message.reactions || []) {
+      row.users = row.users.filter((id: { toString(): string }) => id.toString() !== userId);
+    }
+    if (!isRemovingSelection) {
+      const target = message.reactions?.find((row: { emoji: string }) => row.emoji === cleanEmoji);
+      if (target) target.users.push(access.user._id);
+      else message.reactions.push({ emoji: cleanEmoji, users: [access.user._id] });
+    }
+    message.reactions = message.reactions.filter((row: { users: unknown[] }) => row.users.length);
+    await message.save();
+    await message.populate("reactions.users", "firebaseId");
+    return NextResponse.json({ messageId, reactions: message.reactions });
+  } catch (error) {
+    console.error("Message reaction failed", error);
+    return NextResponse.json({ error: "Failed to update reaction" }, { status: 500 });
   }
 }

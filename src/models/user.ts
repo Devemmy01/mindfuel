@@ -7,6 +7,7 @@ export interface IUser extends Document {
   image: string;
   uploadedImage: string;
   firebaseId: string;
+  chatPublicKey?: string;
   bio?: string;
   preferences: {
     dailyEmail: boolean;
@@ -67,6 +68,7 @@ const UserSchema = new Schema(
       required: [true, "Firebase ID is required"],
       unique: true,
     },
+    chatPublicKey: { type: String, default: "", select: false },
     preferences: {
       dailyEmail: {
         type: Boolean,

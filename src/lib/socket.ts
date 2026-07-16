@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { auth } from "@/lib/firebase";
 
 let socket: Socket | null = null;
 
@@ -21,7 +22,10 @@ export function getSocket(userId: string) {
   if (!socket) {
     socket = io(getSocketOrigin(), {
       path: "/api/socket",
-      auth: { userId },
+      auth: async (callback) => {
+        const token = await auth.currentUser?.getIdToken();
+        callback({ token });
+      },
       addTrailingSlash: false,
       transports: ["polling", "websocket"],
       reconnection: true,
@@ -30,8 +34,7 @@ export function getSocket(userId: string) {
       reconnectionDelayMax: 5_000,
       timeout: 12_000,
     });
-  } else if (socket.auth && (socket.auth as { userId?: string }).userId !== userId) {
-    socket.auth = { userId };
+  } else if (!socket.connected && auth.currentUser?.uid === userId) {
     socket.disconnect().connect();
   }
   return socket;

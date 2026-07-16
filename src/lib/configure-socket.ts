@@ -4,6 +4,7 @@ import Redis from "ioredis";
 import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
+import { verifyFirebaseToken } from "@/lib/firebase-admin";
 import User from "@/models/user";
 
 export function configureSocketServer(io: Server) {
@@ -67,8 +68,15 @@ export function configureSocketServer(io: Server) {
     }
   }
 
+  io.use(async (socket, next) => {
+    const decoded = await verifyFirebaseToken(String(socket.handshake.auth?.token || ""));
+    if (!decoded) return next(new Error("Unauthorized"));
+    socket.data.userId = decoded.uid;
+    next();
+  });
+
   io.on("connection", (socket) => {
-    const userId = String(socket.handshake.auth?.userId || "");
+    const userId = String(socket.data.userId || "");
     if (userId) {
       socket.join(`user:${userId}`);
       socket.broadcast.emit("presence:update", { userId, online: true });
@@ -150,6 +158,15 @@ export function configureSocketServer(io: Server) {
       } catch (error) {
         console.error("Read receipt publication failed", error);
       }
+    });
+    socket.on("message:reaction", async ({ conversationId, messageId }) => {
+      if (!conversationId || !messageId || !userId) return;
+      await connectToDB();
+      const member = await User.findOne({ firebaseId: userId }).select("_id").lean() as { _id: unknown } | null;
+      if (!member || !await Conversation.exists({ _id: conversationId, participants: member._id })) return;
+      const message = await Message.findOne({ _id: messageId, conversation: conversationId })
+        .populate("reactions.users", "firebaseId").select("reactions").lean() as unknown as { reactions: unknown[] } | null;
+      if (message) io.to(`conversation:${conversationId}`).emit("message:reaction", { conversationId, messageId, reactions: message.reactions });
     });
     socket.on("disconnect", () => {
       if (userId) socket.broadcast.emit("presence:update", { userId, online: false });

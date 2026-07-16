@@ -9,10 +9,8 @@ import React, {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Theme } from "emoji-picker-react";
 import {
   ArrowLeft,
   Check,
@@ -21,6 +19,7 @@ import {
   CircleAlert,
   Copy,
   Info,
+  LockKeyhole,
   Loader2,
   MessageCircle,
   MoreHorizontal,
@@ -36,10 +35,45 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
+import { chatFetch } from "@/lib/chat-api";
+import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, unwrapConversationKey } from "@/lib/chat-crypto";
 
-const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
-  ssr: false,
-});
+const EMOJI_CATEGORIES = [
+  { label: "Smileys", icon: "😊", emojis: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕".split(" ") },
+  { label: "Gestures", icon: "👍", emojis: "👍 👎 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤝 👏 🙌 🫶 👐 🤲 🙏 ✍️ 💪 🦾 🖕 🫵 👀 👁️ 👄 🫦 💋 🧠 🫂".split(" ") },
+  { label: "Hearts", icon: "❤️", emojis: "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 💋 🌹 🥀 🌷 🌸 💐 ✨ ⭐ 🌟 💫 🔥 💯".split(" ") },
+  { label: "People", icon: "🙋", emojis: "👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 👷 💂 🕵️ 👩‍⚕️ 👩‍🌾 👩‍🍳 👩‍🎓 👩‍🎤 👩‍🏫 👩‍💻 👩‍💼 👩‍🔧 👩‍🔬 👩‍🎨 👩‍🚒 👩‍✈️ 👩‍🚀 👩‍⚖️ 👰 🤵 👸 🤴 🦸 🦹 🧙 🧚 🧛 🧜 🧝".split(" ") },
+  { label: "Nature", icon: "🐶", emojis: "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🪳 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦀 🐠 🐟 🐡 🐬 🐳 🦈 🐊 🐅 🐆 🦓 🦍 🦧 🐘 🦛 🦏 🐪 🦒 🦘 🦬 🐃 🐄 🐎 🐖 🐏 🦙 🐐 🦌 🐕 🐈 🪶 🌿 ☘️ 🍀 🎍 🪴 🌵 🌴 🌳 🌲 🍁 🍂 🍃".split(" ") },
+  { label: "Food", icon: "🍕", emojis: "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🫑 🌽 🥕 🫒 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🫓 🥪 🌮 🌯 🫔 🥙 🧆 🍜 🍝 🍣 🍤 🍚 🍛 🍲 🥗 🍿 🧂 🍩 🍪 🎂 🍰 🧁 🍫 🍬 🍭 🍮 🍯 🍼 ☕ 🍵 🧃 🥤 🧋 🍺 🍻 🥂 🍷 🍸 🍹".split(" ") },
+  { label: "Activities", icon: "⚽", emojis: "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🎪 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎲 ♟️ 🎯 🎳 🎮 🧩".split(" ") },
+  { label: "Travel", icon: "🚗", emojis: "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🚨 🚔 🚍 🚘 🚖 ✈️ 🛫 🛬 🛩️ 💺 🚁 🚀 🛸 🚉 🚞 🚆 🚄 🚅 🚈 🚂 🚊 🚝 🚟 🚠 🚡 🛰️ ⛵ 🛶 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏕️ ⛺ 🛖 🏠 🏡 🏢 🏥 🏦 🏨 🏪 🏫 ⛪ 🕌 🛕 🕍".split(" ") },
+];
+
+function NativeEmojiPicker({ onSelect, title = "Choose an emoji" }: { onSelect: (emoji: string) => void; title?: string }) {
+  const [activeCategory, setActiveCategory] = useState(0);
+  const category = EMOJI_CATEGORIES[activeCategory];
+  return (
+    <div className="flex h-[310px] w-[min(332px,calc(100vw-24px))] flex-col bg-[#101512] text-white">
+      <div className="flex h-11 shrink-0 items-center px-3 text-[13px] font-semibold text-white/85">{title}</div>
+      <div className="no-scrollbar flex shrink-0 items-center gap-0.5 overflow-x-auto border-y border-white/[0.07] px-1.5 py-1">
+        {EMOJI_CATEGORIES.map((item, index) => (
+          <button key={item.label} type="button" onClick={() => setActiveCategory(index)} className={`relative flex h-9 min-w-9 items-center justify-center rounded-lg text-lg transition ${activeCategory === index ? "bg-brand-green/15" : "opacity-60 hover:bg-white/[0.06] hover:opacity-100"}`} aria-label={item.label} aria-pressed={activeCategory === index}>
+            {item.icon}
+            {activeCategory === index && <span className="absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-brand-green" />}
+          </button>
+        ))}
+      </div>
+      <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-white/40">{category.label}</div>
+      <div className="thin-scrollbar grid flex-1 grid-cols-8 content-start gap-0.5 overflow-y-auto px-2 pb-2">
+        {category.emojis.map((emoji, index) => (
+          <button key={`${emoji}-${index}`} type="button" onClick={() => onSelect(emoji)} className="flex h-9 w-9 items-center justify-center rounded-lg text-[22px] leading-none transition hover:bg-white/[0.09] active:scale-90" aria-label={`Choose ${emoji}`}>
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type Person = {
   _id: string;
@@ -47,6 +81,7 @@ type Person = {
   name: string;
   username?: string;
   image?: string;
+  chatPublicKey?: string;
 };
 type ChatMessage = {
   _id: string;
@@ -58,9 +93,17 @@ type ChatMessage = {
     text: string;
     createdAt: string;
     sender: Person;
+    ciphertext?: string;
+    iv?: string;
+    encryptionVersion?: number;
   } | null;
   readBy?: string[];
   deliveryState?: "sending" | "failed";
+  ciphertext?: string;
+  iv?: string;
+  encryptionVersion?: number;
+  reactions?: Array<{ emoji: string; users: Array<{ firebaseId: string } | string> }>;
+  decrypted?: boolean;
 };
 
 function messageDayKey(value: string) {
@@ -83,6 +126,8 @@ type Conversation = {
   lastMessage?: ChatMessage;
   lastMessageAt: string;
   unreadCount: number;
+  encryptionVersion?: number;
+  encryptedKeys?: Array<{ user: Person; wrappedKey: string }>;
 };
 
 const CHAT_CACHE_PREFIX = "mindfuel:chat:v1:";
@@ -118,20 +163,6 @@ function writeChatCache<T>(key: string, data: T) {
   } catch {
     // SWR's in-memory cache remains available when storage is unavailable.
   }
-}
-
-async function conversationsFetcher(url: string): Promise<Conversation[]> {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error("Unable to load conversations");
-  const data = await response.json();
-  return data.conversations || [];
-}
-
-async function messagesFetcher(url: string): Promise<ChatMessage[]> {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error("Unable to load messages");
-  const data = await response.json();
-  return data.messages || [];
 }
 
 function Avatar({ person, size = 44 }: { person: Person; size?: number }) {
@@ -172,6 +203,7 @@ export default function MessagesClient() {
   const [recipientSearchLoading, setRecipientSearchLoading] = useState(false);
   const [startingRecipientId, setStartingRecipientId] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState("");
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [showReplyTip, setShowReplyTip] = useState(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -181,12 +213,14 @@ export default function MessagesClient() {
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIdRef = useRef<string | null>(null);
   const conversationMessageIdsRef = useRef<Map<string, string>>(new Map());
   const conversationSnapshotReadyRef = useRef(false);
   const lastMarkedReadIdRef = useRef("");
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversationKeysRef = useRef<Map<string, CryptoKey>>(new Map());
   const lastTypingStateRef = useRef<{
     conversationId: string;
     isTyping: boolean;
@@ -201,9 +235,13 @@ export default function MessagesClient() {
         : undefined,
     [conversationCacheKey],
   );
-  const conversationUrl = user
-    ? `/api/chat/conversations?userId=${encodeURIComponent(user.uid)}`
-    : null;
+  const conversationUrl = user ? "/api/chat/conversations" : null;
+  const conversationsFetcher = useCallback(async (url: string): Promise<Conversation[]> => {
+    if (!user) return [];
+    const response = await chatFetch(user, url, { cache: "no-store" });
+    if (!response.ok) throw new Error("Unable to load conversations");
+    return (await response.json()).conversations || [];
+  }, [user]);
   const {
     data: conversationData,
     isLoading: loading,
@@ -246,8 +284,14 @@ export default function MessagesClient() {
   );
   const messagesUrl =
     user && active
-      ? `/api/chat/messages?conversationId=${encodeURIComponent(active._id)}&userId=${encodeURIComponent(user.uid)}`
+      ? `/api/chat/messages?conversationId=${encodeURIComponent(active._id)}`
       : null;
+  const messagesFetcher = useCallback(async (url: string): Promise<ChatMessage[]> => {
+    if (!user) return [];
+    const response = await chatFetch(user, url, { cache: "no-store" });
+    if (!response.ok) throw new Error("Unable to load messages");
+    return (await response.json()).messages || [];
+  }, [user]);
   const { data: messageData, mutate: mutateMessages } = useSWR<ChatMessage[]>(
     messagesUrl,
     messagesFetcher,
@@ -275,6 +319,82 @@ export default function MessagesClient() {
     },
     [mutateMessages],
   );
+
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      try {
+        const identity = await ensureChatIdentity(user.uid);
+        const response = await chatFetch(user, "/api/chat/keys", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: identity.publicKey }),
+        });
+        if (response.ok) void mutateConversations();
+        else if (response.status === 409) showToast("This account has encrypted history from another browser. Open it there to read those messages.", "error", 7000);
+      } catch {
+        showToast("Secure messaging could not be initialized", "error");
+      }
+    })();
+  }, [user, mutateConversations, showToast]);
+
+  const prepareConversationKey = useCallback(async (conversation: Conversation) => {
+    if (!user) throw new Error("Sign in required");
+    const cached = conversationKeysRef.current.get(conversation._id);
+    if (cached) return cached;
+    if (conversation.encryptionVersion) {
+      const wrapped = conversation.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
+      if (!wrapped) throw new Error("This device has no key for the conversation");
+      const key = await unwrapConversationKey(user.uid, wrapped);
+      conversationKeysRef.current.set(conversation._id, key);
+      return key;
+    }
+
+    const identity = await ensureChatIdentity(user.uid);
+    const keys = conversation.participants.map((person) => ({
+      userId: person.firebaseId,
+      publicKey: person.firebaseId === user.uid ? identity.publicKey : person.chatPublicKey || "",
+    }));
+    if (keys.some((row) => !row.publicKey)) {
+      throw new Error("The other participant must open Messages once before encrypted chat can begin");
+    }
+    const created = await createConversationKey(keys);
+    const response = await chatFetch(user, "/api/chat/conversations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: conversation._id, wrappedKeys: created.wrappedKeys }),
+    });
+    if (!response.ok) throw new Error("Unable to establish encrypted conversation");
+    const encryption = await response.json();
+    const secured = { ...conversation, ...encryption };
+    const ownWrapped = encryption.encryptedKeys?.find((row: { user?: Person }) => row.user?.firebaseId === user.uid)?.wrappedKey;
+    if (!ownWrapped) throw new Error("The encrypted conversation key is unavailable");
+    const establishedKey = await unwrapConversationKey(user.uid, ownWrapped);
+    setActive((current) => current?._id === secured._id ? secured : current);
+    setConversations((rows) => rows.map((row) => row._id === secured._id ? { ...row, ...encryption } : row));
+    conversationKeysRef.current.set(conversation._id, establishedKey);
+    return establishedKey;
+  }, [user, setConversations]);
+
+  useEffect(() => {
+    if (!active || !messageData?.some((message) => message.ciphertext && !message.decrypted)) return;
+    let cancelled = false;
+    void prepareConversationKey(active).then(async (key) => {
+      const decrypted = await Promise.all(messageData.map(async (message) => {
+        if (!message.ciphertext || !message.iv || message.decrypted) return message;
+        try {
+          const text = await decryptChatText(key, message.ciphertext, message.iv);
+          let replyTo = message.replyTo;
+          if (replyTo?.ciphertext && replyTo.iv) replyTo = { ...replyTo, text: await decryptChatText(key, replyTo.ciphertext, replyTo.iv) };
+          return { ...message, text, replyTo, decrypted: true };
+        } catch {
+          return { ...message, text: "Unable to decrypt this message", decrypted: true };
+        }
+      }));
+      if (!cancelled) setMessages(decrypted);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [active, messageData, prepareConversationKey, setMessages]);
   const updateTypingState = useCallback(
     (conversationId: string, isTyping: boolean, force = false) => {
       if (!user) return;
@@ -289,10 +409,10 @@ export default function MessagesClient() {
         return;
       }
       lastTypingStateRef.current = { conversationId, isTyping, sentAt: now };
-      fetch("/api/chat/typing", {
+      chatFetch(user, "/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, conversationId, isTyping }),
+        body: JSON.stringify({ conversationId, isTyping }),
       }).catch(() => {
         // Socket events still carry typing when the HTTP fallback is unavailable.
       });
@@ -316,10 +436,10 @@ export default function MessagesClient() {
     if (latest.sender.firebaseId === user.uid || lastMarkedReadIdRef.current === latest._id) return;
     lastMarkedReadIdRef.current = latest._id;
     const socket = getSocket(user.uid);
-    fetch("/api/chat/messages", {
+    chatFetch(user, "/api/chat/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.uid, conversationId: active._id }),
+      body: JSON.stringify({ conversationId: active._id }),
     })
       .then((response) => {
         if (response.ok) socket.emit("messages:read", { conversationId: active._id });
@@ -359,10 +479,10 @@ export default function MessagesClient() {
       const recipientId = searchParams.get("with");
       if (!recipientId) return;
       try {
-        const createResponse = await fetch("/api/chat/conversations", {
+        const createResponse = await chatFetch(user, "/api/chat/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.uid, recipientId }),
+          body: JSON.stringify({ recipientId }),
         });
         if (!createResponse.ok)
           throw new Error("Unable to start conversation");
@@ -416,10 +536,10 @@ export default function MessagesClient() {
             ? rows
             : [...rows, message],
         );
-        fetch("/api/chat/messages", {
+        chatFetch(user, "/api/chat/messages", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.uid, conversationId }),
+          body: JSON.stringify({ conversationId }),
         })
           .then((response) => {
             if (response.ok) socket.emit("messages:read", { conversationId });
@@ -509,12 +629,17 @@ export default function MessagesClient() {
         }),
       );
     };
+    const onReaction = ({ conversationId, messageId, reactions }: { conversationId: string; messageId: string; reactions: ChatMessage["reactions"] }) => {
+      if (conversationId !== active._id) return;
+      setMessages((rows) => rows.map((row) => row._id === messageId ? { ...row, reactions } : row));
+    };
     socket.on("typing:update", onTyping);
     socket.on("messages:read", onRead);
+    socket.on("message:reaction", onReaction);
     const loadTypingState = async () => {
       try {
-        const response = await fetch(
-          `/api/chat/typing?conversationId=${encodeURIComponent(active._id)}&userId=${encodeURIComponent(user.uid)}`,
+        const response = await chatFetch(user,
+          `/api/chat/typing?conversationId=${encodeURIComponent(active._id)}`,
           { cache: "no-store" },
         );
         if (!response.ok || cancelled) return;
@@ -527,10 +652,10 @@ export default function MessagesClient() {
     };
     const typingPoll = window.setInterval(loadTypingState, 1500);
     void loadTypingState();
-    fetch("/api/chat/messages", {
+    chatFetch(user, "/api/chat/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.uid, conversationId: active._id }),
+      body: JSON.stringify({ conversationId: active._id }),
     })
       .then((response) => {
         if (response.ok)
@@ -555,6 +680,7 @@ export default function MessagesClient() {
       socket.emit("conversation:leave", active._id);
       socket.off("typing:update", onTyping);
       socket.off("messages:read", onRead);
+      socket.off("message:reaction", onReaction);
     };
   }, [active, user, profile?.name, setConversations, setMessages, updateTypingState]);
 
@@ -601,6 +727,7 @@ export default function MessagesClient() {
     setShowConversationMenu(false);
     setProfileLinkCopied(false);
     setShowEmojiPicker(false);
+    setReactionPickerMessageId("");
     setReplyingTo(null);
   }, [active?._id]);
 
@@ -622,6 +749,17 @@ export default function MessagesClient() {
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, [showEmojiPicker]);
+
+  useEffect(() => {
+    if (!reactionPickerMessageId) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!reactionPickerRef.current?.contains(event.target as Node)) {
+        setReactionPickerMessageId("");
+      }
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [reactionPickerMessageId]);
 
   useEffect(() => {
     if (!showNewMessage) return;
@@ -664,11 +802,10 @@ export default function MessagesClient() {
     if (!user || startingRecipientId) return;
     setStartingRecipientId(recipient.firebaseId);
     try {
-      const response = await fetch("/api/chat/conversations", {
+      const response = await chatFetch(user, "/api/chat/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.uid,
           recipientId: recipient.firebaseId,
         }),
       });
@@ -711,6 +848,14 @@ export default function MessagesClient() {
     const conversationId = active._id;
     const temporaryId = `pending-${crypto.randomUUID()}`;
     const socket = getSocket(user.uid);
+    let encryptedPayload: { ciphertext: string; iv: string; encryptionVersion: number };
+    try {
+      const key = await prepareConversationKey(active);
+      encryptedPayload = await encryptChatText(key, text);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Encrypted chat could not be started", "error", 6000);
+      return;
+    }
     const optimisticMessage: ChatMessage = {
       _id: temporaryId,
       text,
@@ -755,10 +900,10 @@ export default function MessagesClient() {
     });
 
     try {
-      const response = await fetch("/api/chat/messages", {
+      const response = await chatFetch(user, "/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.uid, conversationId, text, replyTo: replyToId }),
+        body: JSON.stringify({ conversationId, ...encryptedPayload, replyTo: replyToId }),
       });
       if (!response.ok) throw new Error("Message failed to send");
       const data = await response.json();
@@ -790,6 +935,47 @@ export default function MessagesClient() {
         ),
       );
       showToast("Message could not be sent", "error");
+    }
+  };
+
+  const reactToMessage = async (messageId: string, emoji: string) => {
+    if (!user || !active) return;
+    const previousMessages = messages;
+    setMessages((rows) => rows.map((message) => {
+      if (message._id !== messageId) return message;
+      const reactions = message.reactions || [];
+      const selected = reactions.find((reaction) => reaction.emoji === emoji);
+      const alreadySelected = selected?.users.some((reactionUser) =>
+        typeof reactionUser === "string" ? reactionUser === user.uid : reactionUser.firebaseId === user.uid,
+      );
+      const withoutOwnReaction = reactions
+        .map((reaction) => ({
+          ...reaction,
+          users: reaction.users.filter((reactionUser) =>
+            typeof reactionUser === "string" ? reactionUser !== user.uid : reactionUser.firebaseId !== user.uid,
+          ),
+        }))
+        .filter((reaction) => reaction.users.length > 0);
+      if (!alreadySelected) {
+        const target = withoutOwnReaction.find((reaction) => reaction.emoji === emoji);
+        if (target) target.users = [...target.users, { firebaseId: user.uid }];
+        else withoutOwnReaction.push({ emoji, users: [{ firebaseId: user.uid }] });
+      }
+      return { ...message, reactions: withoutOwnReaction };
+    }));
+    try {
+      const response = await chatFetch(user, "/api/chat/messages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: active._id, messageId, emoji }),
+      });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      setMessages((rows) => rows.map((row) => row._id === messageId ? { ...row, reactions: data.reactions } : row));
+      getSocket(user.uid).emit("message:reaction", { conversationId: active._id, messageId });
+    } catch {
+      setMessages(previousMessages);
+      showToast("Reaction could not be updated", "error");
     }
   };
 
@@ -1217,6 +1403,12 @@ export default function MessagesClient() {
                 </div>
               </div>
             </header>
+            <div className="flex items-center justify-center gap-1.5 border-b border-white/[0.06] bg-brand-green/[0.06] px-4 py-1.5 text-[11px] text-brand-green">
+              <LockKeyhole className="h-3.5 w-3.5" />
+              {active.encryptionVersion
+                ? "New messages are end-to-end encrypted. Only you and this person can read them."
+                : "End-to-end encryption will be enabled before your first new message is sent."}
+            </div>
             {showConversationInfo && (
               <div
                 className="absolute inset-0 z-30 flex justify-end bg-black/65 backdrop-blur-sm"
@@ -1282,7 +1474,7 @@ export default function MessagesClient() {
                   return (
                     <React.Fragment key={message._id}>
                       {showDate && (
-                        <div className="sticky top-2 z-10 my-3 flex justify-center">
+                        <div className="relative z-10 my-4 flex w-full shrink-0 justify-center">
                           <time
                             dateTime={message.createdAt}
                             className="rounded-full border border-white/[0.07] bg-[#17231e]/95 px-3 py-1 text-[11px] font-bold text-white/80 backdrop-blur-md"
@@ -1293,7 +1485,7 @@ export default function MessagesClient() {
                       )}
                       <div
                         ref={registerMessageRef(message._id)}
-                        className={`group flex scroll-mt-24 items-center gap-2 transition-all duration-300 ${own ? "justify-end" : "justify-start"} ${highlightedMessageId === message._id ? "scale-[1.015]" : ""}`}
+                        className={`group flex w-full scroll-mt-24 items-center gap-1.5 transition-all duration-300 ${own ? "justify-end" : "justify-start"} ${highlightedMessageId === message._id ? "scale-[1.015]" : ""}`}
                       >
                         <div
                           role="button"
@@ -1306,7 +1498,7 @@ export default function MessagesClient() {
                               setReplyingTo(message);
                             }
                           }}
-                          className={`min-w-0 max-w-[78%] cursor-pointer rounded-[20px] border px-3.5 py-2 text-left text-[14px] leading-relaxed shadow-sm transition ${own ? "rounded-br-[5px] border-[#087766] bg-[#075e54] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#202522] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/15 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          className={`min-w-0 max-w-[78%] cursor-pointer rounded-[20px] border px-3.5 py-2 text-left text-[14px] leading-relaxed shadow-sm transition ${own ? "rounded-br-[5px] border-[#07685b] bg-[#064f46] text-white" : "rounded-bl-[5px] border-white/[0.06] bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/15 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
                           aria-label="Reply to message"
                         >
                           {message.replyTo && (
@@ -1336,6 +1528,40 @@ export default function MessagesClient() {
                             {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
                             {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
+                          {!!message.reactions?.length && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {message.reactions.map((reaction) => (
+                                <button key={reaction.emoji} type="button" onClick={(event) => { event.stopPropagation(); void reactToMessage(message._id, reaction.emoji); }} className="inline-flex h-4 w-4 items-center justify-center p-0 text-[20px] leading-none transition hover:scale-110 active:scale-90" aria-label={`React with ${reaction.emoji}`}>
+                                  {reaction.emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div ref={reactionPickerMessageId === message._id ? reactionPickerRef : undefined} className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setReactionPickerMessageId((current) => current === message._id ? "" : message._id);
+                            }}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[0.08] hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-white/[0.10] text-brand-green opacity-100" : ""}`}
+                            aria-label="React to message"
+                            aria-expanded={reactionPickerMessageId === message._id}
+                          >
+                            <Smile className="h-4 w-4" />
+                          </button>
+                          {reactionPickerMessageId === message._id && (
+                            <div className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/[0.12] bg-[#111713] shadow-2xl md:absolute md:bottom-[calc(100%+8px)] md:top-auto md:translate-x-0 md:translate-y-0 ${own ? "md:left-auto md:right-0" : "md:left-0"}`} onClick={(event) => event.stopPropagation()}>
+                              <NativeEmojiPicker
+                                title="React to message"
+                                onSelect={(emoji) => {
+                                  void reactToMessage(message._id, emoji);
+                                  setReactionPickerMessageId("");
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </React.Fragment>
@@ -1400,11 +1626,9 @@ export default function MessagesClient() {
                   </button>
                   {showEmojiPicker && (
                     <div className="absolute bottom-[calc(100%+10px)] left-0 z-40 overflow-hidden rounded-2xl border border-white/[0.1] shadow-2xl">
-                      <EmojiPicker
-                        onEmojiClick={addEmoji}
-                        theme={Theme.DARK}
-                        width={Math.min(320, typeof window === "undefined" ? 320 : window.innerWidth - 32)}
-                        height={360}
+                      <NativeEmojiPicker
+                        title="Add emoji"
+                        onSelect={(emoji) => addEmoji({ emoji })}
                       />
                     </div>
                   )}

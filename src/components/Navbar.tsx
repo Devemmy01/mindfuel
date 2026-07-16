@@ -22,6 +22,7 @@ import NotificationsList, { AppNotification } from "./NotificationsList";
 import InstallAppButton from "./InstallAppButton";
 import { getSocket } from "@/lib/socket";
 import { useToast } from "@/providers/ToastProvider";
+import { chatFetch } from "@/lib/chat-api";
 
 export default function Navbar() {
   const { user, profile, logout, openSignInModal } = useAuth();
@@ -61,15 +62,15 @@ export default function Navbar() {
     if (!pathname.startsWith("/messages")) setIsConversationOpen(false);
   }, [pathname]);
 
-  const chatUrl = user
-    ? `/api/chat/conversations?userId=${encodeURIComponent(user.uid)}`
-    : null;
+  const chatUrl = user ? "/api/chat/conversations" : null;
   const { data: chatConversationData, mutate: mutateChatConversations } = useSWR<NavConversation[]>(
     chatUrl,
-    (url: string) => fetch(url, { cache: "no-store" }).then(async (response) => {
+    async (url: string) => {
+      if (!user) return [];
+      const response = await chatFetch(user, url, { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load unread messages");
       return (await response.json()).conversations || [];
-    }),
+    },
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,

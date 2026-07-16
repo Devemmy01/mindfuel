@@ -3,6 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import ChatTypingState from "@/models/chatTypingState";
 import User from "@/models/user";
+import { requireFirebaseUser } from "@/lib/firebase-admin";
 
 const TYPING_TTL_MS = 4_000;
 
@@ -18,10 +19,11 @@ async function getParticipant(firebaseId: string, conversationId: string) {
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const userId = req.nextUrl.searchParams.get("userId") || "";
     const conversationId = req.nextUrl.searchParams.get("conversationId") || "";
-    const access = await getParticipant(userId, conversationId);
+    const access = await getParticipant(auth.uid, conversationId);
     if (!access) {
       return NextResponse.json({ typing: [] }, { status: 404 });
     }
@@ -51,9 +53,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const { userId, conversationId, isTyping } = await req.json();
-    const access = await getParticipant(String(userId || ""), String(conversationId || ""));
+    const { conversationId, isTyping } = await req.json();
+    const access = await getParticipant(auth.uid, String(conversationId || ""));
     if (!access) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
