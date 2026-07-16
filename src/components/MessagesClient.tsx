@@ -127,7 +127,7 @@ type Conversation = {
 
 const CHAT_CACHE_PREFIX = "mindfuel:chat:v1:";
 const CHAT_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-const REPLY_TIP_PREFIX = "mindfuel:reply-tip:v1:";
+const REPLY_TIP_PREFIX = "mindfuel:reply-tip:v2:";
 
 function readChatCache<T>(key: string): T | undefined {
   if (typeof window === "undefined") return undefined;
@@ -200,6 +200,7 @@ export default function MessagesClient() {
   const [startingRecipientId, setStartingRecipientId] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState("");
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ left: number; top: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [showReplyTip, setShowReplyTip] = useState(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -741,6 +742,7 @@ export default function MessagesClient() {
     setProfileLinkCopied(false);
     setShowEmojiPicker(false);
     setReactionPickerMessageId("");
+    setReactionPickerPosition(null);
     setReplyingTo(null);
   }, [active?._id]);
 
@@ -765,13 +767,14 @@ export default function MessagesClient() {
 
   useEffect(() => {
     if (!reactionPickerMessageId) return;
-    const closeOnOutsideClick = (event: MouseEvent) => {
+    const closeOnOutsideClick = (event: PointerEvent) => {
       if (!reactionPickerRef.current?.contains(event.target as Node)) {
         setReactionPickerMessageId("");
+        setReactionPickerPosition(null);
       }
     };
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [reactionPickerMessageId]);
 
   useEffect(() => {
@@ -1048,6 +1051,41 @@ export default function MessagesClient() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const openReactionPicker = (messageId: string, anchor?: HTMLElement) => {
+    if (reactionPickerMessageId === messageId) {
+      setReactionPickerMessageId("");
+      setReactionPickerPosition(null);
+      return;
+    }
+    if (window.innerWidth >= 768 && anchor) {
+      const room = messagesScrollRef.current?.getBoundingClientRect();
+      const trigger = anchor.getBoundingClientRect();
+      const width = 332;
+      const height = 310;
+      const padding = 12;
+      const roomLeft = room?.left ?? 0;
+      const roomRight = room?.right ?? window.innerWidth;
+      const roomTop = room?.top ?? 0;
+      const roomBottom = room?.bottom ?? window.innerHeight;
+      const left = Math.min(
+        Math.max(trigger.left + trigger.width / 2 - width / 2, roomLeft + padding),
+        Math.max(roomLeft + padding, roomRight - width - padding),
+      );
+      const spaceAbove = trigger.top - roomTop;
+      const preferredTop = spaceAbove >= height + padding
+        ? trigger.top - height - 8
+        : trigger.bottom + 8;
+      const top = Math.min(
+        Math.max(preferredTop, roomTop + padding),
+        Math.max(roomTop + padding, roomBottom - height - padding),
+      );
+      setReactionPickerPosition({ left, top });
+    } else {
+      setReactionPickerPosition(null);
+    }
+    setReactionPickerMessageId(messageId);
+  };
+
   const handleMessagesScroll = () => {
     const container = messagesScrollRef.current;
     if (!container) return;
@@ -1193,9 +1231,9 @@ export default function MessagesClient() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <h2 className="text-lg font-bold">Replying is easier now</h2>
+            <h2 className="text-lg font-bold">Reply and react quickly</h2>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Tap or click any message to reply to it. When a message includes a quoted reply, tap the quote to jump back to the original message.
+              Tap or click any message to reply. On a phone or tablet, use the smile button in the reply strip to react. Tap a quoted reply to jump back to it.
             </p>
             <button
               type="button"
@@ -1204,6 +1242,35 @@ export default function MessagesClient() {
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+      {reactionPickerMessageId && (
+        <div
+          className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-black/35 px-3 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-3 md:pointer-events-none md:overflow-visible md:bg-transparent md:p-0"
+          onClick={() => {
+            setReactionPickerMessageId("");
+            setReactionPickerPosition(null);
+          }}
+        >
+          <div className="flex min-h-full items-end justify-center md:block md:min-h-0">
+            <div
+              ref={reactionPickerRef}
+              className="pointer-events-auto static max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-white/[0.12] bg-[#111713] shadow-2xl md:fixed md:max-w-none"
+              style={reactionPickerPosition || undefined}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <NativeEmojiPicker
+                title="React to message"
+                onSelect={(emoji) => {
+                  const messageId = reactionPickerMessageId;
+                  void reactToMessage(messageId, emoji);
+                  setReactionPickerMessageId("");
+                  setReactionPickerPosition(null);
+                  setReplyingTo((current) => current?._id === messageId ? null : current);
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -1560,34 +1627,22 @@ export default function MessagesClient() {
                               ))}
                             </div>
                           )}
-                        </div>
-                        <div
-                          ref={reactionPickerMessageId === message._id ? reactionPickerRef : undefined}
-                          className={`relative shrink-0 ${own ? "order-first" : ""}`}
-                        >
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setReactionPickerMessageId((current) => current === message._id ? "" : message._id);
-                            }}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[0.08] hover:text-white md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-white/[0.10] text-brand-green opacity-100" : ""}`}
-                            aria-label="React to message"
-                            aria-expanded={reactionPickerMessageId === message._id}
+                          <div
+                            className={`absolute top-[calc(50%-1rem)] z-10 ${own ? "-left-9" : "-right-9"}`}
                           >
-                            <Smile className="h-4 w-4" />
-                          </button>
-                          {reactionPickerMessageId === message._id && (
-                            <div className={`fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/[0.12] bg-[#111713] shadow-2xl md:absolute md:bottom-[calc(100%+8px)] md:top-auto md:translate-x-0 md:translate-y-0 ${own ? "md:left-auto md:right-0" : "md:left-0"}`} onClick={(event) => event.stopPropagation()}>
-                              <NativeEmojiPicker
-                                title="React to message"
-                                onSelect={(emoji) => {
-                                  void reactToMessage(message._id, emoji);
-                                  setReactionPickerMessageId("");
-                                }}
-                              />
-                            </div>
-                          )}
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openReactionPicker(message._id, event.currentTarget);
+                              }}
+                              className={`hidden h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[0.08] hover:text-white md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-white/[0.10] text-brand-green opacity-100" : ""}`}
+                              aria-label="React to message"
+                              aria-expanded={reactionPickerMessageId === message._id}
+                            >
+                              <Smile className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </React.Fragment>
@@ -1640,6 +1695,14 @@ export default function MessagesClient() {
                     </strong>
                     <p className="truncate text-xs text-white/50">{replyingTo.text}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => openReactionPicker(replyingTo._id)}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-green hover:bg-white/[0.07] md:hidden"
+                    aria-label="React to message"
+                  >
+                    <Smile className="h-4 w-4" />
+                  </button>
                   <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-white/45 hover:bg-white/[0.07] hover:text-white" aria-label="Cancel reply">
                     <X className="h-4 w-4" />
                   </button>
