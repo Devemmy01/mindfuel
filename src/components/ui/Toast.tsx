@@ -32,7 +32,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
       className={`fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[200] flex items-start gap-3 rounded-2xl px-3.5 py-3 shadow-2xl ${bgStyles} sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-max sm:min-w-[20rem] sm:max-w-[min(32rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:px-4`}
     >
       <div className="mt-0.5 flex-shrink-0">{icons[type]}</div>
-      <div className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-5 text-foreground/90 sm:text-[14px]">
+      <div className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-5 text-white/90 sm:text-[14px]">
         {message}
       </div>
       <button

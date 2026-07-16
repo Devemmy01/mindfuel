@@ -19,6 +19,7 @@ import {
   CircleAlert,
   Copy,
   Info,
+  Link2,
   LockKeyhole,
   Loader2,
   MessageCircle,
@@ -38,6 +39,7 @@ import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
 import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, unwrapConversationKey } from "@/lib/chat-crypto";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
+import ChatDeviceLinkModal from "@/components/chat/ChatDeviceLinkModal";
 
 type Person = {
   _id: string;
@@ -188,6 +190,7 @@ export default function MessagesClient() {
   const [active, setActive] = useState<Conversation | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = active ? drafts[active._id] || "" : "";
+  const [composerExpanded, setComposerExpanded] = useState(false);
   const [typingName, setTypingName] = useState("");
   const [query, setQuery] = useState("");
   const [showConversationInfo, setShowConversationInfo] = useState(false);
@@ -201,6 +204,8 @@ export default function MessagesClient() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState("");
   const [reactionPickerPosition, setReactionPickerPosition] = useState<{ left: number; top: number } | null>(null);
+  const [deviceLinkMode, setDeviceLinkMode] = useState<"source" | "target" | null>(null);
+  const [hasChatKeyConflict, setHasChatKeyConflict] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [showReplyTip, setShowReplyTip] = useState(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -325,8 +330,15 @@ export default function MessagesClient() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ publicKey: identity.publicKey }),
         });
-        if (response.ok) void mutateConversations();
-        else if (response.status === 409) showToast("This account has encrypted history from another browser. Open it there to read those messages.", "error", 7000);
+        if (response.ok) {
+          setHasChatKeyConflict(false);
+          void mutateConversations();
+        }
+        else if (response.status === 409) {
+          setHasChatKeyConflict(true);
+          setDeviceLinkMode("target");
+          showToast("Link this device to the browser that already has your encrypted chats.", "error", 7000);
+        }
       } catch {
         showToast("Secure messaging could not be initialized", "error");
       }
@@ -750,8 +762,10 @@ export default function MessagesClient() {
     const textarea = composerRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+    const nextHeight = Math.min(textarea.scrollHeight, 128);
+    textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > 128 ? "auto" : "hidden";
+    setComposerExpanded(nextHeight > 44);
   }, [draft]);
 
   useEffect(() => {
@@ -1245,6 +1259,14 @@ export default function MessagesClient() {
           </div>
         </div>
       )}
+      {deviceLinkMode && user && (
+        <ChatDeviceLinkModal
+          user={user}
+          mode={deviceLinkMode}
+          onClose={() => setDeviceLinkMode(null)}
+          onLinked={() => window.location.reload()}
+        />
+      )}
       {reactionPickerMessageId && (
         <div
           className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-black/35 px-3 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-3 md:pointer-events-none md:overflow-visible md:bg-transparent md:p-0"
@@ -1472,6 +1494,17 @@ export default function MessagesClient() {
                           <UserRound className="h-4 w-4" />
                           View profile
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeviceLinkMode(hasChatKeyConflict ? "target" : "source");
+                            setShowConversationMenu(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
+                        >
+                          <Link2 className="h-4 w-4" />
+                          {hasChatKeyConflict ? "Link this device" : "Link another device"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => copyProfileLink(person)}
@@ -1708,8 +1741,8 @@ export default function MessagesClient() {
                   </button>
                 </div>
               )}
-              <div className="relative mx-auto flex max-w-3xl items-end gap-1 rounded-full bg-[#151a18] p-1 pl-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50">
-                <div ref={emojiPickerRef} className="relative shrink-0 self-end">
+              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-[#151a18] p-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
+                <div ref={emojiPickerRef} className="static mb-0.5 shrink-0 self-end">
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker((open) => !open)}
@@ -1741,12 +1774,12 @@ export default function MessagesClient() {
                   placeholder="Start a new message"
                   rows={1}
                   maxLength={2000}
-                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent py-2 text-sm text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none"
+                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none"
                 />
                 <button
                   type="submit"
                   disabled={!draft.trim()}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="mb-0.5 flex h-10 w-10 shrink-0 self-end items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: "var(--brand-green, #00bf63)" }}
                   aria-label="Send message"
                 >
