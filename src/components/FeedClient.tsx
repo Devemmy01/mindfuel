@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
+import MindfulTip from "@/components/MindfulTip";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, BookOpen, Loader2, RefreshCw, Users } from "lucide-react";
 import Link from "next/link";
@@ -503,6 +504,12 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
           </div>
         </div>
       </header>
+
+      {/* The desktop tip lives in the right rail; keep it in the feed flow when
+          that rail collapses so it scrolls away with the rest of the content. */}
+      <div className="px-4 pb-4 lg:hidden">
+        <MindfulTip className="mt-4" />
+      </div>
 
       {/* ── Feed ── */}
       <AnimatePresence mode="wait">

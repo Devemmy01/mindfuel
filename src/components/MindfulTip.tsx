@@ -1,33 +1,38 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { PencilLine, ArrowRight, RefreshCw, Download } from "lucide-react";
 import Link from "next/link";
+import useSWR from "swr";
+import { cn } from "@/lib/utils";
 
-export default function MindfulTip() {
-  const [tip, setTip] = useState("Loading your mindful tip...");
-  const [loading, setLoading] = useState(true);
+const fallbackTip = "Breathe deeply. You are exactly where you need to be.";
 
-  const fetchTip = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/tips/random");
-      const data = await res.json();
-      setTip(data.text);
-    } catch (err) {
-      console.error("Failed to fetch tip:", err);
-      setTip("Breathe deeply. You are exactly where you need to be.");
-    } finally {
-      setLoading(false);
-    }
-  };
+async function fetchTip(url: string): Promise<{ text: string }> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Failed to fetch tip");
+  return response.json();
+}
 
-  useEffect(() => {
-    fetchTip();
-  }, []);
+export default function MindfulTip({ className }: { className?: string }) {
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    "/api/tips/random",
+    fetchTip,
+    {
+      dedupingInterval: 60_000,
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+      onError: (tipError) => console.error("Failed to fetch tip:", tipError),
+    },
+  );
+  const loading = isLoading || isValidating;
+  const tip = data?.text || (error ? fallbackTip : "Loading your mindful tip...");
 
   return (
-    <div className="bg-brand-green/5 rounded-3xl p-5 border border-brand-green/10 mt-6 group hover:bg-brand-green/10 transition-all cursor-default">
+    <div className={cn(
+      "bg-brand-green/5 rounded-3xl p-5 border border-brand-green/10 mt-6 group hover:bg-brand-green/10 transition-all cursor-default",
+      className,
+    )}>
       <div className="flex items-center gap-2 mb-3">
         <PencilLine className="w-4 h-4 text-brand-green" />
         <h3 className="font-extrabold text-[12px] uppercase tracking-[0.1em] text-brand-green/80">Mindful Tip</h3>
@@ -37,7 +42,7 @@ export default function MindfulTip() {
       </p>
       <div className="mt-6 flex items-center justify-between">
         <button 
-          onClick={fetchTip}
+          onClick={() => void mutate()}
           disabled={loading}
           aria-label="Get a new mindful tip"
           className="flex items-center gap-2 text-[12px] font-bold text-brand-green hover:underline decoration-2 underline-offset-4 tracking-tight disabled:opacity-50"
