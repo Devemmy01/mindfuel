@@ -1,47 +1,260 @@
 "use client";
 
-import React, { useRef, useState, Suspense } from "react";
+import React, { Suspense, useCallback, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
-import { Download, ArrowLeft, RefreshCw, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  Download,
+  ImageIcon,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { logoDarkBase64 } from "@/lib/logoBase64";
-import { motion, AnimatePresence } from "framer-motion";
 
-// Fixed output dimensions in pixels — always 1080×1350 regardless of device
+// The downloaded card always uses this social-friendly 4:5 resolution.
 const CARD_W = 1080;
 const CARD_H = 1350;
 
+function getExportQuoteSize(text: string) {
+  if (text.length > 230) return 43;
+  if (text.length > 170) return 50;
+  if (text.length > 110) return 58;
+  return 68;
+}
+
+function TipPreview({ text }: { text: string }) {
+  const quoteSize =
+    text.length > 230
+      ? "clamp(1.05rem, 4.7cqw, 1.75rem)"
+      : text.length > 150
+        ? "clamp(1.15rem, 5.3cqw, 2rem)"
+        : "clamp(1.3rem, 6cqw, 2.35rem)";
+
+  return (
+    <div className="tip-preview relative aspect-[4/5] w-full overflow-hidden border border-white/10 bg-[#07100b] [container-type:inline-size]">
+      <div className="pointer-events-none absolute -left-1/3 -top-1/4 h-2/3 w-2/3 rounded-full bg-brand-green/20 blur-[70px]" />
+      <div className="pointer-events-none absolute -bottom-1/4 -right-1/3 h-2/3 w-2/3 rounded-full bg-brand-green/10 blur-[80px]" />
+
+      <div className="relative flex h-full flex-col p-[9%]">
+        <div className="flex justify-center">
+          <div className="inline-flex items-center rounded-xl border border-white/[0.06] bg-white/[0.055] px-[5%] py-[2.2%]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoDarkBase64}
+              alt="MindFuel"
+              className="h-auto w-[clamp(5.5rem,24cqw,8rem)] opacity-90"
+            />
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-center py-[8%]">
+          <div className="relative w-full">
+            <span
+              aria-hidden="true"
+              className="absolute -left-[1%] -top-[0.65em] select-none font-serif text-[clamp(4rem,20cqw,8rem)] leading-none text-brand-green/15"
+            >
+              &ldquo;
+            </span>
+            <p
+              className="relative z-10 font-bold italic leading-[1.28] tracking-[-0.025em] text-white"
+              style={{ fontSize: quoteSize }}
+            >
+              {text}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between gap-4 border-t border-white/[0.07] pt-[6%]">
+          <div>
+            <p className="text-[clamp(0.62rem,2.8cqw,0.82rem)] font-black text-white/55">
+              Daily Mindful Tip
+            </p>
+            <p className="mt-1 text-[clamp(0.5rem,2.2cqw,0.7rem)] font-medium text-white/25">
+              mind-fuel.app
+            </p>
+          </div>
+          <p className="text-[clamp(0.5rem,2.2cqw,0.7rem)] font-black uppercase tracking-[0.16em] text-white/25">
+            Reflection
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExportCard({
+  text,
+  cardRef,
+}: {
+  text: string;
+  cardRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        width: CARD_W,
+        height: CARD_H,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        padding: 108,
+        color: "#ffffff",
+        backgroundColor: "#07100b",
+        backgroundImage:
+          "radial-gradient(circle at 0% 0%, rgba(0,191,99,0.18) 0%, transparent 50%), radial-gradient(circle at 100% 100%, rgba(0,191,99,0.07) 0%, transparent 50%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        fontFamily: "Inter, Arial, sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "18px 48px",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 20,
+            background: "rgba(255,255,255,0.055)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoDarkBase64}
+            alt="MindFuel"
+            width="240"
+            height="68"
+            style={{ display: "block", opacity: 0.9 }}
+          />
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          minHeight: 0,
+          flex: 1,
+          alignItems: "center",
+          padding: "80px 0",
+        }}
+      >
+        <div style={{ position: "relative", width: "100%" }}>
+          <span
+            style={{
+              position: "absolute",
+              top: -72,
+              left: -20,
+              color: "#00bf63",
+              fontFamily: "Georgia, serif",
+              fontSize: 180,
+              lineHeight: 1,
+              opacity: 0.13,
+              userSelect: "none",
+            }}
+          >
+            &ldquo;
+          </span>
+          <p
+            style={{
+              position: "relative",
+              zIndex: 1,
+              margin: 0,
+              color: "#ffffff",
+              fontFamily: "Inter, Arial, sans-serif",
+              fontSize: getExportQuoteSize(text),
+              fontStyle: "italic",
+              fontWeight: 700,
+              letterSpacing: "-0.025em",
+              lineHeight: 1.28,
+            }}
+          >
+            {text}
+          </p>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          paddingTop: 52,
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin: 0,
+              color: "rgba(255,255,255,0.52)",
+              fontSize: 30,
+              fontWeight: 900,
+            }}
+          >
+            Daily Mindful Tip
+          </p>
+          <p
+            style={{
+              margin: "8px 0 0",
+              color: "rgba(255,255,255,0.24)",
+              fontSize: 22,
+              fontWeight: 500,
+            }}
+          >
+            mind-fuel.app
+          </p>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            color: "rgba(255,255,255,0.24)",
+            fontSize: 22,
+            fontWeight: 900,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+          }}
+        >
+          Reflection
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function DownloadContent() {
   const searchParams = useSearchParams();
-  const text = searchParams.get("text") || "Breathe deeply. You are exactly where you need to be.";
+  const text =
+    searchParams.get("text") ||
+    "Breathe deeply. You are exactly where you need to be.";
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
-  const handleDownload = React.useCallback(async () => {
+  const handleDownload = useCallback(async () => {
     if (!cardRef.current || isDownloading) return;
+
     setIsDownloading(true);
     try {
-      // Give the browser a moment to finish rendering
-      await new Promise((r) => setTimeout(r, 800));
-
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         quality: 1,
-        // Fix capture at CARD_W × CARD_H so mobile and desktop produce
-        // identical images regardless of the on-screen preview scale.
         width: CARD_W,
         height: CARD_H,
         pixelRatio: 1,
-        backgroundColor: "#0a0a0a",
-        fontEmbedCSS: "", // Avoid SecurityError from cross-origin stylesheets
+        backgroundColor: "#07100b",
+        fontEmbedCSS: "",
         filter: (node) => {
           if (node.tagName === "STYLE" || node.tagName === "LINK") {
             try {
-              const s = node as HTMLStyleElement | HTMLLinkElement;
-              if (s.sheet) void s.sheet.cssRules;
+              const styleNode = node as HTMLStyleElement | HTMLLinkElement;
+              if (styleNode.sheet) void styleNode.sheet.cssRules;
             } catch {
               return false;
             }
@@ -55,274 +268,151 @@ function DownloadContent() {
       link.href = dataUrl;
       link.click();
       setHasDownloaded(true);
-    } catch (err) {
-      console.error("Failed to download tip:", err);
+    } catch (error) {
+      console.error("Failed to download tip:", error);
     } finally {
       setIsDownloading(false);
     }
   }, [isDownloading]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 sm:p-12">
-      {/* Background glows (not captured) */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-brand-green/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-brand-green/5 rounded-full blur-[100px]" />
+    <main className="relative min-h-[100svh] overflow-hidden bg-[#050806] text-white">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -left-52 -top-52 h-[34rem] w-[34rem] rounded-full bg-brand-green/[0.09] blur-[120px]" />
+        <div className="absolute -bottom-64 -right-48 h-[38rem] w-[38rem] rounded-full bg-emerald-900/10 blur-[140px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:48px_48px]" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg relative z-10"
-      >
-        {/* Page header — not part of the downloaded image */}
-        <div className="flex items-center justify-between mb-8 px-2">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-white/70 group-hover:text-white" />
-            </div>
-            <span className="text-[13px] font-bold text-white/50">Back to Feed</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-brand-green" />
-            <span className="text-[11px] font-black uppercase tracking-widest text-brand-green">
-              Download Ready
-            </span>
-          </div>
-        </div>
-
-        {/*
-          Preview wrapper:
-          The inner card is rendered at its true pixel size (CARD_W × CARD_H) via
-          inline styles, then scaled down to fit the screen using CSS transform.
-          transformOrigin="top left" + explicit wrapper height keep the layout intact.
-
-          On desktop  (~512 px container): scale ≈ 512/1080 ≈ 0.474
-          On mobile   (~320 px container): scale ≈ 320/1080 ≈ 0.296
-
-          The toPng call captures the node BEFORE the transform is applied, so it
-          always produces a full-size 1080×1350 image.
-        */}
-        <div
-          className="relative shadow-2xl overflow-hidden"
-          style={{
-            // Reserve the height the scaled card will visually occupy.
-            // height = CARD_H × scale. We use a CSS custom property set by the
-            // <style> block below so each breakpoint is handled automatically.
-            height: `calc(${CARD_H}px * var(--preview-scale, 0.474))`,
-            width: "100%",
-          }}
-        >
-          {/* Preview scale container — holds the transform. This does NOT get captured. */}
-          <div
-            style={{
-              width: `${CARD_W}px`,
-              height: `${CARD_H}px`,
-              transform: "scale(var(--preview-scale, 0.474))",
-              transformOrigin: "top left",
-              flexShrink: 0,
-            }}
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-7 lg:px-8 lg:py-10">
+        <header className="mb-5 flex items-center justify-between gap-4 sm:mb-8">
+          <Link
+            href="/feed"
+            className="group inline-flex min-h-11 items-center gap-2.5 text-sm font-bold text-white/65 hover:text-white"
           >
-            {/* ── Captured card — untransformed 1080x1350 px layout ── */}
-            <div
-              ref={cardRef}
-              style={{
-                width: `${CARD_W}px`,
-                height: `${CARD_H}px`,
-                backgroundColor: "#0a0a0a",
-                backgroundImage:
-                  "radial-gradient(circle at 0% 0%, rgba(0,191,99,0.15) 0%, transparent 50%), " +
-                  "radial-gradient(circle at 100% 100%, rgba(0,191,99,0.05) 0%, transparent 50%)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "0px", // No rounded corners as requested
-                overflow: "hidden",
-                padding: "108px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-            {/* Logo */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                marginBottom: "110px",
-              }}
-            >
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  padding: "18px 48px",
-                  borderRadius: "20px",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoDarkBase64}
-                  alt="MindFuel"
-                  width="240"
-                  height="68"
-                  style={{ opacity: 0.9, display: "block" }}
-                />
-              </div>
-            </div>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] transition-transform group-hover:-translate-x-0.5">
+              <ArrowLeft className="h-4 w-4" />
+            </span>
+            Back to feed
+          </Link>
 
-            {/* Quote */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-              <div style={{ position: "relative" }}>
-                {/* Opening quote mark */}
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "-72px",
-                    left: "-20px",
-                    fontSize: "180px",
-                    lineHeight: 1,
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    opacity: 0.1,
-                    color: "#00bf63",
-                    userSelect: "none",
-                    pointerEvents: "none",
-                  }}
-                >
-                  &ldquo;
-                </span>
-                <p
-                  style={{
-                    fontSize: "68px",
-                    fontWeight: 700,
-                    lineHeight: 1.3,
-                    letterSpacing: "-0.02em",
-                    color: "#ffffff",
-                    marginBottom: "60px",
-                    position: "relative",
-                    zIndex: 10,
-                    fontStyle: "italic",
-                    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-                  }}
-                >
-                  {text}
-                </p>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                marginTop: "auto",
-                paddingTop: "52px",
-                borderTop: "1px solid rgba(255,255,255,0.05)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <span
-                  style={{
-                    fontSize: "30px",
-                    fontWeight: 900,
-                    color: "rgba(255,255,255,0.4)",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                  }}
-                >
-                  Daily Mindful Tip
-                </span>
-                <span
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.2)",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                  }}
-                >
-                  mind-fuel.app
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: "22px",
-                  fontWeight: 900,
-                  color: "rgba(255,255,255,0.2)",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                }}
-              >
-                Reflection
-              </span>
-            </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-green/15 bg-brand-green/[0.07] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 sm:text-[11px]">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-green opacity-40" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-green" />
+            </span>
+            Ready to save
           </div>
-        </div>
-      </div>
+        </header>
 
-        {/* Actions */}
-        <div className="mt-12 flex flex-col items-center gap-6">
-          <AnimatePresence mode="wait">
-            {!hasDownloaded ? (
-              <motion.button
-                key="download"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
+          className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:gap-10 mt-7"
+        >
+          <section
+            aria-labelledby="preview-heading"
+            className="rounded-[1.75rem] border border-white/[0.07] bg-white/[0.025] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:rounded-[2rem] sm:p-5 mt-5"
+          >
+            <div className="mb-3 flex items-center justify-between px-1 sm:mb-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-green">
+                  Card preview
+                </p>
+                <h2 id="preview-heading" className="mt-1 text-sm font-bold text-white/80">
+                  Your shareable reflection
+                </h2>
+              </div>
+             
+            </div>
+
+            <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[1.2rem] bg-black/30 p-1.5 sm:rounded-[1.5rem] sm:p-2">
+              <TipPreview text={text} />
+            </div>
+          </section>
+
+          <aside className="lg:sticky lg:top-10">
+            <div className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b100d]/90 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
+              <div className="hidden h-12 w-12 items-center justify-center rounded-2xl border border-brand-green/15 bg-brand-green/10 text-brand-green sm:flex">
+                <ImageIcon className="h-5 w-5" />
+              </div>
+              <h1 className="text-xl font-black tracking-[-0.035em] sm:mt-5 sm:text-3xl">
+                Take this thought with you.
+              </h1>
+              <p className="mt-3 hidden text-sm leading-6 text-white/50 sm:block">
+                Save a polished, high-resolution card that is ready to share or keep as a personal reminder.
+              </p>
+
+              <div className="my-6 hidden h-px bg-white/[0.07] sm:block" />
+
+              <ul className="hidden space-y-3 text-[13px] font-semibold text-white/60 sm:block">
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  </span>
+                  High-resolution PNG
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  </span>
+                  Optimized 4:5 format
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  </span>
+                  Generated privately in your browser
+                </li>
+              </ul>
+
+              <button
+                type="button"
                 onClick={handleDownload}
-                className="w-full h-16 bg-white text-black rounded-3xl font-black uppercase tracking-widest text-[14px] flex items-center justify-center gap-3 shadow-2xl hover:scale-[1.02] transition-all active:scale-[0.98]"
+                disabled={isDownloading}
+                className="mt-5 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 text-[13px] font-black tracking-[0.13em] text-black shadow-[0_16px_40px_rgba(255,255,255,0.08)] transition-all hover:-translate-y-0.5 hover:bg-emerald-50 active:translate-y-0 disabled:cursor-wait disabled:opacity-70 sm:mt-7"
               >
                 {isDownloading ? (
                   <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    Preparing Card...
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Preparing image…
                   </>
                 ) : (
                   <>
-                    <Download className="w-5 h-5" />
-                    Download Image
+                    <Download className="h-4 w-4" />
+                    {hasDownloaded ? "Download again" : "Download image"}
                   </>
                 )}
-              </motion.button>
-            ) : (
-              <motion.div
-                key="success"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full bg-brand-green/10 border border-brand-green/20 p-6 rounded-[2rem] text-center flex flex-col items-center gap-3"
-              >
-                <div className="w-12 h-12 rounded-full bg-brand-green text-white flex items-center justify-center shadow-lg shadow-brand-green/20 mb-1">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h3 className="text-[17px] font-bold text-white">Saved Successfully</h3>
-                <p className="text-white/60 text-[13px] max-w-[280px]">
-                  Your mindful card is ready. Share your journey and inspire others.
-                </p>
-                <Link
-                  href="/"
-                  className="mt-2 text-brand-green font-bold text-[13px] hover:underline underline-offset-4"
-                >
-                  Return to MindFuel
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </button>
 
-          <p className="text-white/30 text-[11px] font-medium uppercase tracking-[0.15em] text-center max-w-[240px] leading-relaxed">
-            Curated daily by MindFuel. Your space for intentional thought.
-          </p>
-        </div>
-      </motion.div>
+              <div aria-live="polite" className="min-h-12">
+                {hasDownloaded && !isDownloading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-brand-green/15 bg-brand-green/[0.07] px-3 py-3 text-center text-xs font-bold text-emerald-300"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Saved successfully
+                  </motion.div>
+                )}
+              </div>
 
-      {/*
-        CSS custom property that controls the preview scale.
-        Desktop (≥ 512 px container / max-w-lg): 512 / 1080 ≈ 0.474
-        Small mobile (≤ 390 px):                 340 / 1080 ≈ 0.315
-      */}
-      <style>{`
-        :root { --preview-scale: 0.474; }
-        @media (max-width: 480px)  { :root { --preview-scale: 0.32; } }
-        @media (max-width: 360px)  { :root { --preview-scale: 0.29; } }
-      `}</style>
-    </div>
+              
+            </div>
+          </aside>
+        </motion.div>
+      </div>
+
+      {/* Kept off-screen at full resolution so the exported PNG never depends
+          on the viewport or the responsive preview dimensions. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-[-10000px] top-0"
+      >
+        <ExportCard text={text} cardRef={cardRef} />
+      </div>
+    </main>
   );
 }
 
@@ -330,8 +420,8 @@ export default function TipDownloadPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-          <RefreshCw className="w-8 h-8 text-brand-green animate-spin" />
+        <div className="flex min-h-[100svh] items-center justify-center bg-[#050806]">
+          <RefreshCw className="h-7 w-7 animate-spin text-brand-green" />
         </div>
       }
     >

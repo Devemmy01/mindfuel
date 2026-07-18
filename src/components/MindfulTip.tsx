@@ -53,10 +53,10 @@ export default function MindfulTip({ className }: { className?: string }) {
         {!loading && (
           <Link 
             href={`/tip/download?text=${encodeURIComponent(tip)}`}
-            className="p-2 rounded-full bg-brand-green/10 text-brand-green hover:bg-brand-green/20 transition-colors"
+            className="p-2 px-2.5 rounded-full bg-brand-green/20 text-brand-green hover:bg-brand-green/20 transition-colors"
             title="Download as image"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
           </Link>
         )}
       </div>
