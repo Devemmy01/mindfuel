@@ -82,6 +82,24 @@ export function configureSocketServer(io: Server) {
       socket.broadcast.emit("presence:update", { userId, online: true });
     }
 
+    socket.on("presence:query", async (requestedUserIds: unknown) => {
+      if (!userId || !Array.isArray(requestedUserIds)) return;
+      const ids = Array.from(new Set(
+        requestedUserIds
+          .filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 200)
+          .slice(0, 200),
+      ));
+      try {
+        const rows = await Promise.all(ids.map(async (id) => {
+          const sockets = await io.in(`user:${id}`).fetchSockets();
+          return [id, sockets.length > 0] as const;
+        }));
+        socket.emit("presence:snapshot", Object.fromEntries(rows));
+      } catch (error) {
+        console.error("Presence lookup failed", error);
+      }
+    });
+
     socket.on("conversation:join", async (conversationId: string) => {
       if (!conversationId || !userId) return;
       try {
@@ -168,8 +186,16 @@ export function configureSocketServer(io: Server) {
         .populate("reactions.users", "firebaseId").select("reactions").lean() as unknown as { reactions: unknown[] } | null;
       if (message) io.to(`conversation:${conversationId}`).emit("message:reaction", { conversationId, messageId, reactions: message.reactions });
     });
-    socket.on("disconnect", () => {
-      if (userId) socket.broadcast.emit("presence:update", { userId, online: false });
+    socket.on("disconnect", async () => {
+      if (!userId) return;
+      try {
+        const remainingSockets = await io.in(`user:${userId}`).fetchSockets();
+        if (remainingSockets.length === 0) {
+          io.emit("presence:update", { userId, online: false });
+        }
+      } catch (error) {
+        console.error("Presence publication failed", error);
+      }
     });
   });
 

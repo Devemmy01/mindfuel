@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { hashtagTextToPath, normalizeHashtag } from "@/lib/hashtags-core";
+import { usePresence } from "@/providers/PresenceProvider";
 
 interface UserResult {
   _id: string;
@@ -32,6 +33,10 @@ export default function SearchUsers() {
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const presenceIds = results
+    .filter((result): result is Extract<SearchResult, { kind: "user" }> => result.kind === "user")
+    .map((result) => result.data.firebaseId);
+  const isOnline = usePresence(presenceIds);
 
   useEffect(() => {
     setShowResults(false);
@@ -132,13 +137,19 @@ export default function SearchUsers() {
                     role="option"
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
                   >
-                    {result.data.image ? (
-                      <Image src={result.data.image} width={36} height={36} className="w-9 h-9 rounded-full object-cover" alt="" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
+                    <span className="relative shrink-0">
+                      {result.data.image ? (
+                        <Image src={result.data.image} width={36} height={36} className="w-9 h-9 rounded-full object-cover" alt="" />
+                      ) : (
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </span>
+                      )}
+                      <span
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-popover ${isOnline(result.data.firebaseId) ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+                        aria-label={isOnline(result.data.firebaseId) ? "Online" : "Offline"}
+                      />
+                    </span>
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-[14px] leading-tight truncate">{result.data.name}</span>
                       <span className="text-[12px] text-muted-foreground truncate">

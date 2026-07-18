@@ -19,6 +19,7 @@ import {
   X,
   Eye,
   RefreshCw,
+  Send,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -36,6 +37,9 @@ import { format } from "date-fns";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import useSWR from "swr";
 import EditPostModal from "@/components/EditPostModal";
+import ShareToDmModal from "@/components/ShareToDmModal";
+import { usePresence } from "@/providers/PresenceProvider";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -80,6 +84,9 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
   const [privateNote, setPrivateNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
+  const [isShareToDmOpen, setIsShareToDmOpen] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+  const isOnline = usePresence(post?.userId.firebaseId ? [post.userId.firebaseId] : []);
 
 
   // Track view with session deduplication (1 s threshold on the detail page — user is clearly reading)
@@ -471,7 +478,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
           <div className="flex  gap-3">
             <Link
               href={`/profile/${post.userId.firebaseId}`}
-              className="block outline-none press-scale shrink-0"
+              className="relative block outline-none press-scale shrink-0"
             >
               {post.userId.image ? (
                 <Image
@@ -486,6 +493,10 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                   {post.userId.name?.[0]?.toUpperCase()}
                 </div>
               )}
+              <span
+                className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${isOnline(post.userId.firebaseId) ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+                aria-label={isOnline(post.userId.firebaseId) ? "Online" : "Offline"}
+              />
             </Link>
             <div className="flex flex-col gap- min-w-0">
               <Link
@@ -564,7 +575,12 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             <HashtagText text={post.text.replace(/^Reflecting on: "[^"]+"\s*/, "")} />
           </p>
           {post.imageUrl && (
-            <div className="mt-4 rounded-2xl overflow-hidden border border-border">
+            <button
+              type="button"
+              className="mt-4 block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border"
+              onClick={() => setIsImageOpen(true)}
+              aria-label="View attached image"
+            >
               <Image
                 src={post.imageUrl}
                 alt="Attachment"
@@ -572,7 +588,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                 height={800}
                 className="w-full h-auto object-cover max-h-[600px]"
               />
-            </div>
+            </button>
           )}
           {post.quotedPostId && (
             <div className="mt-4">
@@ -631,6 +647,19 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                     Link
                   </button>
                   <button
+                    onClick={() => {
+                      setShowShareMenu(false);
+                      if (!user) {
+                        openSignInModal();
+                        return;
+                      }
+                      setIsShareToDmOpen(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    <Send className="w-4 h-4 text-brand-green" /> Send via DM
+                  </button>
+                  <button
                     onClick={shareToX}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
                   >
@@ -675,6 +704,22 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
           // Mutate is handled inside EditPostModal
         }}
       />
+
+      <ShareToDmModal
+        open={isShareToDmOpen}
+        onClose={() => setIsShareToDmOpen(false)}
+        postId={post._id}
+        authorName={post.userId.name}
+      />
+
+      {post.imageUrl && (
+        <ImageLightbox
+          src={post.imageUrl}
+          alt={`Image attached to ${post.userId.name}'s thought`}
+          open={isImageOpen}
+          onClose={() => setIsImageOpen(false)}
+        />
+      )}
 
       {/* Full-screen Card Viewer */}
       <AnimatePresence>

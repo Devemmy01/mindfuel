@@ -26,6 +26,10 @@ export const UpdateEmail = ({
   updateDetails,
 }: UpdateEmailProps) => {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
+  const detailParagraphs = updateDetails
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
 
   return (
     <Html>
@@ -65,7 +69,18 @@ export const UpdateEmail = ({
             
             <Section style={updateCard} className="updateCard">
               <Text style={updateTitleStyle} className="updateTitle">{updateTitle}</Text>
-              <Text style={updateBodyStyle} className="updateBody">{updateDetails}</Text>
+              {detailParagraphs.map((paragraph, index) => (
+                <Text
+                  key={`${index}-${paragraph.slice(0, 24)}`}
+                  style={{
+                    ...updateBodyStyle,
+                    margin: index === detailParagraphs.length - 1 ? "0" : "0 0 14px 0",
+                  }}
+                  className="updateBody"
+                >
+                  {paragraph}
+                </Text>
+              ))}
             </Section>
 
             <Section style={buttonContainer}>

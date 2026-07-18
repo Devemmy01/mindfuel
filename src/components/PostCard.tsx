@@ -16,6 +16,7 @@ import {
   Share2,
   MessageCircle,
   Repeat2,
+  Send,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -29,6 +30,9 @@ import QuotedPostPreview from "@/components/QuotedPostPreview";
 import DownloadCardModal from "@/components/DownloadCardModal";
 import EditPostModal from "@/components/EditPostModal";
 import HashtagText from "@/components/HashtagText";
+import { usePresence } from "@/providers/PresenceProvider";
+import ShareToDmModal from "@/components/ShareToDmModal";
+import ImageLightbox from "@/components/ImageLightbox";
 // EmojiPicker removal from here as it is now in EditPostModal
 
 interface PostCardProps {
@@ -37,9 +41,10 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
-  const { user } = useAuth();
+  const { user, openSignInModal } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const isOnline = usePresence([post.userId.firebaseId]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -50,6 +55,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [privateNote, setPrivateNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isShareToDmOpen, setIsShareToDmOpen] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   // Edit state
   const getParsedText = () => {
@@ -247,7 +254,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   </div>
                 );
 
-                return <div className="h-10 w-10 overflow-hidden rounded-full">{avatarImg}</div>;
+                return (
+                  <div className="relative h-10 w-10">
+                    <div className="h-10 w-10 overflow-hidden rounded-full">{avatarImg}</div>
+                    <span
+                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${isOnline(post.userId.firebaseId) ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+                      aria-label={isOnline(post.userId.firebaseId) ? "Online" : "Offline"}
+                      title={isOnline(post.userId.firebaseId) ? "Online" : "Offline"}
+                    />
+                  </div>
+                );
               })()}
             </Link>
           </div>
@@ -372,9 +388,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
             {/* Attached image */}
             {post.imageUrl && (
-              <div
-                className="mb-3 rounded-2xl overflow-hidden border border-border max-h-[320px]"
-                onClick={(e) => e.stopPropagation()}
+              <button
+                type="button"
+                className="mb-3 block max-h-[320px] w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border text-left"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setIsImageOpen(true);
+                }}
+                aria-label="View attached image"
               >
                 <Image
                   src={post.imageUrl}
@@ -384,7 +406,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   unoptimized={process.env.NODE_ENV === "development"}
                   className="w-full object-cover max-h-[320px]"
                 />
-              </div>
+              </button>
             )}
 
 
@@ -434,6 +456,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                         Copy Link
                       </button>
                       <button
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setShowShareMenu(false);
+                          if (!user) {
+                            openSignInModal();
+                            return;
+                          }
+                          setIsShareToDmOpen(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
+                      >
+                        <Send className="w-4 h-4 text-brand-green" />
+                        Send via DM
+                      </button>
+                      <button
                         onClick={shareToX}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium hover:bg-secondary/60 transition-colors"
                       >
@@ -474,6 +512,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
         isOpen={isDownloadOpen}
         onClose={() => setIsDownloadOpen(false)}
       />
+
+      <ShareToDmModal
+        open={isShareToDmOpen}
+        onClose={() => setIsShareToDmOpen(false)}
+        postId={post._id}
+        authorName={post.userId.name}
+      />
+
+      {post.imageUrl && (
+        <ImageLightbox
+          src={post.imageUrl}
+          alt={`Image attached to ${post.userId.name}'s thought`}
+          open={isImageOpen}
+          onClose={() => setIsImageOpen(false)}
+        />
+      )}
 
       {/* Edit Modal */}
       <EditPostModal

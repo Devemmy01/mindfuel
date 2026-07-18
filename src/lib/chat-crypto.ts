@@ -1,5 +1,16 @@
 const PRIVATE_KEY_PREFIX = "mindfuel:e2ee:private:v1:";
 
+export class ChatKeyMismatchError extends Error {
+  constructor() {
+    super("This browser is not linked to this encrypted conversation");
+    this.name = "ChatKeyMismatchError";
+  }
+}
+
+export function isChatKeyMismatchError(error: unknown) {
+  return error instanceof ChatKeyMismatchError;
+}
+
 function bytesToBase64(bytes: ArrayBuffer | Uint8Array) {
   const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   let binary = "";
@@ -53,8 +64,14 @@ export async function createConversationKey(publicKeys: Array<{ userId: string; 
 
 export async function unwrapConversationKey(uid: string, wrappedKey: string) {
   const identity = await ensureChatIdentity(uid);
-  const raw = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, await importPrivateKey(identity.privateKey), base64ToBytes(wrappedKey));
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  try {
+    const raw = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, await importPrivateKey(identity.privateKey), base64ToBytes(wrappedKey));
+    return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  } catch {
+    // Browsers expose this as an opaque OperationError. In this flow it means
+    // the wrapped conversation key belongs to a different device identity.
+    throw new ChatKeyMismatchError();
+  }
 }
 
 export async function encryptChatText(key: CryptoKey, text: string) {

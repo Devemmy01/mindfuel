@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getFontById } from "@/lib/fonts";
 import { PostType } from "@/types";
 import HashtagText from "@/components/HashtagText";
+import ImageLightbox from "@/components/ImageLightbox";
 
 interface QuotedPostPreviewProps {
   post?: PostType | null;
@@ -18,6 +19,7 @@ const QuotedPostPreview: React.FC<QuotedPostPreviewProps> = ({
   isClickable = true,
 }) => {
   const router = useRouter();
+  const [isImageOpen, setIsImageOpen] = useState(false);
   if (!post || !post.userId) {
     return (
       <div className="border border-border/60 rounded-2xl p-4 bg-secondary/10 mb-3">
@@ -65,7 +67,9 @@ const QuotedPostPreview: React.FC<QuotedPostPreviewProps> = ({
         </div>
       </div>
       <div
-        className="px-3 py-3 m-2 mt-1 rounded-xl text-[14px] leading-relaxed bg-secondary/30"
+        className={`px-3 py-3 m-2 mt-1 rounded-xl text-[14px] leading-relaxed bg-secondary/30 ${
+          post.imageUrl ? "mb-2" : ""
+        }`}
         style={{
           fontFamily: getFontById(post.fontFamily ?? "inter").family,
         }}
@@ -74,6 +78,35 @@ const QuotedPostPreview: React.FC<QuotedPostPreviewProps> = ({
           <HashtagText text={post.text} />
         </p>
       </div>
+      {post.imageUrl && (
+        <button
+          type="button"
+          className="mx-2 mb-2 block w-[calc(100%-1rem)] cursor-zoom-in overflow-hidden rounded-xl border border-border/50 bg-secondary/20"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsImageOpen(true);
+          }}
+          aria-label="View quoted thought image"
+        >
+          <Image
+            src={post.imageUrl}
+            alt={`Image attached to ${post.userId.name}'s thought`}
+            width={720}
+            height={480}
+            unoptimized={process.env.NODE_ENV === "development"}
+            className="h-auto max-h-[320px] w-full object-contain transition-transform duration-300 group-hover/quote:scale-[1.01]"
+          />
+        </button>
+      )}
+      {post.imageUrl && (
+        <ImageLightbox
+          src={post.imageUrl}
+          alt={`Image attached to ${post.userId.name}'s thought`}
+          open={isImageOpen}
+          onClose={() => setIsImageOpen(false)}
+        />
+      )}
     </div>
   );
 };

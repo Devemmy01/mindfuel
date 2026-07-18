@@ -1,5 +1,12 @@
 [
   {
+    "id": "v2.4.0",
+    "title": "See Who’s Online & Share Thoughts in DMs.",
+    "details": "Online and offline indicators — See when people are available across chats, profiles, thoughts, search results, follower lists, and connection suggestions.\n\nShare thoughts to DMs — Send any thought to a private conversation from its share menu, with the thought link prepared in your encrypted chat before you send it.",
+    "date": "2026-07-18",
+    "version": "2.4.0"
+  },
+  {
     "id": "v2.3.0",
     "title": "Real-Time Chat, Connections & a More Polished MindFuel.",
     "details": "MindFuel now makes it easier to connect beyond the feed. Follow people whose reflections resonate with you, see follower and following relationships, and continue the conversation through real-time private messaging. Chats include typing indicators, delivery and seen states, unread counts, emoji support, resilient message history, and instant in-app or push notifications when you are away. Stay Mindful. 💚",

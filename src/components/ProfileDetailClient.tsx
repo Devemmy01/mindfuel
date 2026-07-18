@@ -19,6 +19,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import InstallAppButton from "@/components/InstallAppButton";
 import { getUserHandle } from "@/lib/userHandle";
 import useSWR from "swr";
+import { usePresence } from "@/providers/PresenceProvider";
 
 const profileTabs = ["Posts", "Liked", "Saved"] as const;
 type ProfileTab = (typeof profileTabs)[number];
@@ -52,6 +53,7 @@ const followStateFetcher = async (url: string): Promise<FollowState> => {
 
 function FollowListRow({ user, onNavigate }: { user: FollowListUser; onNavigate: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const isOnline = usePresence([user.firebaseId]);
 
   return (
     <Link
@@ -59,23 +61,26 @@ function FollowListRow({ user, onNavigate }: { user: FollowListUser; onNavigate:
       onClick={onNavigate}
       className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-secondary/40"
     >
-      {user.image && !user.image.startsWith("#") && !imageFailed ? (
-        <Image
-          src={user.image}
-          alt={user.name}
-          width={44}
-          height={44}
-          onError={() => setImageFailed(true)}
-          className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-border"
-        />
-      ) : (
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-brand-green ring-1 ring-brand-green/20">
-          {user.name?.[0]?.toUpperCase() || "U"}
-        </span>
-      )}
+      <span className="relative shrink-0">
+        {user.image && !user.image.startsWith("#") && !imageFailed ? (
+          <Image
+            src={user.image}
+            alt={user.name}
+            width={44}
+            height={44}
+            onError={() => setImageFailed(true)}
+            className="h-11 w-11 rounded-full object-cover ring-1 ring-border"
+          />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-brand-green ring-1 ring-brand-green/20">
+            {user.name?.[0]?.toUpperCase() || "U"}
+          </span>
+        )}
+        <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${isOnline(user.firebaseId) ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`} />
+      </span>
       <span className="min-w-0 flex-1">
         <strong className="block truncate text-[14px]">{user.name}</strong>
-        <span className="block truncate text-[12px] text-muted-foreground">@{getUserHandle(user)}</span>
+        <span className="block truncate text-[12px] text-muted-foreground">@{getUserHandle(user)} · {isOnline(user.firebaseId) ? "Online" : "Offline"}</span>
         {user.bio && <span className="mt-1 block truncate text-[12px] text-foreground/70">{user.bio}</span>}
       </span>
     </Link>
@@ -96,6 +101,7 @@ export default function DynamicProfilePage({
   const { showToast } = useToast();
   const { subscribeUser, isSubscribing } = usePushNotifications();
   const router = useRouter();
+  const isOnline = usePresence([profileId]);
 
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(initialProfile);
   const [posts, setPosts] = useState<PostType[]>(initialPosts);
@@ -727,12 +733,16 @@ export default function DynamicProfilePage({
             return (
               <button
                 onClick={() => setIsProfilePicOpen(true)}
-                className="cursor-pointer rounded-full bg-background p-1"
+                className="relative cursor-pointer rounded-full bg-background p-1"
                 title={`View ${profileUser.name}'s profile picture`}
               >
                 <div className="overflow-hidden rounded-full">
                   {avatarInner}
                 </div>
+                <span
+                  className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-background ${isOnline(profileUser.firebaseId) ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+                  aria-label={isOnline(profileUser.firebaseId) ? "Online" : "Offline"}
+                />
               </button>
             );
           })()}
@@ -796,7 +806,14 @@ export default function DynamicProfilePage({
 
       <div className="px-4 pt-16 pb-4 border-b border-border">
         <h2 className="text-[22px] font-bold tracking-tight leading-tight">{profileUser.name}</h2>
-        <p className="text-muted-foreground text-[14px] mt-0.5">@{profileUser.username || profileUser.name.replace(/\s+/g, "").toLowerCase()}</p>
+        <p className="text-muted-foreground text-[14px] mt-0.5">
+          @{profileUser.username || profileUser.name.replace(/\s+/g, "").toLowerCase()}
+          {!isOwnProfile && (
+            <span className={isOnline(profileUser.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}>
+              {" "}· {isOnline(profileUser.firebaseId) ? "Online" : "Offline"}
+            </span>
+          )}
+        </p>
         {!isOwnProfile && followState.followsViewer && (
           <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-brand-green">
             Follows you

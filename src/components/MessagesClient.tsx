@@ -37,9 +37,10 @@ import { useToast } from "@/providers/ToastProvider";
 import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
-import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, unwrapConversationKey } from "@/lib/chat-crypto";
+import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import ChatDeviceLinkModal from "@/components/chat/ChatDeviceLinkModal";
+import { usePresence } from "@/providers/PresenceProvider";
 
 type Person = {
   _id: string;
@@ -89,14 +90,13 @@ function messageDateLabel(value: string) {
 
 const EMOJI_TOKEN_PATTERN = /(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu;
 
-function isEmojiOnlyMessage(value: string) {
+function isEmojiOnlyMessage(value = "") {
   const emojiTokens = value.match(EMOJI_TOKEN_PATTERN);
   if (!emojiTokens?.length) return false;
   return value.replace(EMOJI_TOKEN_PATTERN, "").trim().length === 0;
 }
 
-function renderMessageText(value: string, emojiOnly: boolean) {
-  if (emojiOnly) return value;
+function renderEmojiText(value: string, keyPrefix: string) {
   const parts: React.ReactNode[] = [];
   const pattern = new RegExp(EMOJI_TOKEN_PATTERN.source, "gu");
   let cursor = 0;
@@ -105,7 +105,7 @@ function renderMessageText(value: string, emojiOnly: boolean) {
     if (index > cursor) parts.push(value.slice(cursor, index));
     parts.push(
       <span
-        key={`${index}-${match[0]}`}
+        key={`${keyPrefix}-${index}-${match[0]}`}
         className="inline-block align-[-0.08em] text-[1.2em] leading-none"
       >
         {match[0]}
@@ -114,6 +114,37 @@ function renderMessageText(value: string, emojiOnly: boolean) {
     cursor = index + match[0].length;
   }
   if (cursor < value.length) parts.push(value.slice(cursor));
+  return parts;
+}
+
+function renderMessageText(value: string, emojiOnly: boolean) {
+  if (emojiOnly) return value;
+  const parts: React.ReactNode[] = [];
+  const urlPattern = /\b(?:https?:\/\/|www\.)[^\s<]+/gi;
+  let cursor = 0;
+  for (const match of value.matchAll(urlPattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push(...renderEmojiText(value.slice(cursor, index), `text-${cursor}`));
+    const rawUrl = match[0];
+    const trailing = rawUrl.match(/[),.!?;:]+$/)?.[0] || "";
+    const visibleUrl = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+    const href = visibleUrl.toLowerCase().startsWith("www.") ? `https://${visibleUrl}` : visibleUrl;
+    parts.push(
+      <a
+        key={`url-${index}-${visibleUrl}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        className="text-[#58a6ff] underline decoration-[#58a6ff]/55 underline-offset-2 hover:decoration-[#58a6ff]"
+      >
+        {visibleUrl}
+      </a>,
+    );
+    if (trailing) parts.push(trailing);
+    cursor = index + rawUrl.length;
+  }
+  if (cursor < value.length) parts.push(...renderEmojiText(value.slice(cursor), `text-${cursor}`));
   return parts;
 }
 
@@ -163,8 +194,8 @@ function writeChatCache<T>(key: string, data: T) {
   }
 }
 
-function Avatar({ person, size = 44 }: { person: Person; size?: number }) {
-  return person.image && !person.image.startsWith("#") ? (
+function Avatar({ person, size = 44, online = false }: { person: Person; size?: number; online?: boolean }) {
+  const avatar = person.image && !person.image.startsWith("#") ? (
     <Image
       src={person.image}
       alt=""
@@ -180,6 +211,17 @@ function Avatar({ person, size = 44 }: { person: Person; size?: number }) {
       style={{ width: size, height: size }}
     >
       {person.name?.[0]?.toUpperCase()}
+    </span>
+  );
+  return (
+    <span className="relative shrink-0">
+      {avatar}
+      <span
+        className={`absolute bottom-0 right-0 rounded-full border-2 border-[#010302] ${online ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+        style={{ width: Math.max(10, Math.round(size * 0.24)), height: Math.max(10, Math.round(size * 0.24)) }}
+        aria-label={online ? "Online" : "Offline"}
+        title={online ? "Online" : "Offline"}
+      />
     </span>
   );
 }
@@ -225,6 +267,8 @@ export default function MessagesClient() {
   const lastMarkedReadIdRef = useRef("");
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const conversationKeysRef = useRef<Map<string, CryptoKey>>(new Map());
+  const keyMismatchNotifiedRef = useRef(false);
+  const sharedDraftAppliedRef = useRef("");
   const lastTypingStateRef = useRef<{
     conversationId: string;
     isTyping: boolean;
@@ -432,9 +476,34 @@ export default function MessagesClient() {
         }
       }));
       if (!cancelled) setMessages(decrypted);
-    }).catch(() => undefined);
+    }).catch((error: unknown) => {
+      if (!isChatKeyMismatchError(error)) return;
+      setHasChatKeyConflict(true);
+      setMessages((rows) => rows.map((message) =>
+        message.ciphertext && !message.decrypted
+          ? { ...message, text: "This message is encrypted for another linked device.", decrypted: true }
+          : message,
+      ));
+      if (!keyMismatchNotifiedRef.current) {
+        keyMismatchNotifiedRef.current = true;
+        showToast(
+          <span>
+            This browser cannot unlock this conversation.{" "}
+            <button
+              type="button"
+              onClick={() => setDeviceLinkMode("target")}
+              className="font-bold text-brand-green underline underline-offset-2"
+            >
+              Link this device
+            </button>
+          </span>,
+          "error",
+          12_000,
+        );
+      }
+    });
     return () => { cancelled = true; };
-  }, [active, messageData, prepareConversationKey, setMessages]);
+  }, [active, messageData, prepareConversationKey, setMessages, showToast]);
   const updateTypingState = useCallback(
     (conversationId: string, isTyping: boolean, force = false) => {
       if (!user) return;
@@ -780,6 +849,22 @@ export default function MessagesClient() {
   }, [active?._id]);
 
   useEffect(() => {
+    if (!active) return;
+    const recipientId = searchParams.get("with");
+    const sharedDraft = searchParams.get("draft");
+    if (!recipientId || !sharedDraft || sharedDraft.length > 2200) return;
+    if (!active.participants.some((participant) => participant.firebaseId === recipientId)) return;
+    const applicationKey = `${active._id}:${recipientId}:${sharedDraft}`;
+    if (sharedDraftAppliedRef.current === applicationKey) return;
+    sharedDraftAppliedRef.current = applicationKey;
+    setDrafts((current) => current[active._id]
+      ? current
+      : { ...current, [active._id]: sharedDraft },
+    );
+    window.setTimeout(() => composerRef.current?.focus(), 0);
+  }, [active, searchParams]);
+
+  useEffect(() => {
     const textarea = composerRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
@@ -904,11 +989,13 @@ export default function MessagesClient() {
       const key = await prepareConversationKey(active);
       encryptedPayload = await encryptChatText(key, text);
     } catch (error) {
-      if (error instanceof Error && error.message.includes("not linked")) {
+      if (isChatKeyMismatchError(error) || (error instanceof Error && error.message.includes("not linked"))) {
         setHasChatKeyConflict(true);
         setDeviceLinkMode("target");
+        showToast("Link this browser to a trusted device before sending encrypted messages.", "error", 8000);
+      } else {
+        showToast(error instanceof Error ? error.message : "Encrypted chat could not be started", "error", 6000);
       }
-      showToast(error instanceof Error ? error.message : "Encrypted chat could not be started", "error", 6000);
       return;
     }
     const optimisticMessage: ChatMessage = {
@@ -1157,6 +1244,17 @@ export default function MessagesClient() {
     highlightTimerRef.current = setTimeout(() => setHighlightedMessageId(""), 1600);
   };
 
+  const person = active ? otherPerson(active) : null;
+  const presenceUserIds = useMemo(
+    () => Array.from(new Set([
+      ...conversations.flatMap((conversation) => conversation.participants.map((participant) => participant.firebaseId)),
+      ...recipientResults.map((recipient) => recipient.firebaseId),
+      ...(person ? [person.firebaseId] : []),
+    ])),
+    [conversations, person, recipientResults],
+  );
+  const isOnline = usePresence(presenceUserIds);
+
   if (authLoading)
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
@@ -1180,7 +1278,6 @@ export default function MessagesClient() {
       </div>
     );
 
-  const person = active ? otherPerson(active) : null;
   return (
     <div className="flex h-full max-h-[100dvh] min-h-0 overflow-hidden bg-[#010302]">
       {showNewMessage && (
@@ -1236,7 +1333,7 @@ export default function MessagesClient() {
                     disabled={Boolean(startingRecipientId)}
                     className="flex w-full items-center gap-3 border-b border-white/[0.06] px-5 py-3.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-60"
                   >
-                    <Avatar person={recipient} size={44} />
+                    <Avatar person={recipient} size={44} online={isOnline(recipient.firebaseId)} />
                     <span className="min-w-0 flex-1">
                       <strong className="block truncate text-sm">
                         {recipient.name}
@@ -1383,7 +1480,7 @@ export default function MessagesClient() {
                   onClick={() => setActive(conversation)}
                   className={`flex w-full items-center gap-3 border-b border-white/[0.055] px-4 py-3 text-left transition-colors ${selected ? "bg-white/[0.08]" : "hover:bg-white/[0.045]"}`}
                 >
-                  <Avatar person={other} size={48} />
+                  <Avatar person={other} size={48} online={isOnline(other.firebaseId)} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <strong className="truncate text-[14px]">
@@ -1488,13 +1585,13 @@ export default function MessagesClient() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Avatar person={person} size={40} />
+              <Avatar person={person} size={40} online={isOnline(person.firebaseId)} />
               <span className="min-w-0 flex flex-col items-start text-left">
                 <strong className="block truncate text-[15px] ">
                   {person.name}
                 </strong>
-                <small className="text-xs text-muted-foreground">
-                  @{getUserHandle(person)}
+                <small className={`text-xs ${isOnline(person.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}`}>
+                  {isOnline(person.firebaseId) ? "Online" : "Offline"} · @{getUserHandle(person)}
                 </small>
               </span>
               <div className="ml-auto flex items-center justify-start">
@@ -1593,7 +1690,7 @@ export default function MessagesClient() {
                     </button>
                   </div>
                   <div className="flex flex-col items-center px-6 py-8 text-center">
-                    <Avatar person={person} size={80} />
+                    <Avatar person={person} size={80} online={isOnline(person.firebaseId)} />
                     <h3 className="mt-4 text-xl font-bold">{person.name}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       @{getUserHandle(person)}
@@ -1682,12 +1779,12 @@ export default function MessagesClient() {
                                 {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
                               </strong>
                               <span className="block max-w-sm truncate text-[12px] text-[#d1d7db]/75">
-                                {message.replyTo.text}
+                                {message.replyTo.text || (message.replyTo.ciphertext ? "Encrypted message" : "")}
                               </span>
                             </button>
                           )}
                           <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${emojiOnly ? "text-[30px] leading-none" : ""}`}>
-                            {renderMessageText(message.text, emojiOnly)}
+                            {renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)}
                           </p>
                           <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-white/65" : "text-white/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
@@ -1727,7 +1824,7 @@ export default function MessagesClient() {
                 })}
                 {typingName && (
                   <div className="flex items-end gap-2 px-1 py-2" aria-live="polite">
-                    {person && <Avatar person={person} size={28} />}
+                    {person && <Avatar person={person} size={28} online={isOnline(person.firebaseId)} />}
                     <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-[#191e1b] px-3 py-2 shadow-sm">
                       <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-brand-green">
                         {typingName}
