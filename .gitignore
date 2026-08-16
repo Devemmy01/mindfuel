@@ -40,3 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /scratch
+
+# one-off local debug/query scripts and command output dumps
+/check_comments.ts
+/debug_username.ts
+/find_collisions.ts
+/query_users.js
+/scratch.js
+/*-output.txt
+/*_output.txt
+/lint_results.txt

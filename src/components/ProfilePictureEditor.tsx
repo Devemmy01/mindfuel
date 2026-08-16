@@ -102,7 +102,7 @@ export default function ProfilePictureEditor({
             <div
               className="w-28 h-28 rounded-full flex items-center justify-center"
               style={{
-                backgroundColor: "#0a0a0a",
+                backgroundColor: "#0b100d",
               }}
             >
               <span className="text-5xl font-bold text-white selection:bg-transparent">

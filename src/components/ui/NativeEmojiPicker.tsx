@@ -28,7 +28,7 @@ export default function NativeEmojiPicker({
   return (
     <div className={`flex h-[310px] w-[min(332px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl bg-[#101512] text-white shadow-2xl ${className}`}>
       <div className="flex h-11 shrink-0 items-center px-3 text-[13px] font-semibold text-white/85">{title}</div>
-      <div className="no-scrollbar flex shrink-0 items-center gap-0.5 overflow-x-auto border-y border-white/[0.07] px-1.5 py-1">
+      <div className="no-scrollbar flex shrink-0 items-center gap-0.5 overflow-x-auto border-y border-line-subtle px-1.5 py-1">
         {CATEGORIES.map((item, index) => (
           <button key={item.label} type="button" onClick={() => setActiveCategory(index)} className={`relative flex h-9 min-w-9 items-center justify-center rounded-lg text-lg transition ${activeCategory === index ? "bg-brand-green/15" : "opacity-60 hover:bg-white/[0.06] hover:opacity-100"}`} aria-label={item.label} aria-pressed={activeCategory === index}>
             {item.icon}

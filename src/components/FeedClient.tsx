@@ -431,7 +431,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             onClick={handleRefresh}
             disabled={isRefreshing}
             aria-label={isRefreshing ? "Refreshing feed" : "Refresh feed"}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-secondary/25 text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground active:scale-95 disabled:cursor-wait disabled:opacity-70 md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-secondary/25 text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground active:scale-95 disabled:cursor-wait disabled:opacity-70 md:hidden"
           >
             <RefreshCw
               className={`h-4 w-4 ${isRefreshing ? "animate-spin text-brand-green" : ""}`}
@@ -441,7 +441,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
         </div>
         {/* Feed view switcher */}
         <div className="px-3 pb-2" role="tablist" aria-label="Feed view">
-          <div className="grid grid-cols-2 gap-1.5 rounded-full border border-white/[0.09] bg-[#050d09]/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_8px_24px_rgba(0,0,0,0.16)]">
+          <div className="grid grid-cols-2 gap-1.5 rounded-full border border-line bg-surface-raised/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_8px_24px_rgba(0,0,0,0.16)]">
             <button
               type="button"
               role="tab"
@@ -450,7 +450,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
               className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
                 activeTab === "reflections"
                   ? "border-transparent text-white"
-                  : "border-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.035] hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-line-subtle hover:bg-white/[0.035] hover:text-foreground"
               }`}
             >
               {activeTab === "reflections" && (
@@ -480,7 +480,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
               className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
                 activeTab === "feed"
                   ? "border-transparent text-white"
-                  : "border-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.035] hover:text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-line-subtle hover:bg-white/[0.035] hover:text-foreground"
               }`}
             >
               {activeTab === "feed" && (

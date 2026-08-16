@@ -1,8 +1,8 @@
-import type { Config } from "tailwindcss"
-import animate from "tailwindcss-animate"
+import animate from "tailwindcss-animate";
 
+/** @type {import('tailwindcss').Config} */
 const config = {
-  darkMode: "class" as const,
+  darkMode: "class",
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -56,9 +56,30 @@ const config = {
         },
         // Brand tokens
         brand: {
-          green: "#00bf63",
+          green: {
+            DEFAULT: "#00bf63",
+            active: "#00a855",
+            pressed: "#009950",
+          },
           light: "#f9fafb",
           dark: "#111827",
+        },
+        // Consolidated dark-UI surface scale. Components previously reached
+        // for one-off hex values (#151a18, #171717, #0a0a0a, #040a07,
+        // #020604, #030705...) for what were really only three distinct
+        // "how raised is this" levels. Use these instead of a new arbitrary
+        // hex so the surface hierarchy stays consistent app-wide.
+        surface: {
+          DEFAULT: "#010302", // page/app background
+          raised: "#0b100d", // cards, panels, modals, popovers
+          elevated: "#151a18", // inputs, hover states, the most "interactive" layer
+        },
+        // Translucent-white borders on dark surfaces, consolidated from the
+        // 8+ distinct border-white/[0.0x] opacities in ad-hoc use.
+        line: {
+          subtle: "rgba(255,255,255,0.06)",
+          DEFAULT: "rgba(255,255,255,0.09)",
+          strong: "rgba(255,255,255,0.12)",
         },
       },
       borderRadius: {
@@ -102,6 +123,6 @@ const config = {
     },
   },
   plugins: [animate],
-} satisfies Config
+};
 
-export default config
+export default config;

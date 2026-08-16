@@ -8,6 +8,15 @@ export interface IUser extends Document {
   uploadedImage: string;
   firebaseId: string;
   chatPublicKey?: string;
+  chatKeyRecovery?: {
+    ciphertext: string;
+    iv: string;
+    salt: string;
+    iterations: number;
+    updatedAt: Date;
+    failedAttempts: number;
+    lockedAt?: Date;
+  };
   bio?: string;
   preferences: {
     dailyEmail: boolean;
@@ -26,6 +35,7 @@ export interface IUser extends Document {
   lastDailyTipEmailAt?: Date;
   dailyTipHistory: string[];
   lastInactivityReminderAt?: Date;
+  chatRecoveryReminderSentAt?: Date;
   longestStreak: number;
   earnedMilestones: Array<{ id: string; earnedAt: Date }>;
   createdAt: Date;
@@ -69,6 +79,19 @@ const UserSchema = new Schema(
       unique: true,
     },
     chatPublicKey: { type: String, default: "", select: false },
+    chatKeyRecovery: {
+      type: {
+        ciphertext: String,
+        iv: String,
+        salt: String,
+        iterations: Number,
+        updatedAt: Date,
+        failedAttempts: { type: Number, default: 0 },
+        lockedAt: Date,
+      },
+      select: false,
+      default: undefined,
+    },
     preferences: {
       dailyEmail: {
         type: Boolean,
@@ -109,6 +132,10 @@ const UserSchema = new Schema(
       default: [],
     },
     lastInactivityReminderAt: {
+      type: Date,
+      default: null,
+    },
+    chatRecoveryReminderSentAt: {
       type: Date,
       default: null,
     },

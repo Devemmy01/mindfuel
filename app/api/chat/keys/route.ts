@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireFirebaseUser(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const { publicKey } = await req.json();
+    const { publicKey, confirmReset } = await req.json();
     if (typeof publicKey !== "string" || publicKey.length < 300 || publicKey.length > 1000) {
       return NextResponse.json({ error: "Invalid public key" }, { status: 400 });
     }
@@ -26,10 +26,19 @@ export async function POST(req: NextRequest) {
           participants: existing._id,
           encryptionVersion: 1,
         });
-        if (hasEncryptedConversations) {
+        if (hasEncryptedConversations && !confirmReset) {
           return NextResponse.json({ error: "This device is not linked to the account's encrypted chats" }, { status: 409 });
         }
         existing.chatPublicKey = publicKey;
+        // A reset key can no longer decrypt the old recovery backup (it was
+        // wrapped for the abandoned identity), so drop it rather than leave
+        // a stale, misleading backup in place. Clearing the reminder flag
+        // too lets the recovery-nudge cron re-notify this account, since
+        // it's now unprotected again under its new identity.
+        if (confirmReset) {
+          existing.chatKeyRecovery = undefined;
+          existing.chatRecoveryReminderSentAt = undefined;
+        }
         await existing.save();
       }
     }

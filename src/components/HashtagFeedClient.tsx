@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Hash, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/PostCard";
+import Skeleton from "@/components/ui/Skeleton";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -119,12 +120,12 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <div className="sticky top-0 z-20 glass-strong border-b border-border/60 px-4 py-3">
-          <div className="h-5 w-40 rounded-full bg-secondary/40 animate-pulse" />
-          <div className="h-3 w-28 rounded-full bg-secondary/30 animate-pulse mt-2" />
+          <Skeleton className="h-5 w-40 rounded-full" />
+          <Skeleton className="h-3 w-28 rounded-full mt-2" />
         </div>
         <div className="p-4 space-y-3">
           {[1, 2, 3].map((item) => (
-            <div key={item} className="h-40 rounded-3xl bg-secondary/20 animate-pulse" />
+            <Skeleton key={item} className="h-40 rounded-3xl" />
           ))}
         </div>
       </div>

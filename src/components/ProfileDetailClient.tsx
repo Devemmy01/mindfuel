@@ -722,7 +722,7 @@ export default function DynamicProfilePage({
             ) : (
               <div
                 className="w-18 h-18 rounded-full flex items-center justify-center shadow-inner"
-                style={{ backgroundColor: "#0a0a0a" }}
+                style={{ backgroundColor: "#0b100d" }}
               >
                 <span className="text-3xl font-bold text-white selection:bg-transparent">
                   {profileUser.name[0]?.toUpperCase()}
@@ -792,11 +792,11 @@ export default function DynamicProfilePage({
           </div>
         ) : (
           <div className="absolute -bottom-14 right-4 flex items-center gap-2">
-            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-white/[0.12] bg-[#080d0a] px-4 text-[13px] font-bold text-foreground transition-colors hover:border-white/20 hover:bg-[#0d1510]" aria-label={`Message ${profileUser.name}`}>
+            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface-raised px-4 text-[13px] font-bold text-foreground transition-colors hover:border-white/20 hover:bg-surface-elevated" aria-label={`Message ${profileUser.name}`}>
               <MessageCircle className="h-4 w-4" />
               <span>Message</span>
             </Link>
-            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-white/[0.12] bg-[#080d0a] text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-white hover:bg-[#00a855]"}`}>
+            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-white hover:bg-brand-green-active"}`}>
               {followLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : followState.isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
               {followState.isFollowing ? "Unfollow" : followState.followsViewer ? "Follow back" : "Follow"}
             </button>

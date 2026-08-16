@@ -79,9 +79,9 @@ export default async function GuidePage({ params }: GuidePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#020604] text-white">
+    <div className="min-h-screen bg-surface text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="border-b border-white/[0.07]">
+      <header className="border-b border-line-subtle">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
           <Link href="/" aria-label="MindFuel home"><Image src="/logoDarkbg.png" alt="MindFuel" width={132} height={40} className="h-9 w-auto" /></Link>
           <Link href="/guides" className="inline-flex items-center gap-2 text-sm font-bold text-white/60 hover:text-white"><ArrowLeft className="h-4 w-4" /> All guides</Link>
@@ -101,7 +101,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
                 <h2 className="text-3xl font-black tracking-[-0.03em]">{section.heading}</h2>
                 {section.paragraphs?.map((paragraph) => <p key={paragraph} className="mt-5 text-[17px] leading-8 text-white/65">{paragraph}</p>)}
                 {section.bullets && <ul className="mt-6 space-y-3">{section.bullets.map((bullet) => <li key={bullet} className="flex gap-3 text-[16px] leading-7 text-white/65"><Check className="mt-1.5 h-4 w-4 shrink-0 text-brand-green" /><span>{bullet}</span></li>)}</ul>}
-                {section.prompts && <ol className="mt-6 grid gap-3 sm:grid-cols-2">{section.prompts.map((prompt, index) => <li key={prompt} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 text-[15px] leading-6 text-white/70"><span className="mb-2 block text-[10px] font-black text-brand-green">{String(index + 1).padStart(2, "0")}</span>{prompt}</li>)}</ol>}
+                {section.prompts && <ol className="mt-6 grid gap-3 sm:grid-cols-2">{section.prompts.map((prompt, index) => <li key={prompt} className="rounded-2xl border border-line-subtle bg-white/[0.025] p-5 text-[15px] leading-6 text-white/70"><span className="mb-2 block text-[10px] font-black text-brand-green">{String(index + 1).padStart(2, "0")}</span>{prompt}</li>)}</ol>}
               </section>
             ))}
           </div>
@@ -114,8 +114,8 @@ export default async function GuidePage({ params }: GuidePageProps) {
           </aside>
         </article>
 
-        <section className="border-t border-white/[0.07] px-5 py-16 sm:px-8">
-          <div className="mx-auto max-w-5xl"><h2 className="text-2xl font-black">Keep learning</h2><div className="mt-6 grid gap-4 md:grid-cols-2">{related.map((item) => <Link key={item.slug} href={`/guides/${item.slug}`} className="group rounded-2xl border border-white/[0.08] p-5 transition hover:border-brand-green/25"><p className="text-xs font-black uppercase tracking-wider text-brand-green">{item.eyebrow}</p><h3 className="mt-2 text-lg font-black">{item.title}</h3><span className="mt-4 inline-flex items-center gap-2 text-sm text-white/45 group-hover:text-white">Read guide <ArrowRight className="h-4 w-4" /></span></Link>)}</div></div>
+        <section className="border-t border-line-subtle px-5 py-16 sm:px-8">
+          <div className="mx-auto max-w-5xl"><h2 className="text-2xl font-black">Keep learning</h2><div className="mt-6 grid gap-4 md:grid-cols-2">{related.map((item) => <Link key={item.slug} href={`/guides/${item.slug}`} className="group rounded-2xl border border-line-subtle p-5 transition hover:border-brand-green/25"><p className="text-xs font-black uppercase tracking-wider text-brand-green">{item.eyebrow}</p><h3 className="mt-2 text-lg font-black">{item.title}</h3><span className="mt-4 inline-flex items-center gap-2 text-sm text-white/45 group-hover:text-white">Read guide <ArrowRight className="h-4 w-4" /></span></Link>)}</div></div>
         </section>
       </main>
     </div>

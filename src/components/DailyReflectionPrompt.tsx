@@ -38,12 +38,12 @@ function ReflectorAvatar({
       height={size}
       unoptimized
       onError={() => setImageFailed(true)}
-      className="shrink-0 rounded-full border-2 border-[#010302] object-cover"
+      className="shrink-0 rounded-full border-2 border-surface object-cover"
       style={{ width: size, height: size }}
     />
   ) : (
     <span
-      className="flex shrink-0 items-center justify-center rounded-full border-2 border-[#010302] bg-[#10261b] font-bold text-emerald-300"
+      className="flex shrink-0 items-center justify-center rounded-full border-2 border-surface bg-[#10261b] font-bold text-emerald-300"
       style={{ width: size, height: size, fontSize: Math.max(10, size * 0.32) }}
       aria-label={reflector.name}
     >
@@ -95,7 +95,7 @@ export default function DailyReflectionPrompt({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
-      className="group relative z-20 mx-4 mb-8 mt-2 overflow-visible rounded-3xl border border-brand-green/20 bg-[#010302]"
+      className="group relative z-20 mx-4 mb-8 mt-2 overflow-visible rounded-3xl border border-brand-green/20 bg-surface"
     >
       <div className="relative z-10 p-5 md:p-7">
         {/* Header row */}
@@ -146,7 +146,7 @@ export default function DailyReflectionPrompt({
               </span>
               <div
                 role="tooltip"
-                className="pointer-events-none absolute left-0 top-[calc(100%+12px)] z-[80] w-[292px] translate-y-1 rounded-2xl border border-white/[0.12] bg-[#070b09] p-4 opacity-0 transition-all duration-150 group-hover/reflectors:translate-y-0 group-hover/reflectors:opacity-100 group-focus/reflectors:translate-y-0 group-focus/reflectors:opacity-100"
+                className="pointer-events-none absolute left-0 top-[calc(100%+12px)] z-[80] w-[292px] translate-y-1 rounded-2xl border border-line-strong bg-surface-raised p-4 opacity-0 transition-all duration-150 group-hover/reflectors:translate-y-0 group-hover/reflectors:opacity-100 group-focus/reflectors:translate-y-0 group-focus/reflectors:opacity-100"
               >
                 <strong className="block text-[13px] font-bold text-white">
                   Consistent reflectors

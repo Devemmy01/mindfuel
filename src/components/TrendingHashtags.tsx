@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Hash, TrendingUp } from "lucide-react";
 import { hashtagTextToPath } from "@/lib/hashtags-core";
+import Skeleton from "@/components/ui/Skeleton";
 
 export interface TrendingHashtagItem {
   tag: string;
@@ -47,10 +48,10 @@ export default function TrendingHashtags({ limit = 8, compact = false }: Trendin
   if (loading) {
     return (
       <div className={`rounded-3xl border border-border/60 bg-card/60 p-4 ${compact ? "" : "shadow-card"}`}>
-        <div className="h-4 w-32 rounded-full bg-secondary/40 animate-pulse mb-4" />
+        <Skeleton className="h-4 w-32 rounded-full mb-4" />
         <div className="space-y-2">
           {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="h-11 rounded-2xl bg-secondary/30 animate-pulse" />
+            <Skeleton key={item} className="h-11 rounded-2xl" />
           ))}
         </div>
       </div>

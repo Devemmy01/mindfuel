@@ -168,7 +168,7 @@ export default function ChatDeviceLinkModal({
 
   return (
     <div className="fixed inset-0 z-[260] flex items-end justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:items-center" onClick={onClose}>
-      <div className="modal-solid w-full max-w-md rounded-3xl border border-white/[0.12] p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="modal-solid w-full max-w-md rounded-3xl border border-line-strong p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
             {mode === "source" ? <Link2 className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
@@ -187,7 +187,7 @@ export default function ChatDeviceLinkModal({
         </div>
 
         {mode === "target" && !waitingForTransfer && (
-          <ol className="mt-5 space-y-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 text-sm text-white/70">
+          <ol className="mt-5 space-y-2 rounded-2xl border border-line-subtle bg-white/[0.035] p-4 text-sm text-white/70">
             <li className="flex gap-3"><span className="font-bold text-brand-green">1.</span><span>On the trusted device, open <strong className="text-white/90">Messages</strong> and tap the link icon beside the new-message icon.</span></li>
             <li className="flex gap-3"><span className="font-bold text-brand-green">2.</span><span>Choose <strong className="text-white/90">Link another device</strong> and enter its one-time code below.</span></li>
             <li className="flex gap-3"><span className="font-bold text-brand-green">3.</span><span>Compare the six-digit number on both devices, then approve on the trusted device.</span></li>
@@ -208,7 +208,7 @@ export default function ChatDeviceLinkModal({
         )}
 
         {requested && (
-          <div className="mt-5 rounded-2xl border border-white/[0.1] bg-white/[0.035] p-4">
+          <div className="mt-5 rounded-2xl border border-line bg-white/[0.035] p-4">
             <p className="text-sm font-semibold">Approve {session.targetDeviceName || "new device"}?</p>
             <p className="mt-2 text-xs text-white/50">Confirm this number is also displayed on the new device:</p>
             <div className="my-4 text-center text-3xl font-black tracking-[0.25em] text-brand-green">{session.verification}</div>
@@ -231,7 +231,7 @@ export default function ChatDeviceLinkModal({
               onChange={(event) => setLinkCode(event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 9))}
               placeholder="ABCD-EFGH"
               autoCapitalize="characters"
-              className="mt-2 h-12 w-full rounded-2xl border border-white/[0.1] bg-[#151a18] px-4 py-3 text-center text-xl font-bold tracking-[0.16em] outline-none focus:border-brand-green/60"
+              className="mt-2 h-12 w-full rounded-2xl border border-line bg-surface-elevated px-4 py-3 text-center text-xl font-bold tracking-[0.16em] outline-none focus:border-brand-green/60"
             />
             <button type="button" onClick={join} disabled={busy || linkCode.replace(/-/g, "").length !== 8} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white disabled:opacity-40">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
@@ -241,7 +241,7 @@ export default function ChatDeviceLinkModal({
         )}
 
         {mode === "target" && waitingForTransfer && (
-          <div className="mt-5 rounded-2xl border border-white/[0.1] bg-white/[0.035] p-4 text-center">
+          <div className="mt-5 rounded-2xl border border-line bg-white/[0.035] p-4 text-center">
             <p className="text-xs text-white/50">Compare this number with your trusted device, then approve there:</p>
             <div className="my-4 text-3xl font-black tracking-[0.25em] text-brand-green">{verification}</div>
             <div className="flex items-center justify-center gap-2 text-sm text-white/65">

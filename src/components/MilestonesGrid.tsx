@@ -33,7 +33,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
   };
 
   return (
-    <div className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.015] p-3">
+    <div className="w-full rounded-2xl border border-line-subtle bg-white/[0.015] p-3">
       {/* Header */}
       <button
         type="button"
@@ -57,7 +57,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
             />
           </span>
         </span>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.025] transition-colors group-hover:border-brand-green/20 group-hover:bg-brand-green/[0.06]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-white/[0.025] transition-colors group-hover:border-brand-green/20 group-hover:bg-brand-green/[0.06]">
           {isOpen ? <ChevronUp className="h-4 w-4 text-brand-green" /> : <ChevronDown className="h-4 w-4 text-white/35" />}
         </span>
       </button>
@@ -72,7 +72,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="mt-5 border-t border-white/[0.05] pt-5" />
+            <div className="mt-5 border-t border-line-subtle pt-5" />
 
             {/* Zen Master Reward Card */}
             {isZenMaster && (

@@ -328,7 +328,7 @@ export default function Navbar() {
 
                       {/* Desktop Notifications Popover */}
                       {showNotifications && (
-                        <div className="absolute left-full ml-2 top-0 w-[320px] bg-[#0a0a0a] border border-border rounded-3xl shadow-2xl z-[200] animate-scale-in overflow-hidden">
+                        <div className="absolute left-full ml-2 top-0 w-[320px] bg-surface-raised border border-border rounded-3xl shadow-2xl z-[200] animate-scale-in overflow-hidden">
                           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                             <h3 className="font-bold text-[16px]">
                               Notifications
@@ -418,7 +418,7 @@ export default function Navbar() {
                 target="_self"
                 className="outline-none block w-full"
               >
-                <div className="bg-[#00a855] active:bg-[#009950] text-white font-bold transition-colors rounded-full flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">
+                <div className="bg-brand-green-active active:bg-brand-green-pressed text-white font-bold transition-colors rounded-full flex items-center justify-center gap-2 px-3 py-3 xl:py-3 shadow-brand-sm">
                   <Plus className="w-5 h-5 flex-shrink-0" strokeWidth={3} />
                   <span className="hidden xl:inline text-[15px]">Reflect</span>
                 </div>
@@ -432,7 +432,7 @@ export default function Navbar() {
                 title="Our story"
                 className="mt-4 flex w-full justify-center outline-none xl:block"
               >
-                <span className="flex h-11 w-11 items-center justify-center gap-2 rounded-full bg-white text-black shadow-brand-sm transition-colors hover:bg-[#009950] hover:text-white xl:h-auto xl:w-full xl:px-3 xl:py-3">
+                <span className="flex h-11 w-11 items-center justify-center gap-2 rounded-full bg-white text-black shadow-brand-sm transition-colors hover:bg-brand-green-pressed hover:text-white xl:h-auto xl:w-full xl:px-3 xl:py-3">
                   <Sparkles className="h-5 w-5 xl:hidden" aria-hidden="true" />
                   <span className="hidden text-[15px] font-bold xl:inline">Our story</span>
                 </span>
@@ -499,7 +499,7 @@ export default function Navbar() {
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ring-2 ring-brand-green/30"
                       style={{
-                        backgroundColor: "#0a0a0a",
+                        backgroundColor: "#0b100d",
                       }}
                     >
                       <span className="text-[13px] font-bold text-white uppercase">
@@ -523,7 +523,7 @@ export default function Navbar() {
 
                 {/* Dropdown */}
                 {showUserMenu && (
-                  <div className="popover-solid absolute bottom-full mb-2 left-0 xl:left-0 w-[220px] border border-white/[0.12] rounded-2xl py-1 z-[200] animate-scale-in overflow-hidden">
+                  <div className="popover-solid absolute bottom-full mb-2 left-0 xl:left-0 w-[220px] border border-line-strong rounded-2xl py-1 z-[200] animate-scale-in overflow-hidden">
                     <div className="px-4 py-3 border-b border-border">
                       <p className="font-bold text-[14px]">{displayName}</p>
                       <p className="text-muted-foreground text-[12px]">
@@ -644,7 +644,7 @@ export default function Navbar() {
             aria-label="Write a reflection"
             className="flex-1 h-full flex flex-col items-center justify-center outline-none"
           >
-            <div className="w-[46px] h-[46px] bg-[#00a855] rounded-full flex items-center justify-center shadow-brand-sm press-scale active:bg-[#009950] transition-transform hover:scale-105">
+            <div className="w-[46px] h-[46px] bg-brand-green-active rounded-full flex items-center justify-center shadow-brand-sm press-scale active:bg-brand-green-pressed transition-transform hover:scale-105">
               <Plus className="w-6 h-6 text-white" strokeWidth={2.75} />
             </div>
           </Link>
@@ -742,7 +742,7 @@ export default function Navbar() {
                     }`}
                     style={{
                       backgroundColor:
-                        displayImage && !imgError ? displayImage : "#0a0a0a",
+                        displayImage && !imgError ? displayImage : "#0b100d",
                     }}
                   >
                     <span className="text-[10px] font-bold text-white uppercase">
@@ -793,10 +793,10 @@ export default function Navbar() {
       {showNotifications && (
         <div
           ref={mobileOverlayRef}
-          className="md:hidden fixed inset-0 z-[200] bg-[#0a0a0a] animate-in slide-in-from-bottom duration-300"
+          className="md:hidden fixed inset-0 z-[200] bg-surface-raised animate-in slide-in-from-bottom duration-300"
         >
           <div className="flex flex-col h-full">
-            <header className="p-4 border-b border-border flex items-center justify-between sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-xl z-20">
+            <header className="p-4 border-b border-border flex items-center justify-between sticky top-0 bg-surface-raised/80 backdrop-blur-xl z-20">
               <h2 className="text-xl font-bold">Notifications</h2>
               <button
                 onClick={() => setShowNotifications(false)}

@@ -100,7 +100,7 @@ export default function DownloadCardModal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 80 }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="relative max-w-lg bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-auto animate-in fade-in zoom-in duration-300"
+            className="relative max-w-lg bg-surface-raised border border-line rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-auto animate-in fade-in zoom-in duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

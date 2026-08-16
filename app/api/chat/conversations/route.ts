@@ -105,13 +105,16 @@ export async function PATCH(req: NextRequest) {
       !byFirebaseId.has(String(row.userId || "")) || typeof row.wrappedKey !== "string" || row.wrappedKey.length > 1000)) {
       return NextResponse.json({ error: "Invalid wrapped keys" }, { status: 400 });
     }
-    if (!conversation.encryptionVersion) {
-      conversation.encryptionVersion = 1;
-      conversation.encryptedKeys = wrappedKeys.map((row: { userId: string; wrappedKey: string }) => ({
-        user: byFirebaseId.get(row.userId), wrappedKey: row.wrappedKey,
-      }));
-      await conversation.save();
-    }
+    // Also reached when a participant's device can no longer unwrap the
+    // existing shared key (e.g. after resetting a lost identity) — in that
+    // case the client re-submits a brand-new key wrapped for everyone's
+    // *current* public key, so this always applies what's sent rather than
+    // only on the conversation's first-ever PATCH.
+    conversation.encryptionVersion = conversation.encryptionVersion || 1;
+    conversation.encryptedKeys = wrappedKeys.map((row: { userId: string; wrappedKey: string }) => ({
+      user: byFirebaseId.get(row.userId), wrappedKey: row.wrappedKey,
+    }));
+    await conversation.save();
     await conversation.populate("encryptedKeys.user", "firebaseId");
     return NextResponse.json({ encryptionVersion: conversation.encryptionVersion, encryptedKeys: conversation.encryptedKeys });
   } catch (error) {

@@ -143,8 +143,8 @@ export default function StreakDisplay({
               }}
               className={`
                 z-[9999] overflow-hidden
-                ${window.innerWidth < 768 
-                  ? "fixed bottom-0 left-0 right-0 rounded-t-[32px] p-6 pb-10 bg-white dark:bg-[#0f171a] border-t border-border/40 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]" 
+                ${window.innerWidth < 768
+                  ? "fixed bottom-0 left-0 right-0 rounded-t-[32px] p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] bg-surface-raised border-t border-border/40 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]"
                   : "absolute left-0 mt-3 w-72 bg-popover popover-solid border border-border shadow-2xl rounded-2xl p-5"
                 }
               `}

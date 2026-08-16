@@ -25,7 +25,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import CommentSection from "@/components/CommentSection";
-import { toPng } from "html-to-image";
 import { Download } from "lucide-react";
 import { PostType } from "@/types";
 import { getFontById } from "@/lib/fonts";
@@ -285,6 +284,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
     if (!cardRef.current || !post) return;
     try {
       await new Promise((r) => setTimeout(r, 150));
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         quality: 1,

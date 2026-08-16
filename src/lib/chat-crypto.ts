@@ -179,3 +179,70 @@ export async function installLinkedChatIdentity(
   );
   return { privateKey: identity.privateKey, publicKey: identity.publicKey };
 }
+
+// --- Recovery PIN backup ---------------------------------------------------
+// Lets a user restore their chat identity on a brand-new device without any
+// other device online, by encrypting a copy of their private key with a key
+// derived from a PIN only they know. Setup stays entirely client-side (the
+// server only ever stores the ciphertext + KDF params — never the PIN or the
+// plaintext key), but unlike the old high-entropy recovery code, a short PIN
+// is brute-forceable offline in a fraction of a second, so it can't be
+// decrypted client-side. Restoring instead goes through
+// POST /api/chat/recovery/restore, which decrypts server-side and enforces a
+// failed-attempt lockout — see chat-recovery-server.ts. If the user loses
+// the device *and* forgets the PIN *and* has no other linked device, the
+// messages are gone; there's no way around that without giving the server
+// (or us) a way to read chats.
+
+import { RECOVERY_ITERATIONS, normalizeRecoveryPin } from "@/lib/chat-recovery-shared";
+
+export type RecoveryBackup = {
+  ciphertext: string;
+  iv: string;
+  salt: string;
+  iterations: number;
+};
+
+async function deriveRecoveryKey(pin: string, salt: Uint8Array, iterations: number) {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(normalizeRecoveryPin(pin)),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+}
+
+/** Encrypts this device's identity with a key derived from a user-chosen PIN. */
+export async function createRecoveryBackup(uid: string, pin: string): Promise<RecoveryBackup> {
+  const identity = await ensureChatIdentity(uid);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveRecoveryKey(pin, salt, RECOVERY_ITERATIONS);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(JSON.stringify(identity)),
+  );
+  return {
+    ciphertext: bytesToBase64(ciphertext),
+    iv: bytesToBase64(iv),
+    salt: bytesToBase64(salt),
+    iterations: RECOVERY_ITERATIONS,
+  };
+}
+
+/** Stores an identity the server already decrypted (via /api/chat/recovery/restore) on this device. */
+export function storeRecoveredIdentity(uid: string, identity: { privateKey: JsonWebKey; publicKey: string }) {
+  localStorage.setItem(
+    `${PRIVATE_KEY_PREFIX}${uid}`,
+    JSON.stringify({ privateKey: identity.privateKey, publicKey: identity.publicKey }),
+  );
+}

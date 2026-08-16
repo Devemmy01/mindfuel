@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PostCard from "./PostCard";
+import Skeleton from "@/components/ui/Skeleton";
 import { PostType } from "@/types";
 import { Flame } from "lucide-react";
 
@@ -42,10 +43,7 @@ export default function DailyReflectionFeed({
     return (
       <div className="mb-8 space-y-3">
         {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="bg-secondary/30 rounded-xl h-32 animate-pulse"
-          />
+          <Skeleton key={i} className="h-32 rounded-xl" />
         ))}
       </div>
     );

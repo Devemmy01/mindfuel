@@ -2,21 +2,22 @@
 
 import React, { Suspense } from "react";
 import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
+
+const pageSpinner = (
+  <div className="flex h-screen w-full items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
+  </div>
+);
 
 const CardCreator = dynamic(() => import("@/components/CardCreator"), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
-    </div>
-  ),
+  loading: () => pageSpinner,
 });
 
 export default function CreatePage() {
   return (
-    <Suspense fallback={<div className="w-full h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={pageSpinner}>
       <CardCreator />
     </Suspense>
   );

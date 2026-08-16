@@ -3,6 +3,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hash, TrendingUp } from "lucide-react";
+import Skeleton from "@/components/ui/Skeleton";
 
 export interface HashtagSuggestionItem {
   tag: string;
@@ -69,7 +70,7 @@ export default function HashtagSuggestions({
           {loading ? (
             <div className="p-3 space-y-2">
               {[1, 2, 3].map((index) => (
-                <div key={index} className="h-12 rounded-xl bg-secondary/40 animate-pulse" />
+                <Skeleton key={index} className="h-12 rounded-xl" />
               ))}
             </div>
           ) : suggestions.length > 0 ? (

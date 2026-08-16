@@ -42,7 +42,7 @@ function TipPreview({ text }: { text: string }) {
 
       <div className="relative flex h-full flex-col p-[9%]">
         <div className="flex justify-center">
-          <div className="inline-flex items-center rounded-xl border border-white/[0.06] bg-white/[0.055] px-[5%] py-[2.2%]">
+          <div className="inline-flex items-center rounded-xl border border-line-subtle bg-white/[0.055] px-[5%] py-[2.2%]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoDarkBase64}
@@ -69,7 +69,7 @@ function TipPreview({ text }: { text: string }) {
           </div>
         </div>
 
-        <div className="flex items-end justify-between gap-4 border-t border-white/[0.07] pt-[6%]">
+        <div className="flex items-end justify-between gap-4 border-t border-line-subtle pt-[6%]">
           <div>
             <p className="text-[clamp(0.62rem,2.8cqw,0.82rem)] font-black text-white/55">
               Daily Mindful Tip
@@ -312,18 +312,20 @@ function DownloadContent() {
         >
           <section
             aria-labelledby="preview-heading"
-            className="rounded-[1.75rem] border border-white/[0.07] bg-white/[0.025] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:rounded-[2rem] sm:p-5 mt-5"
+            className="rounded-[1.75rem] border border-line-subtle bg-white/[0.025] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:rounded-[2rem] sm:p-5 mt-5"
           >
             <div className="mb-3 flex items-center justify-between px-1 sm:mb-5">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-green">
                   Card preview
                 </p>
-                <h2 id="preview-heading" className="mt-1 text-sm font-bold text-white/80">
+                <h2
+                  id="preview-heading"
+                  className="mt-1 text-sm font-bold text-white/80"
+                >
                   Your shareable reflection
                 </h2>
               </div>
-             
             </div>
 
             <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[1.2rem] bg-black/30 p-1.5 sm:rounded-[1.5rem] sm:p-2">
@@ -332,7 +334,7 @@ function DownloadContent() {
           </section>
 
           <aside className="lg:sticky lg:top-10">
-            <div className="rounded-[1.75rem] border border-white/[0.08] bg-[#0b100d]/90 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
+            <div className="rounded-[1.75rem] border border-line-subtle bg-surface-raised/90 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.3)] backdrop-blur-xl sm:rounded-[2rem] sm:p-7">
               <div className="hidden h-12 w-12 items-center justify-center rounded-2xl border border-brand-green/15 bg-brand-green/10 text-brand-green sm:flex">
                 <ImageIcon className="h-5 w-5" />
               </div>
@@ -340,7 +342,8 @@ function DownloadContent() {
                 Take this thought with you.
               </h1>
               <p className="mt-3 hidden text-sm leading-6 text-white/50 sm:block">
-                Save a polished, high-resolution card that is ready to share or keep as a personal reminder.
+                Save a polished, high-resolution card that is ready to share or
+                keep as a personal reminder.
               </p>
 
               <div className="my-6 hidden h-px bg-white/[0.07] sm:block" />
@@ -397,8 +400,6 @@ function DownloadContent() {
                   </motion.div>
                 )}
               </div>
-
-              
             </div>
           </aside>
         </motion.div>

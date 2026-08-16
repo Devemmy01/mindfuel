@@ -19,6 +19,7 @@ import {
   CircleAlert,
   Copy,
   Info,
+  KeyRound,
   Link2,
   LockKeyhole,
   Loader2,
@@ -39,7 +40,9 @@ import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
 import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
+import IconButton from "@/components/ui/IconButton";
 import ChatDeviceLinkModal from "@/components/chat/ChatDeviceLinkModal";
+import ChatRecoveryModal from "@/components/chat/ChatRecoveryModal";
 import { usePresence } from "@/providers/PresenceProvider";
 
 type Person = {
@@ -217,7 +220,7 @@ function Avatar({ person, size = 44, online = false }: { person: Person; size?: 
     <span className="relative shrink-0">
       {avatar}
       <span
-        className={`absolute bottom-0 right-0 rounded-full border-2 border-[#010302] ${online ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
+        className={`absolute bottom-0 right-0 rounded-full border-2 border-surface ${online ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
         style={{ width: Math.max(10, Math.round(size * 0.24)), height: Math.max(10, Math.round(size * 0.24)) }}
         aria-label={online ? "Online" : "Offline"}
         title={online ? "Online" : "Offline"}
@@ -248,6 +251,8 @@ export default function MessagesClient() {
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState("");
   const [reactionPickerPosition, setReactionPickerPosition] = useState<{ left: number; top: number } | null>(null);
   const [deviceLinkMode, setDeviceLinkMode] = useState<"source" | "target" | null>(null);
+  const [recoveryModalMode, setRecoveryModalMode] = useState<"setup" | "restore" | null>(null);
+  const [recoveryAvailable, setRecoveryAvailable] = useState<boolean | null>(null);
   const [hasChatKeyConflict, setHasChatKeyConflict] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [showReplyTip, setShowReplyTip] = useState(false);
@@ -261,13 +266,13 @@ export default function MessagesClient() {
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
   const activeIdRef = useRef<string | null>(null);
   const conversationMessageIdsRef = useRef<Map<string, string>>(new Map());
   const conversationSnapshotReadyRef = useRef(false);
   const lastMarkedReadIdRef = useRef("");
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const conversationKeysRef = useRef<Map<string, CryptoKey>>(new Map());
-  const keyMismatchNotifiedRef = useRef(false);
   const sharedDraftAppliedRef = useRef("");
   const lastTypingStateRef = useRef<{
     conversationId: string;
@@ -379,23 +384,14 @@ export default function MessagesClient() {
         if (response.ok) {
           setHasChatKeyConflict(false);
           void mutateConversations();
+          const recoveryResponse = await chatFetch(user, "/api/chat/recovery", { cache: "no-store" });
+          if (recoveryResponse.ok) {
+            const data = await recoveryResponse.json();
+            setRecoveryAvailable(Boolean(data.available));
+          }
         }
         else if (response.status === 409) {
           setHasChatKeyConflict(true);
-          showToast(
-            <span>
-              This browser is not linked to your encrypted chats. You can keep using the trusted device or{" "}
-              <button
-                type="button"
-                onClick={() => setDeviceLinkMode("target")}
-                className="font-bold text-brand-green underline underline-offset-2"
-              >
-                link this device
-              </button>.
-            </span>,
-            "error",
-            12_000,
-          );
         }
       } catch {
         showToast("Secure messaging could not be initialized", "error");
@@ -409,10 +405,20 @@ export default function MessagesClient() {
     if (cached) return cached;
     if (conversation.encryptionVersion) {
       const wrapped = conversation.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
-      if (!wrapped) throw new Error("This device is not linked to this encrypted conversation");
-      const key = await unwrapConversationKey(user.uid, wrapped);
-      conversationKeysRef.current.set(conversation._id, key);
-      return key;
+      if (wrapped) {
+        try {
+          const key = await unwrapConversationKey(user.uid, wrapped);
+          conversationKeysRef.current.set(conversation._id, key);
+          return key;
+        } catch (error) {
+          if (!isChatKeyMismatchError(error)) throw error;
+          // This device's identity can no longer unwrap the conversation's
+          // existing shared key (e.g. after "start fresh" gave up the old
+          // one). Fall through and establish a fresh key wrapped for
+          // everyone's *current* identity instead of leaving the
+          // conversation permanently unable to send new messages.
+        }
+      }
     }
 
     const identity = await ensureChatIdentity(user.uid);
@@ -478,29 +484,17 @@ export default function MessagesClient() {
       if (!cancelled) setMessages(decrypted);
     }).catch((error: unknown) => {
       if (!isChatKeyMismatchError(error)) return;
-      setHasChatKeyConflict(true);
+      // This means this one conversation's key predates the device's current
+      // identity (e.g. after "start fresh") — not that the device itself is
+      // unregistered, so it must not drive the device-wide hasChatKeyConflict
+      // banner. That banner's "Link this device" / "Restore with recovery
+      // PIN" actions wouldn't fix this conversation anyway, and would falsely
+      // suggest the device is broken when it's actually fine going forward.
       setMessages((rows) => rows.map((message) =>
         message.ciphertext && !message.decrypted
           ? { ...message, text: "This message is encrypted for another linked device.", decrypted: true }
           : message,
       ));
-      if (!keyMismatchNotifiedRef.current) {
-        keyMismatchNotifiedRef.current = true;
-        showToast(
-          <span>
-            This browser cannot unlock this conversation.{" "}
-            <button
-              type="button"
-              onClick={() => setDeviceLinkMode("target")}
-              className="font-bold text-brand-green underline underline-offset-2"
-            >
-              Link this device
-            </button>
-          </span>,
-          "error",
-          12_000,
-        );
-      }
     });
     return () => { cancelled = true; };
   }, [active, messageData, prepareConversationKey, setMessages, showToast]);
@@ -759,7 +753,7 @@ export default function MessagesClient() {
         // Socket typing remains the primary realtime path when polling misses.
       }
     };
-    const typingPoll = window.setInterval(loadTypingState, 1500);
+    const typingPoll = window.setInterval(loadTypingState, 4000);
     void loadTypingState();
     chatFetch(user, "/api/chat/messages", {
       method: "PATCH",
@@ -781,6 +775,7 @@ export default function MessagesClient() {
     return () => {
       cancelled = true;
       window.clearInterval(typingPoll);
+      isTypingRef.current = false;
       socket.emit("typing:stop", {
         conversationId: active._id,
         name: profile?.name || user.displayName || "Someone",
@@ -793,10 +788,9 @@ export default function MessagesClient() {
     };
   }, [active, user, profile?.name, setConversations, setMessages, updateTypingState]);
 
-  useEffect(
-    () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
-    [active?._id, messages.length, typingName],
-  );
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [active?._id, messages.length, typingName]);
 
   useEffect(() => {
     if (!user || !active) return;
@@ -1021,6 +1015,7 @@ export default function MessagesClient() {
       deliveryState: "sending",
     };
     if (typingTimer.current) clearTimeout(typingTimer.current);
+    isTypingRef.current = false;
     socket.emit("typing:stop", {
       conversationId,
       name: profile?.name || user.displayName || "Someone",
@@ -1131,6 +1126,7 @@ export default function MessagesClient() {
     setDrafts((current) => ({ ...current, [conversationId]: value }));
     const socket = getSocket(user.uid);
     if (!value.trim()) {
+      isTypingRef.current = false;
       socket.emit("typing:stop", {
         conversationId,
         name: profile?.name || user.displayName || "Someone",
@@ -1139,14 +1135,18 @@ export default function MessagesClient() {
       if (typingTimer.current) clearTimeout(typingTimer.current);
       return;
     }
-    socket.emit("typing:start", {
-      conversationId,
-      name: profile?.name || user.displayName || "Someone",
-    });
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit("typing:start", {
+        conversationId,
+        name: profile?.name || user.displayName || "Someone",
+      });
+    }
     updateTypingState(conversationId, true);
     if (typingTimer.current) clearTimeout(typingTimer.current);
     typingTimer.current = setTimeout(
       () => {
+        isTypingRef.current = false;
         socket.emit("typing:stop", {
           conversationId,
           name: profile?.name || user.displayName || "Someone",
@@ -1279,17 +1279,17 @@ export default function MessagesClient() {
     );
 
   return (
-    <div className="flex h-full max-h-[100dvh] min-h-0 overflow-hidden bg-[#010302]">
+    <div className="flex h-full max-h-[100dvh] min-h-0 overflow-hidden bg-surface">
       {showNewMessage && (
         <div
           className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setShowNewMessage(false)}
         >
           <div
-            className="modal-solid flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/[0.12] shadow-2xl"
+            className="modal-solid flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-line-strong shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-white/[0.09] px-5 py-4">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
               <h2 className="text-lg font-bold">New message</h2>
               <button
                 type="button"
@@ -1301,7 +1301,7 @@ export default function MessagesClient() {
               </button>
             </div>
             <div className="p-4">
-              <label className="flex items-center gap-2 rounded-full bg-[#151a18] px-4 ring-1 ring-white/[0.06] focus-within:ring-brand-green/60">
+              <label className="flex items-center gap-2 rounded-full bg-surface-elevated px-4 ring-1 ring-white/[0.06] focus-within:ring-brand-green/60">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
                   autoFocus
@@ -1315,7 +1315,7 @@ export default function MessagesClient() {
                 )}
               </label>
             </div>
-            <div className="thin-scrollbar min-h-48 overflow-y-auto border-t border-white/[0.06]">
+            <div className="thin-scrollbar min-h-48 overflow-y-auto border-t border-line-subtle">
               {recipientQuery.trim().length < 2 ? (
                 <p className="px-6 py-16 text-center text-sm text-muted-foreground">
                   Type at least two characters to find someone.
@@ -1331,7 +1331,7 @@ export default function MessagesClient() {
                     type="button"
                     onClick={() => startConversation(recipient)}
                     disabled={Boolean(startingRecipientId)}
-                    className="flex w-full items-center gap-3 border-b border-white/[0.06] px-5 py-3.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-60"
+                    className="flex w-full items-center gap-3 border-b border-line-subtle px-5 py-3.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-60"
                   >
                     <Avatar person={recipient} size={44} online={isOnline(recipient.firebaseId)} />
                     <span className="min-w-0 flex-1">
@@ -1358,7 +1358,7 @@ export default function MessagesClient() {
           onClick={closeReplyTip}
         >
           <div
-            className="modal-solid w-full max-w-sm rounded-3xl border border-white/[0.12] p-5 shadow-2xl"
+            className="modal-solid w-full max-w-sm rounded-3xl border border-line-strong p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-4">
@@ -1396,6 +1396,17 @@ export default function MessagesClient() {
           onLinked={() => window.location.reload()}
         />
       )}
+      {recoveryModalMode && user && (
+        <ChatRecoveryModal
+          user={user}
+          mode={recoveryModalMode}
+          onClose={() => {
+            setRecoveryModalMode(null);
+            if (recoveryModalMode === "setup") setRecoveryAvailable(true);
+          }}
+          onRestored={() => window.location.reload()}
+        />
+      )}
       {reactionPickerMessageId && (
         <div
           className="fixed inset-0 z-[210] overflow-y-auto overscroll-contain bg-black/35 px-3 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-3 md:pointer-events-none md:overflow-visible md:bg-transparent md:p-0"
@@ -1407,7 +1418,7 @@ export default function MessagesClient() {
           <div className="flex min-h-full items-end justify-center md:block md:min-h-0">
             <div
               ref={reactionPickerRef}
-              className="pointer-events-auto static max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-white/[0.12] bg-[#111713] shadow-2xl md:fixed md:max-w-none"
+              className="pointer-events-auto static max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-line-strong bg-surface-raised shadow-2xl md:fixed md:max-w-none"
               style={reactionPickerPosition || undefined}
               onClick={(event) => event.stopPropagation()}
             >
@@ -1426,32 +1437,65 @@ export default function MessagesClient() {
         </div>
       )}
       <section
-        className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-white/[0.09] bg-[#010302] md:w-[390px] lg:w-[410px]`}
+        className={`${active ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-line bg-surface md:w-[390px] lg:w-[410px]`}
       >
-        <header className="border-b border-white/[0.09] bg-[#010302] px-4 pb-3 pt-4">
+        <header className="border-b border-line bg-surface px-4 pb-3 pt-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-extrabold tracking-tight">Messages</h1>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
+            <div className="flex items-center gap-0.5">
+              <IconButton
+                onClick={() => setRecoveryModalMode(hasChatKeyConflict ? "restore" : "setup")}
+                aria-label={hasChatKeyConflict ? "Restore with recovery PIN" : "Chat recovery PIN"}
+                title={hasChatKeyConflict ? "Restore with recovery PIN" : "Chat recovery PIN"}
+              >
+                <KeyRound className="h-5 w-5" />
+              </IconButton>
+              <IconButton
                 onClick={() => setDeviceLinkMode(hasChatKeyConflict ? "target" : "source")}
-                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]"
                 aria-label={hasChatKeyConflict ? "Link this device" : "Link another device"}
                 title={hasChatKeyConflict ? "Link this device" : "Link another device"}
               >
                 <Link2 className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNewMessage(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]"
-                aria-label="New message"
-              >
+              </IconButton>
+              <IconButton onClick={() => setShowNewMessage(true)} aria-label="New message">
                 <PenSquare className="h-5 w-5" />
-              </button>
+              </IconButton>
             </div>
           </div>
-          <label className="mt-4 flex items-center gap-2 rounded-full bg-[#151a18] px-4 focus-within:ring-1 focus-within:ring-brand-green/60">
+          {hasChatKeyConflict ? (
+            <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
+              <span className="flex items-center gap-2">
+                <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+                This browser isn&apos;t linked to your encrypted chats.
+              </span>
+              <span className="flex items-center gap-3 pl-[22px]">
+                <button
+                  type="button"
+                  onClick={() => setDeviceLinkMode("target")}
+                  className="font-bold underline underline-offset-2"
+                >
+                  Link this device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryModalMode("restore")}
+                  className="font-bold underline underline-offset-2"
+                >
+                  Restore with recovery PIN
+                </button>
+              </span>
+            </div>
+          ) : recoveryAvailable === false && (
+            <button
+              type="button"
+              onClick={() => setRecoveryModalMode("setup")}
+              className="mt-3 flex w-full items-center justify-between gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200"
+            >
+              <span className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5 shrink-0" /> Set up a recovery PIN for your encrypted chats</span>
+              <span className="font-bold underline underline-offset-2">Set up</span>
+            </button>
+          )}
+          <label className="mt-4 flex items-center gap-2 rounded-full bg-surface-elevated px-4 focus-within:ring-1 focus-within:ring-brand-green/60">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
               value={query}
@@ -1478,7 +1522,7 @@ export default function MessagesClient() {
                 <button
                   key={conversation._id}
                   onClick={() => setActive(conversation)}
-                  className={`flex w-full items-center gap-3 border-b border-white/[0.055] px-4 py-3 text-left transition-colors ${selected ? "bg-white/[0.08]" : "hover:bg-white/[0.045]"}`}
+                  className={`flex w-full items-center gap-3 border-b border-line-subtle px-4 py-3 text-left transition-colors ${selected ? "bg-white/[0.08]" : "hover:bg-white/[0.045]"}`}
                 >
                   <Avatar person={other} size={48} online={isOnline(other.firebaseId)} />
                   <span className="min-w-0 flex-1">
@@ -1512,21 +1556,12 @@ export default function MessagesClient() {
                             aria-label="Sending"
                           />
                         ) : (
-                          lastMessageWasRead ? (
-                            <span title="Seen" className="shrink-0">
-                              <CheckCheck
-                                className="h-3.5 w-3.5 text-[#35d07f]"
-                                aria-label="Seen"
-                              />
-                            </span>
-                          ) : (
-                            <span title="Delivered" className="shrink-0">
-                              <Check
-                                className="h-3.5 w-3.5 text-muted-foreground"
-                                aria-label="Delivered"
-                              />
-                            </span>
-                          )
+                          <span title={lastMessageWasRead ? "Seen" : "Delivered"} className="shrink-0">
+                            <CheckCheck
+                              className={`h-3.5 w-3.5 ${lastMessageWasRead ? "text-[#35d07f]" : "text-muted-foreground"}`}
+                              aria-label={lastMessageWasRead ? "Seen" : "Delivered"}
+                            />
+                          </span>
                         ))}
                       <span
                         className={`truncate text-[13px] ${conversation.unreadCount ? "font-semibold" : "text-muted-foreground"}`}
@@ -1577,7 +1612,7 @@ export default function MessagesClient() {
       >
         {active && person ? (
           <>
-            <header className="sticky top-0 z-20 flex h-[64px] shrink-0 items-center gap-3 border-b border-white/[0.09] bg-[#010302]/95 px-4 backdrop-blur-xl">
+            <header className="sticky top-0 z-20 flex h-[64px] shrink-0 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur-xl">
               <button
                 onClick={() => setActive(null)}
                 className="rounded-full p-2 hover:bg-white/[0.07] md:hidden"
@@ -1614,7 +1649,7 @@ export default function MessagesClient() {
                         onClick={() => setShowConversationMenu(false)}
                         aria-label="Close conversation menu"
                       />
-                      <div className="popover-solid absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-2xl border border-white/[0.12] py-1 shadow-2xl">
+                      <div className="popover-solid absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-2xl border border-line-strong py-1 shadow-2xl">
                         <button
                           type="button"
                           onClick={() => {
@@ -1650,8 +1685,29 @@ export default function MessagesClient() {
                 </div>
               </div>
             </header>
-            {showEncryptionBanner && (
-              <div className="flex items-center gap-2 border-b border-white/[0.06] bg-brand-green/[0.06] py-1.5 pl-4 pr-2 text-[11px] text-brand-green">
+            {hasChatKeyConflict ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-line-subtle bg-amber-500/10 py-1.5 pl-4 pr-2 text-[11px] text-amber-200">
+                <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  This browser can&apos;t unlock this conversation.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDeviceLinkMode("target")}
+                  className="font-bold underline underline-offset-2"
+                >
+                  Link this device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecoveryModalMode("restore")}
+                  className="font-bold underline underline-offset-2"
+                >
+                  Restore with recovery PIN
+                </button>
+              </div>
+            ) : showEncryptionBanner && (
+              <div className="flex items-center gap-2 border-b border-line-subtle bg-brand-green/[0.06] py-1.5 pl-4 pr-2 text-[11px] text-brand-green">
                 <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 text-center">
                   {active.encryptionVersion
@@ -1674,11 +1730,11 @@ export default function MessagesClient() {
                 onClick={() => setShowConversationInfo(false)}
               >
                 <aside
-                  className="flex h-full w-full max-w-sm flex-col border-l border-white/[0.1] bg-[#080b09] shadow-2xl"
+                  className="flex h-full w-full max-w-sm flex-col border-l border-line bg-surface-raised shadow-2xl"
                   onClick={(event) => event.stopPropagation()}
                   aria-label="Conversation information"
                 >
-                  <div className="flex h-[68px] items-center justify-between border-b border-white/[0.09] px-5">
+                  <div className="flex h-[68px] items-center justify-between border-b border-line px-5">
                     <h2 className="font-bold">Conversation info</h2>
                     <button
                       type="button"
@@ -1707,7 +1763,7 @@ export default function MessagesClient() {
                     <button
                       type="button"
                       onClick={() => copyProfileLink(person)}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-white/[0.12] px-4 py-3 text-sm font-bold hover:bg-white/[0.06]"
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-3 text-sm font-bold hover:bg-white/[0.06]"
                     >
                       <Copy className="h-4 w-4" />
                       {profileLinkCopied
@@ -1737,7 +1793,7 @@ export default function MessagesClient() {
                         <div className="relative z-10 my-4 flex w-full shrink-0 justify-center">
                           <time
                             dateTime={message.createdAt}
-                            className="rounded-full border border-white/[0.07] bg-[#17231e]/95 px-3 py-1.5 text-[11px] font-semibold text-white/80 shadow-sm backdrop-blur-md"
+                            className="rounded-full border border-line-subtle bg-surface-raised/95 px-3 py-1.5 text-[11px] font-semibold text-white/80 shadow-sm backdrop-blur-md"
                           >
                             {messageDateLabel(message.createdAt)}
                           </time>
@@ -1758,7 +1814,7 @@ export default function MessagesClient() {
                               setReplyingTo(message);
                             }
                           }}
-                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-[#07685b] bg-[#064f46] text-white" : "rounded-tl-[3px] border-white/[0.06] bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-[#07685b] bg-[#064f46] text-white" : "rounded-tl-[3px] border-line-subtle bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
                           aria-label="Reply to message"
                         >
                           {message.replyTo && (
@@ -1843,7 +1899,7 @@ export default function MessagesClient() {
                 <button
                   type="button"
                   onClick={scrollToBottom}
-                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.1] bg-[#111713]/95 text-white shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
+                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-raised/95 text-white shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
                   aria-label="Jump to latest messages"
                 >
                   <ChevronsDown className="h-5 w-5" />
@@ -1852,7 +1908,7 @@ export default function MessagesClient() {
             </div>
             <form
               onSubmit={send}
-              className="sticky bottom-0 z-20 shrink-0 border-t border-white/[0.09] bg-[#010302]/95 px-2.5 py-2 pb-safe backdrop-blur-xl"
+              className="sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 py-2 pb-safe backdrop-blur-xl"
             >
               {replyingTo && (
                 <div
@@ -1882,19 +1938,19 @@ export default function MessagesClient() {
                   </button>
                 </div>
               )}
-              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-[#151a18] p-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
+              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-surface-elevated p-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
                 <div ref={emojiPickerRef} className="static mb-0.5 shrink-0 self-end">
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker((open) => !open)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-brand-green" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-brand-green" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
                     aria-label="Add emoji"
                     aria-expanded={showEmojiPicker}
                   >
                     <Smile className="h-5 w-5" />
                   </button>
                   {showEmojiPicker && (
-                    <div className="absolute bottom-[calc(100%+10px)] left-0 z-40 overflow-hidden rounded-2xl border border-white/[0.1] shadow-2xl">
+                    <div className="absolute bottom-[calc(100%+10px)] left-0 z-40 overflow-hidden rounded-2xl border border-line shadow-2xl">
                       <NativeEmojiPicker
                         title="Add emoji"
                         onSelect={(emoji) => addEmoji({ emoji })}

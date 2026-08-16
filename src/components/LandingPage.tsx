@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import {
   ArrowRight,
   Bookmark,
@@ -65,6 +65,74 @@ const reveal = {
   transition: { duration: 0.7, ease },
 };
 
+// Unlike `reveal`, these grid items *do* start hidden (opacity:0) so the
+// stagger is actually visible — a real starting state is required for a
+// from -> to animation to read as motion rather than a no-op. To keep the
+// "never gate content on JS" principle `reveal` documents, every element
+// using these gets the `reveal-stagger` class, which a <noscript> block
+// (rendered once, near the top of the page) forcibly resets to visible.
+const staggerParent = {
+  initial: "hidden" as const,
+  whileInView: "visible",
+  viewport: { once: true, margin: "-80px" },
+  variants: { visible: { transition: { staggerChildren: 0.09 } } },
+};
+
+const staggerItem = {
+  variants: {
+    hidden: { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
+  },
+};
+
+function ScrollProgressBar() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{ scaleX }}
+      className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-left bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200"
+    />
+  );
+}
+
+/** Cursor-tilted card in real 3D CSS space — the closest thing to a "3D asset"
+ * achievable without shipping actual 3D models, and the same technique
+ * premium product sites (Linear, Vercel, Stripe) use for hero mockups. */
+function TiltCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const springConfig = { stiffness: 150, damping: 20, mass: 0.5 };
+  const rotateX = useSpring(useTransform(pointerY, [-0.5, 0.5], [7, -7]), springConfig);
+  const rotateY = useSpring(useTransform(pointerX, [-0.5, 0.5], [-7, 7]), springConfig);
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bounds = ref.current?.getBoundingClientRect();
+    if (!bounds) return;
+    pointerX.set((event.clientX - bounds.left) / bounds.width - 0.5);
+    pointerY.set((event.clientY - bounds.top) / bounds.height - 0.5);
+  };
+
+  const handlePointerLeave = () => {
+    pointerX.set(0);
+    pointerY.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      style={{ rotateX, rotateY, transformPerspective: 1200 }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function AvatarStack() {
   return (
     <div className="flex -space-x-2.5" aria-hidden="true">
@@ -92,7 +160,7 @@ function ProductPreview() {
       className="relative mx-auto w-full max-w-[560px] lg:ml-auto"
     >
       <div className="absolute -inset-8 rounded-[3rem] bg-brand-green/10 blur-3xl" />
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#07110c]/95 p-2 shadow-[0_40px_100px_rgba(0,0,0,0.55)] sm:rounded-[2.5rem] sm:p-3">
+      <TiltCard className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#07110c]/95 p-2 shadow-[0_40px_100px_rgba(0,0,0,0.55)] sm:rounded-[2.5rem] sm:p-3">
         <div className="rounded-[1.55rem] border border-white/[0.07] bg-[#030806] sm:rounded-[2rem]">
           <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3 sm:px-5">
             <div className="flex items-center gap-2">
@@ -141,7 +209,7 @@ function ProductPreview() {
             </div>
           </div>
         </div>
-      </div>
+      </TiltCard>
 
       <motion.div
         animate={{ y: [0, -8, 0] }}
@@ -160,6 +228,8 @@ export default function LandingPage() {
   const router = useRouter();
   const [routeReady, setRouteReady] = useState(false);
   const [isIntentionalVisit, setIsIntentionalVisit] = useState(false);
+  const { scrollY } = useScroll();
+  const heroOrbY = useTransform(scrollY, [0, 900], [0, 220]);
 
   useEffect(() => {
     setIsIntentionalVisit(
@@ -215,6 +285,10 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#020604] text-white selection:bg-brand-green/30">
+      <ScrollProgressBar />
+      <noscript>
+        <style>{".reveal-stagger{opacity:1!important;transform:none!important}"}</style>
+      </noscript>
       <div className="pointer-events-none fixed inset-0 z-0 opacity-60 [background-image:linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_80%)]" />
 
       <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6">
@@ -242,10 +316,10 @@ export default function LandingPage() {
       <main className="relative z-10">
         <section className="relative mx-auto grid min-h-screen max-w-7xl items-center gap-16 px-5 pb-20 pt-32 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:px-12 lg:pt-28">
           <div className="relative">
-            <div className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
-            <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
+            <motion.div style={{ y: heroOrbY }} className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
+            {/* <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
               The personal growth network
-            </motion.div>
+            </motion.div> */}
             <motion.h1 initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
               Less scrolling.<br />
               More <span className="bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200 bg-clip-text text-transparent">becoming.</span>
@@ -270,8 +344,9 @@ export default function LandingPage() {
           <ProductPreview />
         </section>
 
-        <section id="why" className="border-y border-white/[0.06] bg-white/[0.015]">
-          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-32">
+        <section id="why" className="relative overflow-hidden border-y border-white/[0.06] bg-white/[0.015]">
+          <div className="animate-float-3 pointer-events-none absolute -right-40 top-1/3 h-[380px] w-[380px] rounded-full bg-brand-green/[0.06] blur-[110px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-32">
             <motion.div {...reveal}>
               <p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A better kind of social</p>
               <h2 className="max-w-md text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-5xl">The internet is loud.<br /><span className="text-white/35">Your mind doesn&apos;t have to be.</span></h2>
@@ -294,27 +369,27 @@ export default function LandingPage() {
             <div><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Designed for depth</p><h2 className="max-w-2xl text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-6xl">Everything you need to turn moments into meaning.</h2></div>
             <p className="max-w-sm text-sm leading-6 text-white/45 sm:text-base">A calm set of tools that gets richer with every thought you keep.</p>
           </motion.div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <motion.div {...staggerParent} className="grid gap-4 md:grid-cols-2">
             {features.map(({ icon: Icon, eyebrow, title, copy }, index) => (
-              <motion.article key={title} {...reveal} transition={{ duration: 0.7, delay: index * 0.06, ease }} className="group relative min-h-[300px] overflow-hidden rounded-[2rem] border border-white/[0.07] bg-white/[0.025] p-7 transition duration-500 hover:-translate-y-1 hover:border-brand-green/20 hover:bg-brand-green/[0.035] sm:p-9">
+              <motion.article key={title} {...staggerItem} className="reveal-stagger group relative min-h-[300px] overflow-hidden rounded-[2rem] border border-white/[0.07] bg-white/[0.025] p-7 transition duration-500 hover:-translate-y-1 hover:border-brand-green/20 hover:bg-brand-green/[0.035] sm:p-9">
                 <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-green/0 blur-3xl transition duration-500 group-hover:bg-brand-green/10" />
                 <div className="mb-16 flex items-center justify-between"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-green"><Icon className="h-5 w-5" /></span><span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/25">0{index + 1}</span></div>
                 <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-green">{eyebrow}</p><h3 className="mb-3 text-2xl font-black tracking-tight sm:text-3xl">{title}</h3><p className="max-w-md text-sm leading-6 text-white/45 sm:text-base">{copy}</p>
               </motion.article>
             ))}
-          </div>
+          </motion.div>
         </section>
 
         <section className="overflow-hidden border-y border-white/[0.06] bg-[#06100b] py-24 lg:py-32">
           <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
             <motion.div {...reveal} className="mx-auto mb-14 max-w-2xl text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A prompt for every season</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">You already have something worth noticing.</h2><p className="mt-5 text-white/45">A good question simply helps you find it.</p></motion.div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {prompts.map((prompt, index) => (
-                <motion.button key={prompt.text} {...reveal} onClick={user ? () => router.push("/create") : openSignInModal} transition={{ duration: 0.7, delay: index * 0.08, ease }} className={`group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
+            <motion.div {...staggerParent} className="grid gap-4 md:grid-cols-3">
+              {prompts.map((prompt) => (
+                <motion.button key={prompt.text} {...staggerItem} onClick={user ? () => router.push("/create") : openSignInModal} className={`reveal-stagger group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{prompt.label}</span><p className="mt-10 text-2xl font-black leading-tight">“{prompt.text}”</p><span className="mt-8 inline-flex items-center gap-2 text-xs font-black text-white/45 transition group-hover:text-white">Write your answer <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
                 </motion.button>
               ))}
-            </div>
+            </motion.div>
           </div>
         </section>
 

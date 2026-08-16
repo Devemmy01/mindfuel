@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@config "../tailwind.config.ts";
+@config "../tailwind.config.mjs";
 
 
 
@@ -302,12 +302,22 @@
   50% { transform: translate(-45px, 45px) scale(1.2); }
 }
 
+@keyframes float-slow-3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  40% { transform: translate(-30px, -35px) scale(1.1); }
+  75% { transform: translate(25px, 15px) scale(0.92); }
+}
+
 .animate-float-1 {
   animation: float-slow-1 25s ease-in-out infinite alternate;
 }
 
 .animate-float-2 {
   animation: float-slow-2 30s ease-in-out infinite alternate;
+}
+
+.animate-float-3 {
+  animation: float-slow-3 34s ease-in-out infinite alternate;
 }
 
 /* ===========================

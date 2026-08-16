@@ -62,9 +62,9 @@ export default function GuidesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020604] text-white">
+    <div className="min-h-screen bg-surface text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="border-b border-white/[0.07]">
+      <header className="border-b border-line-subtle">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
           <Link href="/" aria-label="MindFuel home">
             <Image src="/logoDarkbg.png" alt="MindFuel" width={132} height={40} className="h-9 w-auto" />
@@ -82,7 +82,7 @@ export default function GuidesPage() {
         </section>
         <section className="mx-auto grid max-w-6xl gap-4 px-5 pb-24 sm:px-8 md:grid-cols-2">
           {guides.map((guide, index) => (
-            <article key={guide.slug} className={`group rounded-[2rem] border border-white/[0.08] bg-white/[0.025] p-7 transition hover:-translate-y-1 hover:border-brand-green/25 hover:bg-brand-green/[0.035] sm:p-9 ${index === 0 ? "md:col-span-2" : ""}`}>
+            <article key={guide.slug} className={`group rounded-[2rem] border border-line-subtle bg-white/[0.025] p-7 transition hover:-translate-y-1 hover:border-brand-green/25 hover:bg-brand-green/[0.035] sm:p-9 ${index === 0 ? "md:col-span-2" : ""}`}>
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-green">{guide.eyebrow} · {guide.readTime}</p>
               <h2 className="mt-5 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] sm:text-4xl">{guide.title}</h2>
               <p className="mt-4 max-w-2xl leading-7 text-white/50">{guide.description}</p>

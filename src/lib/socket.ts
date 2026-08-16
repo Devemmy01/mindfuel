@@ -27,7 +27,7 @@ export function getSocket(userId: string) {
         callback({ token });
       },
       addTrailingSlash: false,
-      transports: ["polling", "websocket"],
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 750,

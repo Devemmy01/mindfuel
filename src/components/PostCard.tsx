@@ -403,6 +403,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   alt="Post image"
                   width={600}
                   height={400}
+                  sizes="(max-width: 640px) 100vw, 600px"
                   unoptimized={process.env.NODE_ENV === "development"}
                   className="w-full object-cover max-h-[320px]"
                 />
@@ -607,4 +608,4 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
   );
 };
 
-export default PostCard;
+export default React.memo(PostCard);
