@@ -53,18 +53,47 @@ export default function DownloadCardModal({
     if (!cardRef.current || isDownloading) return;
     setIsDownloading(true);
     try {
-      const { toPng } = await import("html-to-image");
+      const { toBlob } = await import("html-to-image");
       await new Promise((r) => setTimeout(r, 350));
-      const dataUrl = await toPng(cardRef.current, {
+      const blob = await toBlob(cardRef.current, {
         cacheBust: true,
         quality: 1,
         pixelRatio: 3,
         skipFonts: true,
       });
+      if (!blob) throw new Error("Failed to render card image");
+
+      const fileName = `mindfuel-${Date.now()}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // iOS Safari ignores the `download` attribute on anchors (it just
+      // navigates to the image instead of saving it), so on devices that
+      // support the Web Share API we hand the file to the native share
+      // sheet, which offers "Save Image" and always works.
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare?.({ files: [file] })
+      ) {
+        try {
+          await navigator.share({ files: [file], title: fileName });
+          showToast("Card downloaded!", "success");
+          onClose();
+        } catch (shareError) {
+          if ((shareError as Error)?.name !== "AbortError") throw shareError;
+        }
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `mindfuel-${Date.now()}.png`;
-      link.href = dataUrl;
+      link.download = fileName;
+      link.href = objectUrl;
+      // Safari (desktop and iOS) can silently no-op a click() on an anchor
+      // that isn't attached to the document, so it must be appended first.
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
       showToast("Card downloaded!", "success");
       onClose();
     } catch (err) {

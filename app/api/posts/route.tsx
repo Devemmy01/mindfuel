@@ -377,7 +377,7 @@ export async function POST(req: NextRequest) {
               }),
               author.email && author.preferences?.notifications !== false
                 ? resend.emails.send({
-                    from: "MindFuel <noreply@mind-fuel.app>",
+                    from: "MindFuel <hello@mind-fuel.app>",
                     to: author.email,
                     subject: `${user.name} quoted your thought`,
                     react: (

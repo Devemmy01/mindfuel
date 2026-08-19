@@ -10,7 +10,7 @@ export async function GET() {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "MindFuel <noreply@mind-fuel.app>",
+      from: "MindFuel <hello@mind-fuel.app>",
       to: email,
       subject: "Final Test: Your Mindful Tip",
       react: (

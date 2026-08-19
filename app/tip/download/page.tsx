@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import {
   ArrowLeft,
   Check,
@@ -242,7 +242,7 @@ function DownloadContent() {
 
     setIsDownloading(true);
     try {
-      const dataUrl = await toPng(cardRef.current, {
+      const blob = await toBlob(cardRef.current, {
         cacheBust: true,
         quality: 1,
         width: CARD_W,
@@ -263,10 +263,38 @@ function DownloadContent() {
         },
       });
 
+      if (!blob) throw new Error("Failed to render tip image");
+
+      const fileName = "mindfuel-daily-tip.png";
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // iOS Safari ignores the `download` attribute on anchors (it just
+      // navigates to the image instead of saving it), so on devices that
+      // support the Web Share API we hand the file to the native share
+      // sheet, which offers "Save Image" and always works.
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare?.({ files: [file] })
+      ) {
+        try {
+          await navigator.share({ files: [file], title: fileName });
+          setHasDownloaded(true);
+        } catch (shareError) {
+          if ((shareError as Error)?.name !== "AbortError") throw shareError;
+        }
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = "mindfuel-daily-tip.png";
-      link.href = dataUrl;
+      link.download = fileName;
+      link.href = objectUrl;
+      // Safari (desktop and iOS) can silently no-op a click() on an anchor
+      // that isn't attached to the document, so it must be appended first.
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
       setHasDownloaded(true);
     } catch (error) {
       console.error("Failed to download tip:", error);

@@ -191,7 +191,7 @@ export async function POST(
           if (parentAuthor?.email && parentAuthor.preferences?.notifications !== false) {
             try {
               await resend.emails.send({
-                from: "MindFuel <noreply@mind-fuel.app>",
+                from: "MindFuel <hello@mind-fuel.app>",
                 to: parentAuthor.email,
                 subject: `${user.name} replied to your reflection`,
                 headers: { "X-Entity-Ref-ID": `${postId}-reply-${comment._id}` },
@@ -231,7 +231,7 @@ export async function POST(
           if (author.email && author.preferences?.notifications !== false) {
             try {
               const { error } = await resend.emails.send({
-                from: "MindFuel <noreply@mind-fuel.app>",
+                from: "MindFuel <hello@mind-fuel.app>",
                 to: author.email,
                 subject: `${user.name} commented on your thought`,
                 headers: {
