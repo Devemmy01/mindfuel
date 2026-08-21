@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import FeedGuard from "@/components/FeedGuard";
+import FeedClient from "@/components/FeedClient";
 import { absoluteUrl, defaultOgImage } from "@/lib/seo";
 import { getInitialReflectionPosts } from "@/lib/initialFeed";
 import { Suspense } from "react";
@@ -44,13 +44,13 @@ async function CachedFeed() {
     console.error("Unable to prepare initial feed snapshot", error);
   }
 
-  return <FeedGuard initialPosts={initialPosts} />;
+  return <FeedClient initialReflectionPosts={initialPosts} />;
 }
 
 export default function FeedPage() {
   return (
     <div className="flex flex-col w-full min-h-screen">
-      <Suspense fallback={<FeedGuard />}>
+      <Suspense fallback={<FeedClient />}>
         <CachedFeed />
       </Suspense>
     </div>

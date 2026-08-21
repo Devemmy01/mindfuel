@@ -203,12 +203,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={() => router.push(`/post/${post._id}`)}
-        className={`flex flex-col border-b cursor-pointer group transition-colors ${
+        className={`relative flex flex-col border-b cursor-pointer group transition-colors ${
           isHighlighted
             ? "border-brand-green/20 hover:bg-brand-green/[0.03]"
             : "border-border hover:bg-secondary/20"
         }`}
       >
+        {/* Real anchor so crawlers can discover/follow this post without relying
+            on the onClick handler above, which they never invoke. */}
+        <Link
+          href={`/post/${post._id}`}
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 z-0"
+        />
+
+        <div className="relative z-10 flex flex-col flex-1">
         {post.isRepost && post.repostedBy && (
           <div className="flex gap-1.5 text-white/50 text-[13px] font-semibold px-4 pt-2.5 pb-0 ml-10">
             <Repeat2 className="w-4 h-4" strokeWidth={2.5} />
@@ -504,6 +514,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               </InteractionBar>
             </div>
           </div>
+        </div>
         </div>
       </motion.article>
 
