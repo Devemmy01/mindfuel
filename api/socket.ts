@@ -12,6 +12,12 @@ const server = createServer((_request, response) => {
 const io = new Server(server, {
   path: "/api/socket",
   transports: ["websocket", "polling"],
+  // Mobile connections (iOS backgrounding in particular) die without a clean
+  // close frame, so the default 20s/25s pair leaves a departed user showing
+  // "online" for up to ~45s. Shorter heartbeats surface a dead connection
+  // (and the resulting presence:update) in well under half that time.
+  pingTimeout: 10_000,
+  pingInterval: 15_000,
 });
 
 configureSocketServer(io);

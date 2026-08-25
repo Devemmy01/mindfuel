@@ -63,22 +63,11 @@ export default function DailyReflectionPrompt({
     string,
     { dot: string; bg: string; text: string }
   > = {
-    gratitude: {
-      dot: "#f97316",
-      bg: "bg-orange-500/10",
-      text: "text-orange-400",
-    },
-    growth: { dot: "#06b6d4", bg: "bg-cyan-500/10", text: "text-cyan-400" },
-    mindfulness: {
-      dot: "#10b981",
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-400",
-    },
-    reflection: {
-      dot: "#8b5cf6",
-      bg: "bg-purple-500/10",
-      text: "text-purple-400",
-    },
+    fun: { dot: "#f97316", bg: "bg-orange-500/10", text: "text-orange-400" },
+    life: { dot: "#10b981", bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    social: { dot: "#ec4899", bg: "bg-pink-500/10", text: "text-pink-400" },
+    hypothetical: { dot: "#06b6d4", bg: "bg-cyan-500/10", text: "text-cyan-400" },
+    confession: { dot: "#8b5cf6", bg: "bg-purple-500/10", text: "text-purple-400" },
     default: {
       dot: "#6366f1",
       bg: "bg-indigo-500/10",

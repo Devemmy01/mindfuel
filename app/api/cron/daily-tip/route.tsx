@@ -4,8 +4,6 @@ import User from "@/models/user";
 import Tip from "@/models/tip";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
-import { getPromptForToday } from "@/lib/prompts";
-import { DAILY_PROMPTS } from "@/lib/prompts";
 import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
 import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import React from "react";
@@ -27,17 +25,19 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
 
-    // Build one quality-controlled pool. Selection happens per user so every
-    // person gets a fresh tip until they have exhausted the entire pool.
-    let tipPool = [...DAILY_TIPS, ...DAILY_PROMPTS];
+    // Build one quality-controlled pool of actual tips (advice/affirmations),
+    // not reflection questions — those belong to the in-app prompt, not this
+    // email. Selection happens per user so every person gets a fresh tip
+    // until they have exhausted the entire pool.
+    let tipPool = [...DAILY_TIPS];
     try {
       const storedTips = await Tip.find({}).select("text -_id").limit(1000).lean();
-      tipPool = [...new Set([...DAILY_TIPS, ...DAILY_PROMPTS, ...storedTips.map((tip) => tip.text).filter(Boolean)])];
+      tipPool = [...new Set([...DAILY_TIPS, ...storedTips.map((tip) => tip.text).filter(Boolean)])];
     } catch (tipError) {
       console.error("Failed to fetch local tip for cron:", tipError);
     }
 
-    if (tipPool.length === 0) tipPool = [getPromptForToday()];
+    if (tipPool.length === 0) tipPool = [DAILY_TIPS[0]];
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);

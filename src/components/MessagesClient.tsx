@@ -755,6 +755,23 @@ export default function MessagesClient() {
     };
     const typingPoll = window.setInterval(loadTypingState, 4000);
     void loadTypingState();
+    // A single WebSocket frame (the incoming message notification) has no
+    // redundancy the way repeated typing pings do, so a dropped or delayed
+    // frame — common on mobile connections — otherwise leaves the open
+    // conversation stuck until the user manually reopens it. This mirrors the
+    // typing poll above: a cheap background refresh that self-heals a missed
+    // "conversation:message" event within a few seconds instead of never.
+    const messagesPoll = window.setInterval(() => {
+      void mutateMessages();
+    }, 6000);
+    // A reconnect can also open a gap where events were missed entirely, so
+    // resync explicitly as soon as the socket comes back instead of waiting
+    // for the next poll tick.
+    const onReconnect = () => {
+      socket.emit("conversation:join", active._id);
+      void mutateMessages();
+    };
+    socket.on("connect", onReconnect);
     chatFetch(user, "/api/chat/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -775,6 +792,7 @@ export default function MessagesClient() {
     return () => {
       cancelled = true;
       window.clearInterval(typingPoll);
+      window.clearInterval(messagesPoll);
       isTypingRef.current = false;
       socket.emit("typing:stop", {
         conversationId: active._id,
@@ -785,8 +803,9 @@ export default function MessagesClient() {
       socket.off("typing:update", onTyping);
       socket.off("messages:read", onRead);
       socket.off("message:reaction", onReaction);
+      socket.off("connect", onReconnect);
     };
-  }, [active, user, profile?.name, setConversations, setMessages, updateTypingState]);
+  }, [active, user, profile?.name, setConversations, setMessages, updateTypingState, mutateMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
