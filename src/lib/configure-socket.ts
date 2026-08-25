@@ -89,15 +89,19 @@ export function configureSocketServer(io: Server) {
           .filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 200)
           .slice(0, 200),
       ));
-      try {
-        const rows = await Promise.all(ids.map(async (id) => {
+      // One id's lookup failing (e.g. a transient adapter hiccup) must not
+      // blank the whole snapshot for every other id in the same batch.
+      const rows = await Promise.all(ids.map(async (id) => {
+        try {
           const sockets = await io.in(`user:${id}`).fetchSockets();
           return [id, sockets.length > 0] as const;
-        }));
-        socket.emit("presence:snapshot", Object.fromEntries(rows));
-      } catch (error) {
-        console.error("Presence lookup failed", error);
-      }
+        } catch (error) {
+          console.error("Presence lookup failed for", id, error);
+          return null;
+        }
+      }));
+      const snapshot = Object.fromEntries(rows.filter((row): row is readonly [string, boolean] => row !== null));
+      socket.emit("presence:snapshot", snapshot);
     });
 
     socket.on("conversation:join", async (conversationId: string) => {

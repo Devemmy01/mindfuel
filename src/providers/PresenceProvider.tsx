@@ -82,7 +82,14 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     socket.on("presence:snapshot", onPresenceSnapshot);
     socket.on("connect", requestSnapshot);
     requestSnapshot();
+    // A single missed or failed snapshot (a dropped socket frame, a transient
+    // server-side lookup error) otherwise leaves watched users stuck at
+    // whatever state they last resolved to until the socket fully
+    // reconnects. Re-querying periodically self-heals that within seconds
+    // instead of requiring a page reload.
+    const resync = window.setInterval(requestSnapshot, 20_000);
     return () => {
+      window.clearInterval(resync);
       socket.off("presence:update", onPresenceUpdate);
       socket.off("presence:snapshot", onPresenceSnapshot);
       socket.off("connect", requestSnapshot);

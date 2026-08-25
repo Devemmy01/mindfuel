@@ -808,8 +808,11 @@ export default function MessagesClient() {
   }, [active, user, profile?.name, setConversations, setMessages, updateTypingState, mutateMessages]);
 
   useEffect(() => {
+    // Deliberately excludes typingName: the indicator flickers on and off
+    // repeatedly while the other person types, and re-triggering a smooth
+    // scroll on every flicker made the page visibly judder on mobile.
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [active?._id, messages.length, typingName]);
+  }, [active?._id, messages.length]);
 
   useEffect(() => {
     if (!user || !active) return;
@@ -1990,7 +1993,7 @@ export default function MessagesClient() {
                   placeholder="Start a new message"
                   rows={1}
                   maxLength={2000}
-                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-sm leading-5 text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none"
+                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-base leading-5 text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none sm:text-sm"
                 />
                 <button
                   type="submit"
