@@ -5,6 +5,9 @@ import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
 import { PresenceProvider } from "@/providers/PresenceProvider";
 import SignInModal from "@/components/SignInModal";
+import { installAuthedFetch } from "@/lib/authed-fetch";
+
+installAuthedFetch();
 
 function SignInModalWrapper() {
   const { showSignInModal, closeSignInModal } = useAuth();
