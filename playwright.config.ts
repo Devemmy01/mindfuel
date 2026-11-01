@@ -23,7 +23,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `PORT=${PORT} npm run dev`,
+    // PW_PROD=1 serves an existing `npm run build` (faster, and what users get).
+    command: process.env.PW_PROD
+      ? `NODE_ENV=production PORT=${PORT} npm start`
+      : `PORT=${PORT} npm run dev`,
     url: `http://localhost:${PORT}/api/push/config`,
     reuseExistingServer: true,
     timeout: 180_000,

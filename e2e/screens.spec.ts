@@ -39,10 +39,24 @@ for (const viewport of viewports) {
     for (const route of screens) {
       for (const theme of ["dark", "light"] as const) {
         test(`${route} ${theme}`, async ({ page }) => {
+          // Review shots show the screen itself, not first-visit overlays.
+          if (!process.env.SHOW_FIRST_VISIT) {
+            await page.addInitScript(() => {
+              try {
+                localStorage.setItem("mindfuel_onboarding_seen", "true");
+              } catch {
+                // Storage may be unavailable; overlays will then show.
+              }
+            });
+          }
           const url = route.startsWith("/dev/design") ? `${route}?theme=${theme}` : route;
+          // The dev server compiles on first hit; warm the route, then wait for
+          // client data (feed, rail cards) to settle before capturing.
           await page.goto(url, { waitUntil: "networkidle" });
+          await page.goto(url, { waitUntil: "networkidle" });
+          await page.waitForTimeout(Number(process.env.SETTLE_MS || 4000));
           if (!route.startsWith("/dev/design")) await applyTheme(page, theme);
-          await page.waitForTimeout(400);
+          await page.waitForTimeout(300);
           await page.screenshot({
             path: path.join(outDir, `${slug(route)}-${viewport.name}-${theme}.png`),
             fullPage: true,
