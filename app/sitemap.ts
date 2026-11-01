@@ -24,6 +24,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       images: [`${siteUrl}/og-image-v2.png`],
     },
     {
+      url: `${siteUrl}/about`,
+      lastModified: new Date("2026-11-02"),
+      changeFrequency: "monthly",
+      priority: 0.8,
+      images: [`${siteUrl}/og-image-v2.png`],
+    },
+    {
       url: `${siteUrl}/guides`,
       lastModified: contentUpdatedAt,
       changeFrequency: "weekly",

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -224,63 +224,24 @@ function ProductPreview() {
 }
 
 export default function LandingPage() {
-  const { user, loading, openSignInModal } = useAuth();
+  const { user, openSignInModal } = useAuth();
   const router = useRouter();
-  const [routeReady, setRouteReady] = useState(false);
-  const [isIntentionalVisit, setIsIntentionalVisit] = useState(false);
   const { scrollY } = useScroll();
   const heroOrbY = useTransform(scrollY, [0, 900], [0, 220]);
 
+  // /about is for everyone, including signed-in members revisiting the story.
   useEffect(() => {
-    setIsIntentionalVisit(
-      new URLSearchParams(window.location.search).get("view") === "landing"
-    );
-    setRouteReady(true);
     router.prefetch("/feed");
   }, [router]);
 
-  useEffect(() => {
-    if (routeReady && !loading && user && !isIntentionalVisit) {
-      router.replace("/feed");
-    }
-  }, [user, loading, routeReady, isIntentionalVisit, router]);
-
-  // Middleware redirects known signed-in visitors before this page renders.
-  // Keep the public landing content in server HTML for crawlers and new users,
-  // while showing a neutral transition once a restored session is confirmed.
-  if (routeReady && !loading && user && !isIntentionalVisit) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center bg-[#020604] text-white"
-        role="status"
-        aria-label="Opening MindFuel"
-      >
-        <div className="flex flex-col items-center gap-5">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-brand-green/20 blur-2xl" />
-            <Image
-              src="/splash-logo.png"
-              alt=""
-              width={72}
-              height={72}
-              priority
-              className="relative h-16 w-16 animate-pulse object-contain"
-            />
-          </div>
-          <span className="sr-only">Opening MindFuel</span>
-        </div>
-      </div>
-    );
-  }
-
   const primaryAction = user ? (
-    <Link href="/feed" className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#00a855] px-6 py-3.5 text-sm font-black text-white shadow-[0_14px_40px_rgba(0,191,99,.25)] transition hover:-translate-y-0.5 hover:bg-[#00a855]/90">
+    <Link href="/feed" className="group inline-flex items-center justify-center gap-2 rounded-full bg-brand-green px-6 py-3.5 text-sm font-black text-primary-foreground transition hover:-translate-y-0.5 hover:bg-brand-green-active">
       Back to my feed <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
     </Link>
   ) : (
-    <button onClick={openSignInModal} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#00a855] px-6 py-3.5 text-sm font-black text-white shadow-[0_14px_40px_rgba(0,191,99,.25)] transition hover:-translate-y-0.5 hover:bg-[#00a855]/90">
-      Start reflecting—it&apos;s free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-    </button>
+    <Link href="/#write" className="group inline-flex items-center justify-center gap-2 rounded-full bg-brand-green px-6 py-3.5 text-sm font-black text-primary-foreground transition hover:-translate-y-0.5 hover:bg-brand-green-active">
+      Write your first reflection <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+    </Link>
   );
 
   return (
@@ -293,7 +254,7 @@ export default function LandingPage() {
 
       <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between rounded-full border border-white/[0.08] bg-[#06100b]/80 px-4 shadow-2xl shadow-black/20 backdrop-blur-2xl sm:px-5">
-          <Link href={user ? "/?view=landing" : "/"} aria-label="MindFuel landing page" className="flex items-center">
+          <Link href="/" aria-label="MindFuel home" className="flex items-center">
             <Image src="/logoDarkbg.png" alt="MindFuel" width={132} height={40} priority className="h-9 w-auto object-contain" />
           </Link>
           <div className="hidden items-center gap-7 md:flex">
@@ -333,7 +294,7 @@ export default function LandingPage() {
             </motion.div>
             {!user && (
               <motion.p initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/35 sm:text-left">
-                Free to join · Continue with Google · Start in under a minute
+                No account needed to start writing · Free · Sign in with Google to save
               </motion.p>
             )}
             <motion.div initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
@@ -385,7 +346,7 @@ export default function LandingPage() {
             <motion.div {...reveal} className="mx-auto mb-14 max-w-2xl text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A prompt for every season</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">You already have something worth noticing.</h2><p className="mt-5 text-white/45">A good question simply helps you find it.</p></motion.div>
             <motion.div {...staggerParent} className="grid gap-4 md:grid-cols-3">
               {prompts.map((prompt) => (
-                <motion.button key={prompt.text} {...staggerItem} onClick={user ? () => router.push("/create") : openSignInModal} className={`reveal-stagger group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
+                <motion.button key={prompt.text} {...staggerItem} onClick={() => router.push(user ? `/create?prompt=${encodeURIComponent(prompt.text)}` : "/#write")} className={`reveal-stagger group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{prompt.label}</span><p className="mt-10 text-2xl font-black leading-tight">“{prompt.text}”</p><span className="mt-8 inline-flex items-center gap-2 text-xs font-black text-white/45 transition group-hover:text-white">Write your answer <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
                 </motion.button>
               ))}
@@ -425,7 +386,7 @@ export default function LandingPage() {
         <section className="px-5 pb-20 sm:px-8">
           <motion.div {...reveal} className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-brand-green/20 bg-brand-green px-6 py-20 text-center text-white shadow-[0_40px_100px_rgba(0,191,99,.15)] sm:px-12">
             <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_32%),radial-gradient(circle_at_80%_80%,#003d20_0,transparent_35%)]" />
-            <div className="relative"><p className="mb-5 text-xs font-black uppercase tracking-[0.22em] text-white/65">Your life is already teaching you</p><h2 className="mx-auto max-w-3xl text-4xl font-black leading-[1] tracking-[-0.05em] sm:text-6xl">Keep the lesson.<br />Share the light.</h2><p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/70 sm:text-base">One honest reflection can change your day—and be exactly what someone else needed to read.</p><div className="mt-9">{user ? <Link href="/feed" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Return to your feed <ArrowRight className="h-4 w-4" /></Link> : <button onClick={openSignInModal} className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Join MindFuel for free <ArrowRight className="h-4 w-4" /></button>}</div></div>
+            <div className="relative"><p className="mb-5 text-xs font-black uppercase tracking-[0.22em] text-white/65">Your life is already teaching you</p><h2 className="mx-auto max-w-3xl text-4xl font-black leading-[1] tracking-[-0.05em] sm:text-6xl">Keep the lesson.<br />Share the light.</h2><p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/70 sm:text-base">One honest reflection can change your day—and be exactly what someone else needed to read.</p><div className="mt-9">{user ? <Link href="/feed" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Return to your feed <ArrowRight className="h-4 w-4" /></Link> : <Link href="/#write" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Write your first reflection <ArrowRight className="h-4 w-4" /></Link>}</div></div>
           </motion.div>
         </section>
       </main>
