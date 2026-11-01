@@ -23,7 +23,7 @@ export default function TermsPage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Community Guidelines</h2>
+          <h2 id="community-guidelines" className="scroll-mt-6 text-xl font-bold">Community Guidelines</h2>
           <p className="text-muted-foreground leading-relaxed">
             Please be kind. Hate speech, harassment, and spam are strictly prohibited and will result in immediate account termination. You retain the rights to the content you create, but grant us a license to display it within the MindFuel platform.
           </p>

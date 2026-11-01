@@ -7,6 +7,9 @@ import Image from "next/image";
 import { MessageCircle, Heart, BellOff, UserPlus, Loader2, UserCheck } from "lucide-react";
 import useSWR from "swr";
 import Skeleton from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { buttonVariants } from "@/components/ui/button";
+import { copy } from "@/lib/copy";
 
 type CachedFollowState = {
   followersCount: number;
@@ -156,20 +159,21 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <div className="w-12 h-12 rounded-full bg-secondary/40 flex items-center justify-center mb-3">
-          <BellOff className="w-6 h-6 text-muted-foreground" strokeWidth={1.5} />
-        </div>
-        <p className="font-bold text-[15px]">No notifications yet</p>
-        <p className="text-muted-foreground text-[13px] max-w-[180px]">
-          We&apos;ll notify you here when someone likes or comments on your thoughts.
-        </p>
-      </div>
+      <EmptyState
+        icon={BellOff}
+        title={copy.empty.notificationsTitle}
+        description={copy.empty.notificationsBody}
+        action={
+          <Link href="/create" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+            Write a reflection
+          </Link>
+        }
+      />
     );
   }
 
   return (
-    <div className="flex flex-col w-full md:h-[350px] overflow-y-auto scrollbar-hide">
+    <div className="flex w-full flex-col">
       {notifications.map((notification) => {
         if (!notification.sender) return null;
 

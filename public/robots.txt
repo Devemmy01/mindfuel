@@ -5,6 +5,7 @@ Disallow: /api/
 Disallow: /create
 Disallow: /collections
 Disallow: /messages
+Disallow: /notifications
 Disallow: /offline
 Disallow: /tip/download
 Disallow: /dev/
