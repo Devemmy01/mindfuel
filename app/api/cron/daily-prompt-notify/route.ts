@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
@@ -7,12 +8,7 @@ import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNot
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  // Simple auth check using a secret header
-  const authHeader = req.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

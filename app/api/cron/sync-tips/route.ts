@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Tip from "@/models/tip";
 
@@ -80,9 +81,7 @@ async function fetchAffirmations() {
 }
 
 export async function GET(req: NextRequest) {
-  // Simple auth check
-  const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

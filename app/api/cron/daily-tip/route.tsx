@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import Tip from "@/models/tip";
@@ -12,13 +13,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const userAgent = req.headers.get("user-agent");
-  const isAuthorized =
-    userAgent === "vercel-cron/1.0" ||
-    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`);
-
-  if (!isAuthorized) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
