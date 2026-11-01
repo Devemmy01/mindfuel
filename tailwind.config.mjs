@@ -54,7 +54,8 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand tokens
+        // Brand fills keep the literal accent in both themes. For green *text*
+        // use `text-primary-text`, which darkens in light mode for contrast.
         brand: {
           green: {
             DEFAULT: "#00bf63",
@@ -64,37 +65,74 @@ const config = {
           light: "#f9fafb",
           dark: "#111827",
         },
-        // Consolidated dark-UI surface scale. Components previously reached
-        // for one-off hex values (#151a18, #171717, #0a0a0a, #040a07,
-        // #020604, #030705...) for what were really only three distinct
-        // "how raised is this" levels. Use these instead of a new arbitrary
-        // hex so the surface hierarchy stays consistent app-wide.
+        "primary-text": "hsl(var(--primary-text))",
+        "primary-hover": "hsl(var(--primary-hover))",
+        "subtle-foreground": "hsl(var(--subtle-foreground))",
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        // Surface hierarchy: page < surface < raised < elevated.
         surface: {
-          DEFAULT: "#010302", // page/app background
-          raised: "#0b100d", // cards, panels, modals, popovers
-          elevated: "#151a18", // inputs, hover states, the most "interactive" layer
+          DEFAULT: "hsl(var(--surface))",
+          raised: "hsl(var(--surface-raised))",
+          elevated: "hsl(var(--surface-elevated))",
         },
-        // Translucent-white borders on dark surfaces, consolidated from the
-        // 8+ distinct border-white/[0.0x] opacities in ad-hoc use.
+        // Hairlines. `line` resolves to the themed border tokens.
         line: {
-          subtle: "rgba(255,255,255,0.06)",
-          DEFAULT: "rgba(255,255,255,0.09)",
-          strong: "rgba(255,255,255,0.12)",
+          subtle: "hsl(var(--border) / 0.7)",
+          DEFAULT: "hsl(var(--border))",
+          strong: "hsl(var(--border-strong))",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // Design-system radii. Prefer these three over one-off values.
+        control: "8px",
+        card: "12px",
+        sheet: "20px",
+      },
+      fontSize: {
+        display: ["2.25rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "700" }],
+        h1: ["1.75rem", { lineHeight: "2.125rem", letterSpacing: "-0.02em", fontWeight: "700" }],
+        h2: ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "600" }],
+        h3: ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "600" }],
+        body: ["1rem", { lineHeight: "1.5rem" }],
+        "body-sm": ["0.9375rem", { lineHeight: "1.375rem" }],
+        caption: ["0.8125rem", { lineHeight: "1.125rem" }],
+        micro: ["0.75rem", { lineHeight: "1rem" }],
+      },
+      zIndex: {
+        sticky: "10",
+        rail: "20",
+        tabbar: "30",
+        dropdown: "40",
+        overlay: "50",
+        modal: "60",
+        toast: "70",
+        tooltip: "80",
+      },
+      transitionDuration: {
+        fast: "120ms",
+        base: "200ms",
+      },
+      transitionTimingFunction: {
+        "out-expo": "cubic-bezier(0.23, 1, 0.32, 1)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        // next/font registers Inter under a generated family name exposed as
+        // --font-inter; the literal "Inter" only matched locally installed fonts.
+        sans: ["var(--font-inter)", "Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
         "brand-glow": "none",
         "brand-sm": "none",
         "soft": "none",
         "card": "none",
+        // Elevation scale. Dark theme leans on borders, so these stay subtle.
+        e1: "0 1px 2px rgb(0 0 0 / 0.06), 0 1px 1px rgb(0 0 0 / 0.04)",
+        e2: "0 4px 16px -4px rgb(0 0 0 / 0.16), 0 2px 4px rgb(0 0 0 / 0.06)",
+        e3: "0 16px 48px -12px rgb(0 0 0 / 0.35), 0 4px 12px rgb(0 0 0 / 0.08)",
       },
       keyframes: {
         "accordion-down": {

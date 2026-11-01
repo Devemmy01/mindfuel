@@ -14,7 +14,7 @@ export const fontOptions: FontOption[] = [
   {
     id: "inter",
     label: "Inter",
-    family: "'Inter', sans-serif",
+    family: "var(--font-inter), 'Inter', sans-serif",
     googleParam: "Inter:wght@400;500;600;700;900",
     preview: "Aa",
   },
