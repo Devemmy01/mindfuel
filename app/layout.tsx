@@ -98,6 +98,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  // Lets fixed bars extend under the notch and home indicator; they pad
+  // themselves with env(safe-area-inset-*).
+  viewportFit: "cover",
 };
 
 // JSON-LD structured data
