@@ -16,6 +16,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isStandalonePage =
     pathname === "/tip/download" || pathname === "/" || pathname.startsWith("/guides");
 
+  // Internal tooling pages render without the app shell.
+  if (pathname.startsWith("/dev/")) return <>{children}</>;
+
   if (isStandalonePage) {
     return (
       <div className="min-h-screen bg-background text-foreground relative overflow-hidden">

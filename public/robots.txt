@@ -7,6 +7,7 @@ Disallow: /collections
 Disallow: /messages
 Disallow: /offline
 Disallow: /tip/download
+Disallow: /dev/
 Disallow: /profile$
 Disallow: /search?
 
