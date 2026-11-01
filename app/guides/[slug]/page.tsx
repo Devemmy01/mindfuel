@@ -110,7 +110,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-green">Put it into practice</p>
             <h2 className="mt-3 text-2xl font-black">Keep the lesson while it is alive.</h2>
             <p className="mt-3 leading-7 text-white/55">MindFuel gives you thoughtful prompts and a calm place to reflect privately or learn with others.</p>
-            <Link href="/?view=landing" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#00a855] px-5 py-3 text-sm font-black text-white">Explore MindFuel <ArrowRight className="h-4 w-4" /></Link>
+            <Link href="/about" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#00a855] px-5 py-3 text-sm font-black text-white">Explore MindFuel <ArrowRight className="h-4 w-4" /></Link>
           </aside>
         </article>
 

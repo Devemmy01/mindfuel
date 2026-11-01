@@ -34,19 +34,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   // Internal tooling pages render without the app shell.
   if (pathname.startsWith("/dev/")) return <>{children}</>;
 
+  // Public pages with their own header and footer render without the app shell.
   const isStandalonePage =
-    pathname === "/tip/download" || pathname === "/" || pathname.startsWith("/guides");
-
-  if (isStandalonePage) {
-    return (
-      <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
-        {/* Floating Ambient Background Orbs */}
-        <div className="absolute -top-40 -left-60 w-[500px] h-[500px] rounded-full bg-brand-green/10 blur-[120px] pointer-events-none -z-10 opacity-70 animate-float-1" />
-        <div className="absolute top-[40%] -right-80 w-[600px] h-[600px] rounded-full bg-emerald-700/8 blur-[140px] pointer-events-none -z-10 opacity-60 animate-float-2" />
-        {children}
-      </div>
-    );
-  }
+    pathname === "/" || pathname === "/about" || pathname === "/tip/download" || pathname.startsWith("/guides");
+  if (isStandalonePage) return <>{children}</>;
 
   const hideTabBar = pathname === "/create" || pathname.startsWith("/chat") || (isMessages && isConversationOpen);
 

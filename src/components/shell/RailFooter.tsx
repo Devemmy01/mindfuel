@@ -2,7 +2,7 @@ import Link from "next/link";
 import { copy } from "@/lib/copy";
 
 const LINKS = [
-  { href: "/?view=landing", label: copy.nav.about },
+  { href: "/about", label: copy.nav.about },
   { href: "/guides", label: "Guides" },
   { href: "/terms#community-guidelines", label: "Community guidelines" },
   { href: "/privacy", label: "Privacy" },

@@ -134,7 +134,7 @@ export default function AppRail() {
                 </div>
                 <DropdownMenu.Separator className="my-1 h-px bg-line" />
                 <DropdownMenu.Item asChild>
-                  <Link href="/?view=landing" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">
+                  <Link href="/about" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">
                     <Info className="size-4 text-muted-foreground" aria-hidden />
                     {copy.nav.about}
                   </Link>
