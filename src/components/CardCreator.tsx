@@ -2,6 +2,7 @@
 "use client";
 
 import { copy } from "@/lib/copy";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { X, Smile, Image as ImageIcon, Trash2, Plus, Loader2 } from "lucide-react";
@@ -195,6 +196,22 @@ const CardCreator: React.FC = () => {
       setText("");
     }
 
+    // Restore an unsent draft (for example one started on the home page or
+    // before signing in) when it belongs to the same prompt.
+    const draft = loadDraft();
+    if (draft && !quoteIdParam) {
+      const samePrompt = promptParam
+        ? (draft.promptId || null) === (promptIdParam || null)
+        : true;
+      if (samePrompt) {
+        if (!promptParam && draft.prompt) {
+          setPromptQuestion(draft.prompt);
+          setPromptId(draft.promptId || null);
+        }
+        setText(draft.text);
+      }
+    }
+
     if (quoteIdParam) {
       fetch(`/api/posts/${quoteIdParam}`)
         .then((res) => res.json())
@@ -348,6 +365,17 @@ const CardCreator: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareText]);
 
+  // Autosave so the text survives sign-in, reloads and navigation. Only after
+  // the person types, so opening another prompt never erases an older draft.
+  const userEdited = useRef(false);
+  useEffect(() => {
+    if (!userEdited.current) return;
+    const timer = window.setTimeout(() => {
+      if (!quotedPost) saveDraft({ text, prompt: promptQuestion, promptId });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [text, promptQuestion, promptId, quotedPost]);
+
   const handleSubmit = async () => {
     if (!user) { openSignInModal(); return; }
     if (!text.trim() || isOverLimit || isSubmitting) return;
@@ -372,6 +400,7 @@ const CardCreator: React.FC = () => {
       });
 
       if (res.ok) {
+        clearDraft();
         const data = await res.json();
         showToast(
           <span className="flex items-center gap-1.5 whitespace-nowrap">Post created.</span>,
@@ -488,7 +517,10 @@ const CardCreator: React.FC = () => {
                 ref={textAreaRef}
                 id="post-textarea"
                 value={text}
-                onChange={(e) => handleTextChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+                onChange={(e) => {
+                  userEdited.current = true;
+                  handleTextChange(e.target.value, e.target.selectionStart ?? e.target.value.length);
+                }}
                 onKeyDown={handleHashtagKeyDown}
                 onClick={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
                 onKeyUp={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
