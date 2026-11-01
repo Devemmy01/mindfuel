@@ -92,7 +92,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
-    { media: "(prefers-color-scheme: dark)", color: "#010302" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -224,7 +224,6 @@ export default function RootLayout({
       >
         <ClientProviders>
           {/* Top accent line */}
-          <div className="brand-accent-line" />
           <LayoutContent>{children}</LayoutContent>
           <ClientBadgeUpdater />
           <InstallPWA />

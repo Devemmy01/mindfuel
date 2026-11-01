@@ -2,22 +2,40 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import AppRail from "@/components/shell/AppRail";
+import BottomTabBar from "@/components/shell/BottomTabBar";
+import { ShellDataProvider } from "@/components/shell/useShellData";
+import RailGuestCard from "@/components/shell/RailGuestCard";
+import TodayPromptCard from "@/components/shell/TodayPromptCard";
+import RailFooter from "@/components/shell/RailFooter";
 import SearchUsers from "@/components/SearchUsers";
 import MindfulTip from "@/components/MindfulTip";
-import MindfulSaves from "@/components/MindfulSaves";
-import GuestSignInPrompt from "@/components/GuestSignInPrompt";
-import AppLandingCard from "@/components/AppLandingCard";
 import SuggestedConnections from "@/components/SuggestedConnections";
+import TrendingHashtags from "@/components/TrendingHashtags";
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isConversationOpen, setIsConversationOpen] = React.useState(false);
   const isMessages = pathname === "/messages";
-  const isStandalonePage =
-    pathname === "/tip/download" || pathname === "/" || pathname.startsWith("/guides");
+
+  // MessagesClient announces when a thread is open so the tab bar can step
+  // aside for the message composer on phones.
+  React.useEffect(() => {
+    const onConversationState = (event: Event) => {
+      setIsConversationOpen(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
+    };
+    window.addEventListener("mindfuel:conversation-state", onConversationState);
+    return () => window.removeEventListener("mindfuel:conversation-state", onConversationState);
+  }, []);
+  React.useEffect(() => {
+    if (!pathname.startsWith("/messages")) setIsConversationOpen(false);
+  }, [pathname]);
 
   // Internal tooling pages render without the app shell.
   if (pathname.startsWith("/dev/")) return <>{children}</>;
+
+  const isStandalonePage =
+    pathname === "/tip/download" || pathname === "/" || pathname.startsWith("/guides");
 
   if (isStandalonePage) {
     return (
@@ -30,40 +48,43 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     );
   }
 
+  const hideTabBar = pathname === "/create" || pathname.startsWith("/chat") || (isMessages && isConversationOpen);
+
   return (
-    <div className="app-shell h-[100dvh] overflow-hidden bg-background text-foreground selection:bg-brand-green/20 flex justify-center relative">
-      <div className={`relative z-10 flex h-full w-full ${isMessages ? "md:max-w-[1180px] xl:max-w-[1320px]" : "md:max-w-[672px] lg:max-w-[1040px] xl:max-w-[1240px]"}`}>
-        {/* ── Left Sidebar (Navbar) ── */}
-        <Navbar />
+    <ShellDataProvider>
+      <div className="app-shell relative flex h-dvh justify-center overflow-hidden bg-background text-foreground selection:bg-primary/20">
+        <div
+          className={`relative flex h-full w-full ${
+            isMessages ? "md:max-w-[1180px] xl:max-w-[1320px]" : "md:max-w-[700px] lg:max-w-[860px] xl:max-w-[1240px]"
+          }`}
+        >
+          <AppRail />
 
-        {/* ── Main Feed Column ── */}
-        <main className={`app-main flex-grow w-full min-w-0 md:border-x md:border-border/70 h-full no-scrollbar ${isMessages ? "overflow-hidden md:max-w-none" : "overflow-y-auto md:max-w-[600px]"}`}>
-          {children}
-        </main>
+          <main
+            className={`app-main no-scrollbar h-full w-full min-w-0 flex-grow md:border-x md:border-line ${
+              isMessages ? "overflow-hidden md:max-w-none" : "overflow-y-auto md:max-w-[600px]"
+            }`}
+          >
+            {children}
+          </main>
 
-        {/* ── Right Rail (lg+) ── */}
-        {!isMessages && <aside className="no-scrollbar hidden lg:flex h-full w-[368px] shrink-0 flex-col overflow-y-auto pb-10 pl-8 pr-3 pt-6 scroll-smooth">
-          {/* Search */}
-          <SearchUsers />
-
-          {/* Guest Sign-in Prompt (only visible when logged out) */}
-          <div className="mt-4">
-          <GuestSignInPrompt />
-          </div>
-
-          <SuggestedConnections />
-
-          {/* Mindful Tip */}
-          <MindfulTip />
-
-          {/* Authenticated users can intentionally revisit the public product story. */}
-          <AppLandingCard />
-
-          {/* Saved Reflections */}
-          <MindfulSaves />
-
-        </aside>}
+          {!isMessages ? (
+            <aside
+              aria-label="Discover"
+              className="no-scrollbar hidden h-full w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pb-8 pl-6 pr-2 pt-3 xl:flex"
+            >
+              <SearchUsers />
+              <RailGuestCard />
+              <TodayPromptCard />
+              <TrendingHashtags />
+              <SuggestedConnections />
+              <MindfulTip />
+              <RailFooter />
+            </aside>
+          ) : null}
+        </div>
       </div>
-    </div>
+      <BottomTabBar hidden={hideTabBar} />
+    </ShellDataProvider>
   );
 }

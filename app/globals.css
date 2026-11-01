@@ -356,12 +356,12 @@
 }
 
 .app-shell {
-  background: #010302;
+  background: hsl(var(--background));
   background-image: none;
 }
 
 .app-main {
-  background: #010302;
+  background: hsl(var(--background));
   box-shadow: none;
 }
 
@@ -370,7 +370,7 @@
   body,
   .app-shell,
   .app-main {
-    background: #010302 !important;
+    background: hsl(var(--background)) !important;
     background-image: none !important;
   }
 
@@ -380,7 +380,7 @@
 }
 
 .popover-solid {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   background-image: none !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
@@ -388,7 +388,7 @@
 }
 
 .modal-solid {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   background-image: none !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
@@ -397,7 +397,7 @@
 
 [data-slot="dropdown-menu-content"],
 [data-slot="dropdown-menu-sub-content"] {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -506,7 +506,7 @@
    MOBILE CONTENT OFFSET
    =========================== */
 .mobile-content-offset {
-  padding-bottom: calc(100px + max(1rem, env(safe-area-inset-bottom)));
+  padding-bottom: calc(var(--tabbar-height) + 1.5rem + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) {
   .mobile-content-offset {
