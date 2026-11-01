@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User, { IUser } from "@/models/user";
 import cloudinary from "@/lib/cloudinary";
@@ -9,14 +10,9 @@ const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB base64 overhead
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { firebaseId, name, username, bio, uploadedImage } = await req.json();
-
-    if (!firebaseId) {
-      return NextResponse.json(
-        { error: "firebaseId is required" },
-        { status: 400 }
-      );
-    }
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { name, username, bio, uploadedImage } = await req.json();
 
     // Validate image size if provided
     if (uploadedImage && uploadedImage.length > MAX_IMAGE_SIZE) {

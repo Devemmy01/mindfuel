@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Follow from "@/models/follow";
 import User from "@/models/user";
@@ -13,7 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
     const profileId = req.nextUrl.searchParams.get("profileId");
-    const viewerId = req.nextUrl.searchParams.get("viewerId");
+    const viewerId = await getViewerUid(req);
+    const claimsViewer = req.nextUrl.searchParams.has("viewerId");
     const list = req.nextUrl.searchParams.get("list");
     if (!profileId) return NextResponse.json({ error: "Profile ID is required" }, { status: 400 });
 
@@ -46,7 +48,7 @@ export async function GET(req: NextRequest) {
       { followersCount, followingCount, isFollowing, followsViewer },
       {
         headers: {
-          "Cache-Control": viewerId
+          "Cache-Control": viewerId || claimsViewer
             ? "private, no-store"
             : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
         },
@@ -61,7 +63,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { followerId, followingId } = await req.json();
+    const followerId = await getViewerUid(req);
+    if (!followerId) return unauthorized();
+    const { followingId } = await req.json();
     if (!followerId || !followingId || followerId === followingId) {
       return NextResponse.json({ error: "Invalid follow request" }, { status: 400 });
     }

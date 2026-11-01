@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forbidden, getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
 import User from "@/models/user";
@@ -8,7 +9,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     await connectToDB();
     const { id: commentId } = await params;
-    const { userId: firebaseId, content } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { content } = await req.json();
 
     if (!firebaseId || !content) {
       return NextResponse.json(
@@ -62,6 +65,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await connectToDB();
     const { id: commentId } = await params;
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+
+    const [viewer, comment] = await Promise.all([
+      User.findOne({ firebaseId }).select("_id").lean() as Promise<{ _id: { toString(): string } } | null>,
+      Comment.findById(commentId).select("userId postId").lean() as Promise<{ userId: { toString(): string }; postId: unknown } | null>,
+    ]);
+    if (!comment) {
+      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    }
+    // The comment author and the author of the post it sits on may remove it.
+    const post = await Post.findById(comment.postId).select("userId").lean() as { userId?: { toString(): string } } | null;
+    const viewerId = viewer?._id.toString();
+    if (!viewerId || (comment.userId.toString() !== viewerId && post?.userId?.toString() !== viewerId)) {
+      return forbidden();
+    }
 
     const deletedComment = await Comment.findByIdAndDelete(commentId);
 

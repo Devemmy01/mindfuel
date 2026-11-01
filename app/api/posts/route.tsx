@@ -1,5 +1,6 @@
 import React from "react";
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
@@ -24,7 +25,8 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
     const firebaseId = req.nextUrl.searchParams.get("userId");
-    const currentUserId = req.nextUrl.searchParams.get("currentUserId");
+    const currentUserId = await getViewerUid(req);
+    const claimsViewer = req.nextUrl.searchParams.has("currentUserId");
     const type = req.nextUrl.searchParams.get("type"); // 'liked' or null (default)
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10");
@@ -283,9 +285,10 @@ export async function GET(req: NextRequest) {
       {
         status: 200,
         headers: {
-          "Cache-Control": currentUserId
-            ? "private, max-age=60, stale-while-revalidate=300"
+          "Cache-Control": currentUserId || claimsViewer
+            ? "private, no-store"
             : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+          Vary: "Authorization",
         },
       }
     );
@@ -302,7 +305,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { text, userId: firebaseId, backgroundStyle, fontFamily, isSponsored, promptId, imageUrl, poll, quotedPostId, scheduledAt } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { text, backgroundStyle, fontFamily, promptId, imageUrl, poll, quotedPostId, scheduledAt } = await req.json();
 
     if (!text || !firebaseId) {
       return NextResponse.json(
@@ -321,7 +326,8 @@ export async function POST(req: NextRequest) {
       userId: user._id,
       backgroundStyle: backgroundStyle || { id: "obsidian", type: "color", value: "#0a0a0a", text: "#ffffff" },
       fontFamily: fontFamily || "inter",
-      isSponsored: isSponsored || false,
+      // Sponsorship is an editorial flag, never set by the posting client.
+      isSponsored: false,
       promptId: promptId || undefined,
       imageUrl: imageUrl || null,
       poll: poll || undefined,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Notification from "@/models/notification";
 import User from "@/models/user";
@@ -7,11 +8,8 @@ import Follow from "@/models/follow";
 export async function GET(req: NextRequest) {
   try {
     await connectToDB();
-    const firebaseId = req.nextUrl.searchParams.get("userId");
-
-    if (!firebaseId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
-    }
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     const user = await User.findOne({ firebaseId });
     if (!user) {
@@ -50,7 +48,10 @@ export async function GET(req: NextRequest) {
       isRead: false 
     });
 
-    return NextResponse.json({ notifications: notificationsWithFollowState, unreadCount }, { status: 200 });
+    return NextResponse.json(
+      { notifications: notificationsWithFollowState, unreadCount },
+      { status: 200, headers: { "Cache-Control": "private, no-store" } },
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to fetch notifications:", errorMessage);
@@ -62,11 +63,8 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     await connectToDB();
-    const { userId: firebaseId } = await req.json();
-
-    if (!firebaseId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
-    }
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     const user = await User.findOne({ firebaseId });
     if (!user) {

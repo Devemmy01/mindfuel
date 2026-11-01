@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
@@ -56,7 +57,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     await connectToDB();
     const { id } = await params;
-    const { userId: firebaseId, text, backgroundStyle, fontFamily } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { text, backgroundStyle, fontFamily } = await req.json();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -108,7 +111,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const { userId: firebaseId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });

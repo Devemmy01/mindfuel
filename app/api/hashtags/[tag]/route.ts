@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Hashtag from "@/models/hashtag";
 import PostHashtag from "@/models/postHashtag";
@@ -24,7 +25,8 @@ export async function GET(
     const page = Math.max(parseInt(req.nextUrl.searchParams.get("page") || "1"), 1);
     const limit = Math.min(Math.max(parseInt(req.nextUrl.searchParams.get("limit") || "12"), 1), 24);
     const skip = (page - 1) * limit;
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    const firebaseId = await getViewerUid(req);
+    const claimsViewer = req.nextUrl.searchParams.has("userId");
     const hashtagPattern = new RegExp(`(?:^|[^\\w])#${normalizedTag.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "i");
 
     const fallbackPostFilter = {
@@ -156,9 +158,10 @@ export async function GET(
       {
         status: 200,
         headers: {
-          "Cache-Control": firebaseId
-            ? "private, max-age=60, stale-while-revalidate=300"
+          "Cache-Control": firebaseId || claimsViewer
+            ? "private, no-store"
             : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+          Vary: "Authorization",
         },
       }
     );

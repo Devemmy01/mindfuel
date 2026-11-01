@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
@@ -33,7 +34,8 @@ const AUTHOR_PROJECTION = "name username image firebaseId earnedMilestones";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
-    const firebaseId = searchParams.get("userId") ?? null;
+    const firebaseId = await getViewerUid(req);
+    const claimsViewer = searchParams.has("userId");
     const type       = searchParams.get("type") ?? null;   // 'feed' | 'reflections' | null
     const bustCache  = searchParams.get("bust") === "1";
     const page       = Math.max(1, Number.parseInt(searchParams.get("page") || "1", 10) || 1);
@@ -401,9 +403,10 @@ export async function GET(req: NextRequest) {
         status: 200,
         headers: {
           // Authenticated responses include private like/save/repost state.
-          "Cache-Control": firebaseId
-            ? "private, max-age=60, stale-while-revalidate=300"
+          "Cache-Control": firebaseId || claimsViewer
+            ? "private, no-store"
             : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+          Vary: "Authorization",
         },
       }
     );

@@ -1,5 +1,6 @@
 import React from "react";
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const { userId: firebaseId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -100,7 +102,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    const firebaseId = await getViewerUid(req);
 
     if (!firebaseId) {
       return NextResponse.json({ isReposted: false });

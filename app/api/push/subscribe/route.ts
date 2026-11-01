@@ -1,17 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 
 export const maxDuration = 5;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { subscription, deviceId } = body;
-    const userId = body.userId || body.firebaseId;
+    const userId = await getViewerUid(req);
+    if (!userId) return unauthorized();
+    const { subscription, deviceId } = await req.json();
 
-    if (!subscription || !userId) {
-      return NextResponse.json({ error: "Subscription and User ID are required" }, { status: 400 });
+    if (!subscription) {
+      return NextResponse.json({ error: "Subscription is required" }, { status: 400 });
     }
 
     await connectToDB();
@@ -55,7 +56,6 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("Push subscription error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Could not save this device for notifications" }, { status: 500 });
   }
 }

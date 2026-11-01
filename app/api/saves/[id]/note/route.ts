@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Save from "@/models/save";
 import User from "@/models/user";
@@ -12,7 +13,9 @@ export async function PATCH(
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const { userId: firebaseId, note } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { note } = await req.json();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });

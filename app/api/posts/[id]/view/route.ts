@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import crypto from "crypto";
@@ -22,13 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await connectToDB();
 
     // 2. Determine viewer identifier
-    let userId: string | null = null;
-    try {
-      const body = await req.json();
-      userId = body?.userId || null;
-    } catch {
-      // No body — that's fine
-    }
+    const userId = await getViewerUid(req);
     const viewerId = userId || getViewerIdentifier(req);
 
     // 3. Single atomic update: only writes if viewerId not already in viewedBy array

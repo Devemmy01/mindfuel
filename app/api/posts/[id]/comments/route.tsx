@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
 import User, { IUser } from "@/models/user";
@@ -20,7 +21,7 @@ export async function GET(
   try {
     await connectToDB();
     const { id: postIdStr } = await params;
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    const firebaseId = await getViewerUid(req);
     
     // Explicitly cast to ObjectId to ensure query matches
     const postId = new Types.ObjectId(postIdStr);
@@ -116,7 +117,9 @@ export async function POST(
   try {
     await connectToDB();
     const { id: postIdStr } = await params;
-    const { userId: firebaseId, content, parentId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { content, parentId } = await req.json();
 
     const postId = new Types.ObjectId(postIdStr);
 
