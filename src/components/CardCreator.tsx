@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
+import { copy } from "@/lib/copy";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { X, Smile, Image as ImageIcon, Trash2, Plus, Loader2 } from "lucide-react";
@@ -415,7 +416,7 @@ const CardCreator: React.FC = () => {
           <button onClick={() => router.back()} className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale">
             <X className="w-5 h-5" />
           </button>
-          <span className="font-bold text-[16px] tracking-tight hidden sm:inline">New Post</span>
+          <span className="font-bold text-[16px] tracking-tight hidden sm:inline">{copy.composer.title}</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Char counter ring */}
@@ -446,7 +447,7 @@ const CardCreator: React.FC = () => {
               <span className="flex items-center gap-1.5">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Posting…
               </span>
-            ) : "Post"}
+            ) : copy.composer.submit}
           </button>
         </div>
       </header>
@@ -492,7 +493,7 @@ const CardCreator: React.FC = () => {
                 onClick={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
                 onKeyUp={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
                 onSelect={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
-                placeholder={promptQuestion ? "Share your reflection…" : "What's fueling your mind?"}
+                placeholder={promptQuestion ? copy.composer.placeholderWithPrompt : copy.composer.placeholder}
                 className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none text-[17px] leading-relaxed placeholder:text-muted-foreground/50 min-h-[120px]"
                 rows={4}
                 maxLength={maxChars}

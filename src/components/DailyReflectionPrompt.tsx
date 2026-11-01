@@ -6,6 +6,8 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
+import { copy } from "@/lib/copy";
+import { buttonVariants } from "@/components/ui/button";
 
 export interface ActiveReflector {
   firebaseId: string;
@@ -91,7 +93,7 @@ export default function DailyReflectionPrompt({
         <div className="flex items-center justify-between mb-5">
           <div className="inline-flex items-center gap-2 bg-brand-green/10 border border-brand-green/20 px-3.5 py-1.5 rounded-full">
             <p className="text-[11px] font-black text-brand-green">
-              Today&apos;s Reflection
+              Today&apos;s prompt
             </p>
           </div>
         </div>
@@ -164,9 +166,9 @@ export default function DailyReflectionPrompt({
         {/* CTA */}
         <Link
           href={`/create?prompt=${encodeURIComponent(prompt.question)}&promptId=${prompt.id}`}
-          className="group/btn inline-flex items-center gap-2.5 px-5 py-3 bg-[#00a855] hover:bg-[#009950] text-white rounded-full font-bold text-[14px] transition-all hover:-translate-y-0.5 active:scale-95"
+          className={`group/btn ${buttonVariants({ size: "md" })} rounded-full`}
         >
-          <span>Share Your Reflection</span>
+          <span>{copy.prompt.cta}</span>
           <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5" />
         </Link>
       </div>

@@ -92,7 +92,7 @@ export function Tabs<T extends string>({
         })}
       </div>
       {showDescription && active?.description ? (
-        <p className="px-4 pt-2.5 text-caption text-muted-foreground" aria-live="polite">
+        <p className="px-4 py-2.5 text-caption text-muted-foreground" aria-live="polite">
           {active.description}
         </p>
       ) : null}
