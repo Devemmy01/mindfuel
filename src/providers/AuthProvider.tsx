@@ -18,6 +18,7 @@ interface UserProfile {
   bio?: string;
   streakDays?: number;
   onboardedAt?: string | null;
+  lastReflectionDate?: string | null;
 }
 
 export type SignInResult =
@@ -86,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           bio: data.user.bio,
           streakDays: data.user.streakDays,
           onboardedAt: data.user.onboardedAt ?? null,
+          lastReflectionDate: data.user.lastReflectionDate ?? null,
         });
       }
     } catch (error) {
@@ -140,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                     bio: data.user.bio,
                     streakDays: data.user.streakDays,
                     onboardedAt: data.user.onboardedAt ?? null,
+                    lastReflectionDate: data.user.lastReflectionDate ?? null,
                   });
                 }
                 sessionStorage.setItem(`synced_${firebaseUser.uid}`, "true");

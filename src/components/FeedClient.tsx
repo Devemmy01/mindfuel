@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
+import TodayCard from "@/components/reflect/TodayCard";
 import MindfulTip from "@/components/MindfulTip";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, Loader2, RefreshCw } from "lucide-react";
@@ -483,13 +484,14 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
         ) : activeTab === "reflections" ? (
           <div key={`${activeTab}-content`} className="relative">
               <div className="pt-4">
-                <DailyReflectionPrompt reflectors={activeReflectors} />
+                {/* Members start at today's reflection; guests see the prompt card. */}
+                {user ? <TodayCard /> : <DailyReflectionPrompt reflectors={activeReflectors} />}
                 {/* The tip lives in the right rail from xl; below that it follows
                     today's prompt so the prompt stays the first thing people see. */}
                 <div className="px-4 pt-4 xl:hidden">
                   <MindfulTip />
                 </div>
-                <div className="mt-4">
+                <div id="prompt-answers" className="mt-4 scroll-mt-28">
                   {posts.map((post, i) => (
                     <div
                       key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
