@@ -25,15 +25,39 @@ export type ImageEnvelope = {
   caption?: string;
 };
 
-export function serializeEnvelope(envelope: ImageEnvelope) {
+export type LinkPreviewData = { url: string; title: string; description?: string; siteName?: string };
+
+/** Text with a sender-chosen link preview (fetched once by the sender, then encrypted with the message). */
+export type TextEnvelope = { t: "text"; text: string; preview: LinkPreviewData };
+
+export type Envelope = ImageEnvelope | TextEnvelope;
+
+function cleanPreview(value: unknown): LinkPreviewData | null {
+  const preview = value as Partial<LinkPreviewData> | null;
+  if (!preview || typeof preview.url !== "string" || !/^https?:\/\//i.test(preview.url) || preview.url.length > 2048) return null;
+  if (typeof preview.title !== "string" || !preview.title.trim()) return null;
+  return {
+    url: preview.url,
+    title: preview.title.slice(0, 200),
+    description: typeof preview.description === "string" ? preview.description.slice(0, 300) : undefined,
+    siteName: typeof preview.siteName === "string" ? preview.siteName.slice(0, 80) : undefined,
+  };
+}
+
+export function serializeEnvelope(envelope: Envelope) {
   return JSON.stringify(envelope);
 }
 
 /** The envelope inside a decrypted message, or null for ordinary text. */
-export function parseEnvelope(text: string | null | undefined): ImageEnvelope | null {
+export function parseEnvelope(text: string | null | undefined): Envelope | null {
   if (!text || text[0] !== "{") return null;
   try {
-    const value = JSON.parse(text) as Partial<ImageEnvelope>;
+    const raw = JSON.parse(text) as { t?: unknown; text?: unknown; preview?: unknown };
+    if (raw?.t === "text" && typeof raw.text === "string") {
+      const preview = cleanPreview(raw.preview);
+      return preview ? { t: "text", text: raw.text.slice(0, 2000), preview } : null;
+    }
+    const value = raw as Partial<ImageEnvelope>;
     if (
       value?.t === "image" &&
       typeof value.id === "string" && /^[a-f0-9]{24}$/.test(value.id) &&
@@ -61,6 +85,7 @@ export function parseEnvelope(text: string | null | undefined): ImageEnvelope | 
 export function messagePreviewText(text: string | null | undefined) {
   const envelope = parseEnvelope(text);
   if (!envelope) return text || "";
+  if (envelope.t === "text") return envelope.text;
   return envelope.caption ? `📷 ${envelope.caption}` : "📷 Photo";
 }
 

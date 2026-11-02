@@ -39,7 +39,7 @@ describe("attachment encryption", () => {
 describe("envelopes", () => {
   it("round-trips and keeps an optional caption", () => {
     expect(parseEnvelope(serializeEnvelope(envelope))).toEqual(envelope);
-    expect(parseEnvelope(serializeEnvelope({ ...envelope, caption: "Sunset" }))?.caption).toBe("Sunset");
+    expect((parseEnvelope(serializeEnvelope({ ...envelope, caption: "Sunset" })) as ImageEnvelope).caption).toBe("Sunset");
   });
 
   it("treats ordinary text, including JSON-looking text, as text", () => {
@@ -60,5 +60,13 @@ describe("envelopes", () => {
     expect(fitWithin(4000, 3000)).toEqual({ width: 2048, height: 1536 });
     expect(fitWithin(800, 600)).toEqual({ width: 800, height: 600 });
     expect(fitWithin(1000, 5000, 2048)).toEqual({ width: 410, height: 2048 });
+  });
+
+  it("carries text with a link preview, and drops unsafe previews", () => {
+    const withPreview = { t: "text" as const, text: "Read this", preview: { url: "https://x.test/a", title: "A post", siteName: "X" } };
+    expect(parseEnvelope(serializeEnvelope(withPreview))).toEqual({ ...withPreview, preview: { ...withPreview.preview, description: undefined } });
+    expect(messagePreviewText(serializeEnvelope(withPreview))).toBe("Read this");
+    expect(parseEnvelope(JSON.stringify({ ...withPreview, preview: { url: "javascript:alert(1)", title: "x" } }))).toBeNull();
+    expect(parseEnvelope(JSON.stringify({ ...withPreview, preview: { url: "https://x.test", title: "" } }))).toBeNull();
   });
 });
