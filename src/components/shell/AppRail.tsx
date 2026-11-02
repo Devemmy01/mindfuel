@@ -55,6 +55,7 @@ export default function AppRail() {
             <Link
               key={item.key}
               href={item.href}
+              data-coachmark={item.key}
               aria-current={active ? "page" : undefined}
               aria-label={badge ? `${item.label}, ${badge} unread` : item.label}
               onClick={(event) => {
@@ -86,6 +87,7 @@ export default function AppRail() {
 
         <Link
           href="/create"
+          data-coachmark="write"
           className="mt-3 flex size-14 flex-col items-center justify-center gap-0.5 rounded-card bg-primary text-primary-foreground transition-colors duration-fast hover:bg-primary-hover active:scale-[0.98] lg:h-12 lg:w-full lg:flex-row lg:gap-2"
         >
           <PenLine className="size-5" strokeWidth={2.4} aria-hidden />

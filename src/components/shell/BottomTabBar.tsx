@@ -42,6 +42,7 @@ export default function BottomTabBar({ hidden }: { hidden: boolean }) {
       <Link
         key={item.key}
         href={item.href}
+        data-coachmark={item.key}
         aria-current={active ? "page" : undefined}
         aria-label={badge ? `${item.label}, ${badge} unread` : item.label}
         onClick={(event) => {
@@ -83,6 +84,7 @@ export default function BottomTabBar({ hidden }: { hidden: boolean }) {
         {tab(byKey("search"))}
         <Link
           href="/create"
+          data-coachmark="write"
           aria-label={copy.nav.writeLong}
           className="flex flex-1 flex-col items-center justify-center gap-1 touch-manipulation"
         >

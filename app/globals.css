@@ -656,3 +656,12 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* First-run coachmark: outline the real control being explained. */
+[data-coachmark-active="true"] {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}

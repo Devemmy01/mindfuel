@@ -4,6 +4,8 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import AppRail from "@/components/shell/AppRail";
 import BottomTabBar from "@/components/shell/BottomTabBar";
+import FirstRunCoachmark from "@/components/shell/FirstRunCoachmark";
+import { checkDayTwoReturn } from "@/lib/analytics";
 import { ShellDataProvider } from "@/components/shell/useShellData";
 import RailGuestCard from "@/components/shell/RailGuestCard";
 import TodayPromptCard from "@/components/shell/TodayPromptCard";
@@ -30,6 +32,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   React.useEffect(() => {
     if (!pathname.startsWith("/messages")) setIsConversationOpen(false);
   }, [pathname]);
+  React.useEffect(() => checkDayTwoReturn(), []);
 
   // Internal tooling pages render without the app shell.
   if (pathname.startsWith("/dev/")) return <>{children}</>;
@@ -76,6 +79,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         </div>
       </div>
       <BottomTabBar hidden={hideTabBar} />
+      <FirstRunCoachmark />
     </ShellDataProvider>
   );
 }

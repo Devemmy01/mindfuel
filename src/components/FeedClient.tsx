@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
-import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import MindfulTip from "@/components/MindfulTip";
 import { motion, AnimatePresence } from "framer-motion";
@@ -386,7 +385,6 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
 
   return (
     <div ref={containerRef} className="relative">
-      <OnboardingOverlay />
 
       {/* Pull-to-refresh indicator — fixed so it doesn't affect layout */}
       <AnimatePresence>
