@@ -25,6 +25,10 @@ export interface IUser extends Document {
   pushSubscriptions: Array<{
     endpoint: string;
     deviceId?: string;
+    userAgent?: string;
+    platform?: string;
+    createdAt?: Date;
+    lastSeen?: Date;
     keys: {
       p256dh: string;
       auth: string;
@@ -38,6 +42,15 @@ export interface IUser extends Document {
   chatRecoveryReminderSentAt?: Date;
   longestStreak: number;
   earnedMilestones: Array<{ id: string; earnedAt: Date }>;
+  /** See src/lib/notification-policy.ts. Missing fields fall back to defaults. */
+  notificationSettings?: Record<string, unknown>;
+  /** Local date (YYYY-MM-DD) and count for the daily push cap. */
+  pushDay?: string;
+  pushSentToday?: number;
+  /** Local date the daily reminder was last sent. */
+  lastReminderSentOn?: string;
+  /** Inactivity win-back emails sent since the last reflection. */
+  winbackCount?: number;
   /** First-run coachmark finished or skipped; prevents replays on new devices. */
   onboardedAt?: Date;
   createdAt: Date;
@@ -109,6 +122,10 @@ const UserSchema = new Schema(
         {
           endpoint: String,
           deviceId: String,
+          userAgent: String,
+          platform: String,
+          createdAt: Date,
+          lastSeen: Date,
           keys: {
             p256dh: String,
             auth: String,
@@ -140,6 +157,14 @@ const UserSchema = new Schema(
     onboardedAt: {
       type: Date,
     },
+    notificationSettings: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
+    pushDay: String,
+    pushSentToday: { type: Number, default: 0 },
+    lastReminderSentOn: String,
+    winbackCount: { type: Number, default: 0 },
     chatRecoveryReminderSentAt: {
       type: Date,
       default: null,
