@@ -19,6 +19,9 @@ export default function RailFooter() {
             {link.label}
           </Link>
         ))}
+        <a href="mailto:hello@mind-fuel.app?subject=Report%20a%20problem" className="text-micro text-subtle-foreground hover:text-foreground hover:underline">
+          Report a problem
+        </a>
       </nav>
       <p className="mt-2 text-micro text-subtle-foreground">© {new Date().getFullYear()} MindFuel</p>
     </footer>

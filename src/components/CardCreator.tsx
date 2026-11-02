@@ -562,6 +562,14 @@ const CardCreator: React.FC = () => {
               {copy.composer.helper}
               {!user ? " You'll sign in with Google when you save; your text stays here." : null}
             </p>
+            {visibility === "public" ? (
+              <p className="mt-1 text-micro">
+                <span className="text-subtle-foreground">Sharing with the community? Follow the{" "}
+          <Link href="/terms#community-guidelines" className="underline-offset-4 hover:underline">community guidelines</Link>
+          {" · "}
+          <a href="mailto:hello@mind-fuel.app?subject=Report%20a%20problem" className="underline-offset-4 hover:underline">Report a problem</a></span>
+              </p>
+            ) : null}
             {submitError ? (
               <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-control border border-destructive/30 bg-destructive/10 px-3 py-2 text-caption text-foreground">
                 <span>{submitError}</span>

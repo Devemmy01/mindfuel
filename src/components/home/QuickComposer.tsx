@@ -148,6 +148,14 @@ export default function QuickComposer({
           {status === "signing-in" ? "Signing in…" : busy ? copy.composer.submitting : "Save reflection"}
         </Button>
       </div>
+      {visibility === "public" ? (
+        <p className="mt-2 text-micro">
+          <span className="text-subtle-foreground">Sharing with the community? Follow the{" "}
+          <Link href="/terms#community-guidelines" className="underline-offset-4 hover:underline">community guidelines</Link>
+          {" · "}
+          <a href="mailto:hello@mind-fuel.app?subject=Report%20a%20problem" className="underline-offset-4 hover:underline">Report a problem</a></span>
+        </p>
+      ) : null}
       <p className="mt-3 text-micro text-subtle-foreground">
         {variant === "home" ? <>Free. You&apos;ll sign in with Google to save it; your text stays here.{" "}</> : null}
         <Link href={fullEditorHref} className="font-semibold text-muted-foreground underline-offset-4 hover:underline">
