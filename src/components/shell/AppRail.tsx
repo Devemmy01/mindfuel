@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Download, Info, LogIn, LogOut, MoreHorizontal, PenLine } from "lucide-react";
+import { Download, Info, LogIn, LogOut, MoreHorizontal, PenLine, Sparkles } from "lucide-react";
+import { UnseenDot, useWhatsNew, WhatsNewDialog } from "./WhatsNew";
 import { useAuth } from "@/providers/AuthProvider";
 import { copy } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ export default function AppRail() {
   const { unreadCount, unreadMessageCount } = useShellData();
   const items = getNavItems(user?.uid).filter((item) => user || item.public);
   const [standalone, setStandalone] = React.useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = React.useState(false);
+  const { unseen } = useWhatsNew();
   React.useEffect(() => {
     setStandalone(window.matchMedia("(display-mode: standalone)").matches);
   }, []);
@@ -116,7 +119,10 @@ export default function AppRail() {
               aria-label="Account menu"
               className="flex size-12 items-center justify-center gap-3 rounded-card text-left outline-none transition-colors hover:bg-accent data-[state=open]:bg-accent lg:h-14 lg:w-full lg:justify-start lg:px-2"
             >
-              <Avatar src={profile?.image || user.photoURL} name={displayName} size="sm" />
+              <span className="relative">
+                <Avatar src={profile?.image || user.photoURL} name={displayName} size="sm" />
+                {unseen ? <UnseenDot className="absolute -right-0.5 -top-0.5 ring-2 ring-background" /> : null}
+              </span>
               <span className="hidden min-w-0 flex-1 lg:block">
                 <span className="block truncate text-caption font-semibold text-foreground">{displayName}</span>
                 <span className="block truncate text-micro text-muted-foreground">@{handle}</span>
@@ -135,6 +141,15 @@ export default function AppRail() {
                   <p className="truncate text-micro text-muted-foreground">@{handle}</p>
                 </div>
                 <DropdownMenu.Separator className="my-1 h-px bg-line" />
+                <DropdownMenu.Item
+                  onSelect={() => setWhatsNewOpen(true)}
+                  className="flex h-10 cursor-pointer items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent"
+                >
+                  <Sparkles className="size-4 text-muted-foreground" aria-hidden />
+                  What&apos;s new
+                  {unseen ? <UnseenDot className="ml-auto" /> : null}
+                  {unseen ? <span className="sr-only">(new)</span> : null}
+                </DropdownMenu.Item>
                 <DropdownMenu.Item asChild>
                   <Link href="/about" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">
                     <Info className="size-4 text-muted-foreground" aria-hidden />
@@ -163,6 +178,7 @@ export default function AppRail() {
           </DropdownMenu.Root>
         )}
       </div>
+      <WhatsNewDialog open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
     </header>
   );
 }

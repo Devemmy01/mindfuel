@@ -10,8 +10,11 @@ import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
+import WeekStrip from "@/components/reflect/WeekStrip";
+import { formatDistanceToNowStrict } from "date-fns";
 import MilestonesGrid from "@/components/MilestonesGrid";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine, Sparkles } from "lucide-react";
+import { UnseenDot, useWhatsNew, WhatsNewDialog } from "@/components/shell/WhatsNew";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -136,6 +139,8 @@ export default function DynamicProfilePage({
   const [followListReload, setFollowListReload] = useState(0);
 
   const isOwnProfile = currentUser?.uid === profileId;
+  const whatsNew = useWhatsNew();
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const followStateKey = profileId
     ? `/api/follows?profileId=${profileId}${currentUser?.uid ? `&viewerId=${currentUser.uid}` : ""}`
     : null;
@@ -849,6 +854,19 @@ export default function DynamicProfilePage({
           )}
         </div>
 
+        {isOwnProfile && allUserPosts.length > 0 && (
+          <section aria-labelledby="this-week-title" className="mt-6 rounded-card border border-line bg-surface p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="this-week-title" className="text-body font-semibold">This week</h2>
+              <p className="text-caption text-muted-foreground">
+                Last reflection{" "}
+                {formatDistanceToNowStrict(new Date(allUserPosts[0].createdAt), { addSuffix: true })}
+              </p>
+            </div>
+            <WeekStrip className="mt-3" dates={allUserPosts.filter((post) => !post.isRepost).map((post) => post.createdAt)} />
+          </section>
+        )}
+
         {allUserPosts.length > 0 && (
           <div className="mt-8 pt-8 border-t border-border/40 space-y-8">
             <ReflectionCalendar posts={allUserPosts} />
@@ -947,6 +965,7 @@ export default function DynamicProfilePage({
       </div>
 
       <div className="mobile-content-offset" />
+      <WhatsNewDialog open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
 
       {/* Mobile Settings / Info Bottom Sheet */}
       <AnimatePresence>
@@ -1003,6 +1022,18 @@ export default function DynamicProfilePage({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="relative h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => {
+                        setIsMobileSettingsOpen(false);
+                        setWhatsNewOpen(true);
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 text-brand-green" />
+                      What&apos;s new
+                      {whatsNew.unseen ? <UnseenDot className="ml-auto" /> : null}
+                    </button>
                     <Link
                       href="/about"
                       className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
