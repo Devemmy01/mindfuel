@@ -127,17 +127,48 @@ function useShellDataSource() {
     },
   );
 
-  const notifications = notifData?.notifications ?? [];
+  const notifications = React.useMemo(() => notifData?.notifications ?? [], [notifData]);
   const unreadCount = notifData?.unreadCount ?? 0;
 
-  const markAllAsRead = useCallback(async () => {
+  // A push arrived while the app is open: refresh counts now.
+  useEffect(() => {
+    const refresh = () => {
+      void mutateNotifications();
+      void mutateChatConversations();
+    };
+    window.addEventListener("mindfuel:push-received", refresh);
+    return () => window.removeEventListener("mindfuel:push-received", refresh);
+  }, [mutateChatConversations, mutateNotifications]);
+
+  // App icon badge = unread notifications + unread messages (installed apps).
+  useEffect(() => {
+    const badging = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (!badging.setAppBadge) return;
+    const total = user ? unreadCount + unreadMessageCount : 0;
+    (total > 0 ? badging.setAppBadge(total) : badging.clearAppBadge?.())?.catch(() => undefined);
+  }, [unreadCount, unreadMessageCount, user]);
+
+  /** Marks one notification read (by id), or all of them. */
+  const markAllAsRead = useCallback(async (id?: string) => {
     if (!user || unreadCount === 0) return;
     try {
       await mutateNotifications(
-        { notifications: notifications.map((notification) => ({ ...notification, isRead: true })), unreadCount: 0 },
+        {
+          notifications: notifications.map((notification) =>
+            !id || notification._id === id ? { ...notification, isRead: true } : notification,
+          ),
+          unreadCount: id ? Math.max(0, unreadCount - 1) : 0,
+        },
         false,
       );
-      await fetch("/api/notifications", { method: "PATCH" });
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(id ? { id } : {}),
+      });
     } catch (error) {
       console.error("Failed to mark notifications as read", error);
       void mutateNotifications();

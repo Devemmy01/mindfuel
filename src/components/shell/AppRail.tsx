@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Download, Info, LogIn, LogOut, MoreHorizontal, PenLine, Sparkles } from "lucide-react";
+import { Bell, Download, Info, LogIn, LogOut, MoreHorizontal, PenLine, Sparkles } from "lucide-react";
 import { UnseenDot, useWhatsNew, WhatsNewDialog } from "./WhatsNew";
 import { useAuth } from "@/providers/AuthProvider";
 import { copy } from "@/lib/copy";
@@ -149,6 +149,12 @@ export default function AppRail() {
                   What&apos;s new
                   {unseen ? <UnseenDot className="ml-auto" /> : null}
                   {unseen ? <span className="sr-only">(new)</span> : null}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item asChild>
+                  <Link href="/settings/notifications" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">
+                    <Bell className="size-4 text-muted-foreground" aria-hidden />
+                    Notification settings
+                  </Link>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item asChild>
                   <Link href="/about" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">

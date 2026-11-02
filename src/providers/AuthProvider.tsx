@@ -97,6 +97,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (E2E_AUTH && !firebaseUser && sessionStorage.getItem("mindfuel:e2e-user")) {
+        setUser(e2eUser());
+        setProfile({ name: "E2E Tester", image: "", streakDays: 1, onboardedAt: null });
+        setLoading(false);
+        return;
+      }
       // This is only a routing hint, not an authentication credential. It lets
       // middleware skip the landing page before Firebase restores on the client.
       document.cookie = firebaseUser
@@ -206,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const outcome = (window as Window & { __mindfuelE2E?: { signIn?: string } }).__mindfuelE2E?.signIn || "ok";
       if (outcome === "popup-blocked" || outcome === "cancelled") return { ok: false, reason: outcome };
       const fake = e2eUser();
+      sessionStorage.setItem("mindfuel:e2e-user", "1");
       setUser(fake);
       setProfile({ name: "E2E Tester", image: "", streakDays: 0, onboardedAt: null });
       return { ok: true, user: fake };
@@ -235,6 +242,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = async () => {
     try {
+      // Stop this device's notifications for the account being signed out.
+      try {
+        const registration = await navigator.serviceWorker?.getRegistration("/");
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+          await subscription.unsubscribe();
+        }
+      } catch {
+        // Signing out must never fail because of push cleanup.
+      }
       await signOut(auth);
       setProfile(null);
     } catch (error) {

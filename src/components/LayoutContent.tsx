@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import AppRail from "@/components/shell/AppRail";
 import BottomTabBar from "@/components/shell/BottomTabBar";
 import FirstRunCoachmark from "@/components/shell/FirstRunCoachmark";
+import ServiceWorkerBridge from "@/components/shell/ServiceWorkerBridge";
 import { checkDayTwoReturn } from "@/lib/analytics";
 import { ShellDataProvider } from "@/components/shell/useShellData";
 import RailGuestCard from "@/components/shell/RailGuestCard";
@@ -39,7 +40,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   // Public pages with their own header and footer render without the app shell.
   const isStandalonePage =
-    pathname === "/" || pathname === "/about" || pathname === "/tip/download" || pathname.startsWith("/guides");
+    pathname === "/" || pathname === "/about" || pathname === "/unsubscribe" || pathname === "/tip/download" || pathname.startsWith("/guides");
   if (isStandalonePage) return <>{children}</>;
 
   const hideTabBar = pathname === "/create" || pathname.startsWith("/chat") || (isMessages && isConversationOpen);
@@ -80,6 +81,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       </div>
       <BottomTabBar hidden={hideTabBar} />
       <FirstRunCoachmark />
+      <ServiceWorkerBridge />
     </ShellDataProvider>
   );
 }

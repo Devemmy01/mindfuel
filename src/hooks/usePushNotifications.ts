@@ -188,12 +188,19 @@ export function usePushNotifications() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subscription,
+          platform: (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform,
           deviceId,
         }),
       });
 
       if (res.ok) {
         console.log("Push: Successfully synced with backend!");
+        // Reminders arrive at local time: record this device's timezone.
+        await fetch("/api/users/notification-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        }).catch(() => undefined);
         showToast("Reminders are on for this device.", "success");
         return true;
       } else {

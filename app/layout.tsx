@@ -8,7 +8,6 @@ import { Analytics } from "@vercel/analytics/react";
 import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
 import OfflineNotice from "@/components/OfflineNotice";
-import ClientBadgeUpdater from "@/components/ClientBadgeUpdater";
 import {
   absoluteUrl,
   defaultOgImage,
@@ -225,7 +224,6 @@ export default function RootLayout({
         <ClientProviders>
           {/* Top accent line */}
           <LayoutContent>{children}</LayoutContent>
-          <ClientBadgeUpdater />
           <InstallPWA />
           <OfflineNotice />
           <Analytics />
