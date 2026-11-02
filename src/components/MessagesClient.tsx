@@ -2024,7 +2024,7 @@ export default function MessagesClient() {
             </div>
             <form
               onSubmit={send}
-              className="sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 py-2 pb-safe backdrop-blur-xl"
+              className="keyboard-safe-bottom sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 pt-2 backdrop-blur-xl"
             >
               {replyingTo && (
                 <div

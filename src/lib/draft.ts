@@ -11,6 +11,8 @@ export type ReflectionDraft = {
   savedAt: number;
   /** Set when the draft should be submitted automatically after sign-in. */
   submitAfterSignIn?: boolean;
+  /** Saved while offline; posted by OfflineReflectionSync on reconnect. */
+  queuedOffline?: boolean;
 };
 
 const KEY = "mindfuel:draft:v1";

@@ -26,7 +26,8 @@ function isInStandaloneMode(): boolean {
 
 const DISMISS_KEY = "mindfuel_pwa_dismiss";
 const DISMISS_DAYS = 30;
-const VISIT_KEY = "mindfuel_app_visits";
+/** Set after a reflection is saved; see ReflectionSavedPanel. */
+export const INSTALL_READY_KEY = "mindfuel_install_ready";
 const SHOWN_SESSION_KEY = "mindfuel_pwa_shown_session";
 
 export default function InstallPWA() {
@@ -114,21 +115,22 @@ export default function InstallPWA() {
     return () => window.removeEventListener("mindfuel:request-install", requestInstall);
   }, [deferredPrompt, eligible]);
 
+  // Offer installation at a good moment: the next time someone opens the app
+  // after saving a reflection, never on first paint and never inside the app.
   useEffect(() => {
     if (!automaticPromptEligible || isInStandaloneMode() || sessionStorage.getItem(SHOWN_SESSION_KEY)) return;
+    if (localStorage.getItem(INSTALL_READY_KEY) !== "1") return;
+    if (pathname === "/create") return;
     const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
     if (dismissedAt && (Date.now() - dismissedAt) / 86_400_000 < DISMISS_DAYS) return;
-    const visits = Number(localStorage.getItem(VISIT_KEY) || 0) + 1;
-    localStorage.setItem(VISIT_KEY, String(visits));
-    // Ask engaged members, never immediately after sign-in or on every visit.
-    if (visits < 3) return;
     const timer = setTimeout(() => {
-      sessionStorage.setItem(SHOWN_SESSION_KEY, "true");
       if (isIOS()) setShowIOSPrompt(true);
       else if (deferredPrompt) setShowInstallPrompt(true);
-    }, 45_000);
+      else return;
+      sessionStorage.setItem(SHOWN_SESSION_KEY, "true");
+    }, 4_000);
     return () => clearTimeout(timer);
-  }, [automaticPromptEligible, deferredPrompt]);
+  }, [automaticPromptEligible, deferredPrompt, pathname]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;

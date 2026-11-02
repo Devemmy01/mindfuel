@@ -5,6 +5,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/providers/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
+import UpdateBanner from "@/components/pwa/UpdateBanner";
+import KeyboardInset from "@/components/pwa/KeyboardInset";
+import OfflineReflectionSync from "@/components/pwa/OfflineReflectionSync";
 import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
 import OfflineNotice from "@/components/OfflineNotice";
@@ -100,6 +103,9 @@ export const viewport: Viewport = {
   // Lets fixed bars extend under the notch and home indicator; they pad
   // themselves with env(safe-area-inset-*).
   viewportFit: "cover",
+  // Android Chrome shrinks the layout when the keyboard opens, so bottom
+  // inputs stay visible. iOS uses --keyboard-inset (KeyboardInset).
+  interactiveWidget: "resizes-content",
 };
 
 // JSON-LD structured data
@@ -225,6 +231,9 @@ export default function RootLayout({
           {/* Top accent line */}
           <LayoutContent>{children}</LayoutContent>
           <InstallPWA />
+          <UpdateBanner />
+          <KeyboardInset />
+          <OfflineReflectionSync />
           <OfflineNotice />
           <Analytics />
         </ClientProviders>

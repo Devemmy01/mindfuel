@@ -665,3 +665,22 @@
   position: relative;
   z-index: 1;
 }
+
+/* ===========================
+   MOBILE INPUTS
+   iOS zooms into fields with text smaller than 16px; touch devices always
+   get at least 16px. --keyboard-inset is set by KeyboardInset.
+   =========================== */
+:root {
+  --keyboard-inset: 0px;
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+.keyboard-safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom), var(--keyboard-inset));
+}

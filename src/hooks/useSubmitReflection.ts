@@ -23,7 +23,7 @@ export type ReflectionSaved = {
   firstReflection: boolean;
 };
 
-type Status = "idle" | "signing-in" | "saving" | "error";
+type Status = "idle" | "signing-in" | "saving" | "queued" | "error";
 
 const SIGN_IN_ERRORS = {
   "popup-blocked": "Your browser blocked the sign-in window. Allow pop-ups for MindFuel, then try again. Your reflection is saved here.",
@@ -78,6 +78,14 @@ export function useSubmitReflection(onSaved: (result: ReflectionSaved) => void) 
       onSavedRef.current(data);
       return true;
     } catch (failure) {
+      // No connection: queue it. OfflineReflectionSync posts it on reconnect.
+      if (typeof navigator !== "undefined" && (!navigator.onLine || failure instanceof TypeError)) {
+        saveDraft({ text: input.text, prompt: input.prompt, promptId: input.promptId, visibility: input.visibility, queuedOffline: true });
+        setStatus("queued");
+        setError("You're offline. Your reflection will post when you're back online.");
+        track("offline_post_queued");
+        return false;
+      }
       console.error("Reflection save failed", failure);
       saveDraft({ text: input.text, prompt: input.prompt, promptId: input.promptId, visibility: input.visibility });
       setStatus("error");
@@ -131,6 +139,7 @@ export function useSubmitReflection(onSaved: (result: ReflectionSaved) => void) 
   }, [loading, save, user]);
 
   return {
+    save,
     submit,
     status,
     error,

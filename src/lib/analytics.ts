@@ -21,7 +21,15 @@ export type AnalyticsEvent =
   | "day2_return"
   | "push_prompt_shown"
   | "push_prompt_accepted"
-  | "push_prompt_declined";
+  | "push_prompt_declined"
+  | "push_received_click"
+  | "install_prompt_shown"
+  | "install_prompt_accepted"
+  | "chat_message_sent"
+  | "chat_message_failed"
+  | "chat_message_retried"
+  | "offline_post_queued"
+  | "offline_post_synced";
 
 type Props = Record<string, string | number | boolean | null>;
 

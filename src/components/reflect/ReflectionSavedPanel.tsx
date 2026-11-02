@@ -31,6 +31,12 @@ export default function ReflectionSavedPanel({ result }: { result: ReflectionSav
 
   React.useEffect(() => {
     setCanOfferReminders(shouldOfferReminders());
+    try {
+      // The install card may appear on the next Home visit (InstallPWA).
+      localStorage.setItem("mindfuel_install_ready", "1");
+    } catch {
+      // Optional.
+    }
     if (result.firstReflection) {
       try {
         localStorage.setItem(COACHMARK_PENDING_KEY, "1");

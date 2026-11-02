@@ -18,7 +18,7 @@ for (const path of PAGES) {
     });
     await page.goto(path, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const results = await new AxeBuilder({ page: page as unknown as ConstructorParameters<typeof AxeBuilder>[0]["page"] }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     const blocking = results.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical");
     for (const violation of results.violations) {
       console.log(`[${path}] ${violation.impact} ${violation.id} (${violation.nodes.length}): ${violation.nodes.slice(0, 3).map((node) => node.target.join(" ")).join(" | ")}`);

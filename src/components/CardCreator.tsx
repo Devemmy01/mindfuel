@@ -582,7 +582,7 @@ const CardCreator: React.FC = () => {
 
 
       {/* Bottom toolbar */}
-      <div className="shrink-0 border-t border-border glass-strong px-4 py-3 pb-safe flex items-center justify-between">
+      <div className="keyboard-safe-bottom shrink-0 border-t border-border glass-strong px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
           {/* Image upload */}
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} id="image-upload" />
