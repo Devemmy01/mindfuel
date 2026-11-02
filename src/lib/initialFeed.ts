@@ -3,6 +3,8 @@ import { PUBLIC_POSTS } from "@/lib/post-visibility";
 
 import { unstable_cache } from "next/cache";
 import Post from "@/models/post";
+// Registers the User schema for populate("userId").
+import "@/models/user";
 import { connectToDB } from "@/utils/database";
 import type { PostType } from "@/types";
 
