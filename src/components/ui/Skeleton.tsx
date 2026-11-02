@@ -8,5 +8,5 @@ import { cn } from "@/lib/utils";
  * for action-pending states (a button mid-submit, a page transition).
  */
 export default function Skeleton({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
-  return <div className={cn("skeleton", className)} {...props} />;
+  return <div aria-hidden className={cn("skeleton", className)} {...props} />;
 }

@@ -75,7 +75,7 @@ export default function TrendingHashtags({ limit = 8, compact = false }: Trendin
         <h3 className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
           Trending Hashtags
         </h3>
-        <TrendingUp className="w-4 h-4 text-brand-green" />
+        <TrendingUp className="w-4 h-4 text-primary-text" />
       </div>
 
       <div className="space-y-2">
@@ -86,7 +86,7 @@ export default function TrendingHashtags({ limit = 8, compact = false }: Trendin
             className="flex items-center gap-3 rounded-2xl border border-border/40 px-3 py-2.5 hover:bg-secondary/50 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-              <Hash className="w-4 h-4 text-brand-green" />
+              <Hash className="w-4 h-4 text-primary-text" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-bold text-[14px] truncate">#{hashtag.tag}</p>

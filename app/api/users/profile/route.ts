@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User, { IUser } from "@/models/user";
 import cloudinary from "@/lib/cloudinary";
@@ -9,14 +10,9 @@ const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB base64 overhead
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { firebaseId, name, username, bio, uploadedImage } = await req.json();
-
-    if (!firebaseId) {
-      return NextResponse.json(
-        { error: "firebaseId is required" },
-        { status: 400 }
-      );
-    }
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { name, username, bio, uploadedImage, onboarded, showTips } = await req.json();
 
     // Validate image size if provided
     if (uploadedImage && uploadedImage.length > MAX_IMAGE_SIZE) {
@@ -105,6 +101,17 @@ export async function POST(req: NextRequest) {
         // It's already a URL or a local path (like /pp1.png)
         updateData.image = uploadedImage;
         updateData.uploadedImage = uploadedImage;
+      }
+    }
+
+    if (typeof showTips === "boolean") updateData["preferences.showTips"] = showTips;
+
+    // First-run guidance is recorded once per account, not per device.
+    if (onboarded === true) {
+      const current = await User.findOne({ firebaseId }).select("onboardedAt").lean() as { onboardedAt?: Date } | null;
+      if (!current?.onboardedAt) updateData.onboardedAt = new Date();
+      else if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ success: true, onboardedAt: current.onboardedAt });
       }
     }
 

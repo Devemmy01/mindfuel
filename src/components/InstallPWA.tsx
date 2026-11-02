@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Download, X, Share } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
@@ -26,7 +26,8 @@ function isInStandaloneMode(): boolean {
 
 const DISMISS_KEY = "mindfuel_pwa_dismiss";
 const DISMISS_DAYS = 30;
-const VISIT_KEY = "mindfuel_app_visits";
+/** Set after a reflection is saved; see ReflectionSavedPanel. */
+export const INSTALL_READY_KEY = "mindfuel_install_ready";
 const SHOWN_SESSION_KEY = "mindfuel_pwa_shown_session";
 
 export default function InstallPWA() {
@@ -114,21 +115,22 @@ export default function InstallPWA() {
     return () => window.removeEventListener("mindfuel:request-install", requestInstall);
   }, [deferredPrompt, eligible]);
 
+  // Offer installation at a good moment: the next time someone opens the app
+  // after saving a reflection, never on first paint and never inside the app.
   useEffect(() => {
     if (!automaticPromptEligible || isInStandaloneMode() || sessionStorage.getItem(SHOWN_SESSION_KEY)) return;
+    if (localStorage.getItem(INSTALL_READY_KEY) !== "1") return;
+    if (pathname === "/create") return;
     const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
     if (dismissedAt && (Date.now() - dismissedAt) / 86_400_000 < DISMISS_DAYS) return;
-    const visits = Number(localStorage.getItem(VISIT_KEY) || 0) + 1;
-    localStorage.setItem(VISIT_KEY, String(visits));
-    // Ask engaged members, never immediately after sign-in or on every visit.
-    if (visits < 3) return;
     const timer = setTimeout(() => {
-      sessionStorage.setItem(SHOWN_SESSION_KEY, "true");
       if (isIOS()) setShowIOSPrompt(true);
       else if (deferredPrompt) setShowInstallPrompt(true);
-    }, 45_000);
+      else return;
+      sessionStorage.setItem(SHOWN_SESSION_KEY, "true");
+    }, 4_000);
     return () => clearTimeout(timer);
-  }, [automaticPromptEligible, deferredPrompt]);
+  }, [automaticPromptEligible, deferredPrompt, pathname]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -155,7 +157,7 @@ export default function InstallPWA() {
   return (
     <AnimatePresence>
       {showPrompt && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 100 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 100 }}
@@ -179,7 +181,7 @@ export default function InstallPWA() {
                 </p>
               </div>
 
-              <button onClick={handleDismiss} className="p-2 text-muted-foreground/60 hover:text-foreground transition-colors">
+              <button onClick={handleDismiss} className="p-2 text-subtle-foreground hover:text-foreground transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -188,11 +190,11 @@ export default function InstallPWA() {
               {showIOSPrompt ? (
                 <div className="bg-secondary/30 rounded-2xl p-3.5 flex items-center justify-center gap-3 text-[13px] font-medium border border-border/40">
                   <span>Tap</span>
-                  <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-lg flex items-center justify-center shadow-sm">
+                  <div className="w-8 h-8 bg-foreground dark:bg-foreground/10 rounded-lg flex items-center justify-center shadow-sm">
                     <Share className="w-4 h-4 text-blue-500" />
                   </div>
                   <span>then</span>
-                  <span className="bg-white/50 dark:bg-white/10 px-2 py-1 rounded-md text-[12px] font-bold">Add to Home Screen</span>
+                  <span className="bg-foreground/50 dark:bg-foreground/10 px-2 py-1 rounded-md text-[12px] font-bold">Add to Home Screen</span>
                 </div>
               ) : showManualPrompt ? (
                 <div className="rounded-2xl border border-border/40 bg-secondary/30 p-3.5 text-[13px] leading-relaxed text-muted-foreground">
@@ -201,14 +203,14 @@ export default function InstallPWA() {
               ) : (
                 <button
                   onClick={handleInstallClick}
-                  className="w-full bg-brand-green hover:bg-brand-green/90 text-white font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full bg-brand-green hover:bg-brand-green/90 text-primary-foreground font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" /> Download MindFuel App
                 </button>
               )}
             </div>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Messages", robots: { index: false, f
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[70vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-green" /></div>}>
+    <Suspense fallback={<div className="flex min-h-[70vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary-text" /></div>}>
       <MessagesClient />
     </Suspense>
   );

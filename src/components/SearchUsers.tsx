@@ -122,7 +122,7 @@ export default function SearchUsers() {
           aria-autocomplete="list"
           className="bg-transparent border-none outline-none text-[14px] placeholder:text-muted-foreground border w-full"
         />
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-green" aria-hidden="true" />}
+        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-text" aria-hidden="true" />}
       </div>
 
       {showResults && (
@@ -165,7 +165,7 @@ export default function SearchUsers() {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
                   >
                     <div className="w-9 h-9 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-                      <Hash className="w-4 h-4 text-brand-green" />
+                      <Hash className="w-4 h-4 text-primary-text" />
                     </div>
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-bold text-[14px] leading-tight truncate">{result.data.displayTag}</span>
@@ -183,7 +183,11 @@ export default function SearchUsers() {
               <p className="text-[13px] text-muted-foreground">
                 {query.trim().startsWith("#")
                   ? `No hashtags found for "${query}"`
-                  : `No users found for "${query}"`}
+                  : `No people found for "${query}"`}
+              </p>
+              <p className="mt-1 text-[12px] text-subtle-foreground">
+                Check the spelling, try a hashtag like #growth, or{" "}
+                <Link href="/feed" className="font-semibold text-foreground underline-offset-4 hover:underline">browse reflections</Link>.
               </p>
             </div>
           )}

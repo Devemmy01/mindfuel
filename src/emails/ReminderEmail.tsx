@@ -16,12 +16,19 @@ interface ReminderEmailProps {
   name: string;
   daysSincePost?: number;
   hasNeverPosted?: boolean;
+  /** Composer link with today's prompt (see src/lib/links.ts). */
+  writeUrl?: string;
+  feedUrl?: string;
+  unsubscribeUrl?: string;
 }
 
 export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
   name,
   daysSincePost,
   hasNeverPosted = false,
+  writeUrl = "https://mind-fuel.app/create",
+  feedUrl = "https://mind-fuel.app/feed",
+  unsubscribeUrl = "https://mind-fuel.app/settings/notifications",
 }) => (
   <Html>
     <Head>
@@ -30,7 +37,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
         
         @media (prefers-color-scheme: dark) {
-          .main { background-color: #000000 !important; }
+          .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
           .reminderCard { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
           .h1 { color: #ffffff !important; }
           .subtext { color: #a1a1aa !important; }
@@ -80,8 +87,8 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Text>
 
         <Section style={center}>
-          <Link href="https://mind-fuel.app/create" style={button} className="button">
-            Share Your Thoughts
+          <Link href={writeUrl} style={button} className="button">
+            Write today&apos;s reflection
           </Link>
         </Section>
 
@@ -90,14 +97,14 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Text>
         
         <Section style={center}>
-          <Link href="https://mind-fuel.app" style={secondaryButton} className="secondaryButton">
-            Browse Feed
+          <Link href={feedUrl} style={secondaryButton} className="secondaryButton">
+            Read others&apos; reflections
           </Link>
         </Section>
         
         <Text style={footer} className="footer">
           You&apos;re receiving this because you&apos;re part of the MindFuel community.<br />
-          Prefer not to get reminders? <Link href="https://mind-fuel.app/settings" style={footerLink}>Adjust your preferences</Link>.
+          Prefer not to get reminders? <Link href={unsubscribeUrl} style={footerLink}>Unsubscribe in one tap</Link>.
         </Text>
       </Container>
     </Body>

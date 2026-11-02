@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { format, subMonths, eachDayOfInterval } from "date-fns";
 import { PostType } from "@/types";
 
@@ -68,49 +68,49 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
   return (
     <div className={`w-full overflow-hidden ${className}`}>
       <div className="flex items-center justify-between mb-4 px-1">
-        <h3 className="text-[12px] font-black text-white/40 uppercase tracking-[0.15em]">Reflection History</h3>
+        <h3 className="text-[12px] font-black text-foreground/40 uppercase tracking-[0.15em]">Reflection History</h3>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Less</span>
+          <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-wider">Less</span>
           <div className="flex gap-1.5">
             {[0, 1, 2, 3].map((level) => {
-              let color = "bg-white/[0.06]";
+              let color = "bg-foreground/[0.06]";
               if (level === 1) color = "bg-green-500/25";
               if (level === 2) color = "bg-green-500/55";
               if (level === 3) color = "bg-green-500/90";
               return <div key={level} className={`w-2.5 h-2.5 rounded-[2px] ${color}`} />;
             })}
           </div>
-          <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">More</span>
+          <span className="text-[10px] font-bold text-foreground/30 uppercase tracking-wider">More</span>
         </div>
       </div>
 
-      <div className="relative bg-white/[0.01] border border-white/5 rounded-3xl p-4 min-h-[180px]">
+      <div className="relative bg-foreground/[0.01] border border-foreground/5 rounded-3xl p-4 min-h-[180px]">
         {/* Hover tooltip */}
         <div className="h-8 mb-2 flex items-center justify-center">
           <AnimatePresence>
             {hoveredDay ? (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 5 }}
                 className="bg-brand-green/10 border border-brand-green/20 px-3 py-1 rounded-full flex items-center gap-2"
               >
-                <span className="text-[11px] font-bold text-brand-green">
+                <span className="text-[11px] font-bold text-primary-text">
                   {hoveredDay.count} {hoveredDay.count === 1 ? "reflection" : "reflections"}
                 </span>
-                <span className="text-[11px] text-white/40">•</span>
-                <span className="text-[11px] font-medium text-white/70">
+                <span className="text-[11px] text-foreground/40">•</span>
+                <span className="text-[11px] font-medium text-foreground/70">
                   {format(hoveredDay.day, "MMM d, yyyy")}
                 </span>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.p
+              <m.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.3 }}
-                className="text-[10px] font-medium text-white uppercase tracking-widest"
+                className="text-[10px] font-medium text-foreground uppercase tracking-widest"
               >
                 Hover to explore
-              </motion.p>
+              </m.p>
             )}
           </AnimatePresence>
         </div>
@@ -120,23 +120,23 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
           ref={scrollContainerRef}
           className="overflow-x-auto no-scrollbar scroll-smooth pt-2 flex gap-4"
         >
-          {months.map((m) => (
+          {months.map((month) => (
             <div
-              key={`${m.name}-${m.year}`}
-              className="flex-shrink-0 bg-white/[0.02] border border-white/5 rounded-2xl p-3 w-[140px] flex flex-col justify-between"
+              key={`${month.name}-${month.year}`}
+              className="flex-shrink-0 bg-foreground/[0.02] border border-foreground/5 rounded-2xl p-3 w-[140px] flex flex-col justify-between"
             >
               <div className="text-center mb-3">
-                <span className="text-[11px] font-black text-white/70 uppercase tracking-wider">
-                  {m.name}
+                <span className="text-[11px] font-black text-foreground/70 uppercase tracking-wider">
+                  {month.name}
                 </span>
-                <span className="text-[9px] font-bold text-white/30 block tracking-wider mt-0.5">
-                  {m.year}
+                <span className="text-[9px] font-bold text-foreground/30 block tracking-wider mt-0.5">
+                  {month.year}
                 </span>
               </div>
 
               <div>
                 {/* Weekday headers */}
-                <div className="grid grid-cols-7 gap-1 text-[8px] font-black text-white/20 text-center mb-1.5">
+                <div className="grid grid-cols-7 gap-1 text-[8px] font-black text-foreground/20 text-center mb-1.5">
                   {["S", "M", "T", "W", "T", "F", "S"].map((day, idx) => (
                     <div key={idx} className="w-3.5 h-3.5 flex items-center justify-center">{day}</div>
                   ))}
@@ -144,17 +144,17 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
 
                 <div className="grid grid-cols-7 gap-1">
                   {/* Padding */}
-                  {Array.from({ length: m.padding }).map((_, idx) => (
+                  {Array.from({ length: month.padding }).map((_, idx) => (
                     <div key={`pad-${idx}`} className="w-3.5 h-3.5 bg-transparent" />
                   ))}
 
                   {/* Days */}
-                  {m.days.map((day) => {
+                  {month.days.map((day) => {
                     const dateKey = format(day, "yyyy-MM-dd");
                     const count = postDates.get(dateKey) || 0;
 
-                    let bgColor = "bg-white/[0.06]";
-                    const borderColor = "border-white/[0.03]";
+                    let bgColor = "bg-foreground/[0.06]";
+                    const borderColor = "border-foreground/[0.03]";
                     let shadow = "";
 
                     if (count === 1) {
@@ -167,7 +167,7 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
                     }
 
                     return (
-                      <motion.div
+                      <m.div
                         key={dateKey}
                         whileHover={{ scale: 1.25, zIndex: 10 }}
                         onMouseEnter={() => setHoveredDay({ day, count })}

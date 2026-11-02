@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { X, Download, Loader2, Plus } from "lucide-react";
 import { backgroundOptions } from "@/lib/backgrounds";
 import { useToast } from "@/providers/ToastProvider";
@@ -116,7 +116,7 @@ export default function DownloadCardModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <m.div
           key="download-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -124,7 +124,7 @@ export default function DownloadCardModal({
           className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 80 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 80 }}
@@ -284,8 +284,8 @@ export default function DownloadCardModal({
                 {isDownloading ? "Downloading…" : "Download Card"}
               </button>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

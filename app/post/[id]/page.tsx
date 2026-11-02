@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PostDetailClient from "@/components/PostDetailClient";
-import { getPublicPost } from "@/lib/public-content";
+import PrivatePostLoader from "@/components/PrivatePostLoader";
+import { getPublicPost, postExists } from "@/lib/public-content";
 import { absoluteUrl, defaultOgImage, siteDescription } from "@/lib/seo";
 
 interface PostPageProps { params: Promise<{ id: string }> }
@@ -45,7 +46,12 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 export default async function PostPage({ params }: PostPageProps) {
   const { id } = await params;
   const post = await getPublicPost(id);
-  if (!post) notFound();
+  if (!post) {
+    // Missing posts are a real 404. A private one renders only for its author,
+    // after the client proves who is viewing.
+    if (!(await postExists(id))) notFound();
+    return <PrivatePostLoader id={id} />;
+  }
 
   const cleanText = cleanPostText(post.text || "");
   const canonical = absoluteUrl(`/post/${id}`);

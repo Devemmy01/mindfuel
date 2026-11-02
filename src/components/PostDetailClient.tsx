@@ -21,7 +21,7 @@ import {
   RefreshCw,
   Send,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import CommentSection from "@/components/CommentSection";
@@ -308,7 +308,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
   if (loading)
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
       </div>
     );
 
@@ -318,7 +318,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
         <h2 className="text-xl font-bold">Post not found</h2>
         <button
           onClick={() => router.back()}
-          className="text-brand-green font-semibold"
+          className="text-primary-text font-semibold"
         >
           Go back
         </button>
@@ -440,7 +440,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -448,7 +448,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
+                className={`w-3.5 h-3.5 text-primary-text ${
                   isPullRefreshing ? "animate-spin" : ""
                 }`}
                 style={{
@@ -463,7 +463,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                 </span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -526,7 +526,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             style={{ ...bgStyle, color: textColor }}
           >
             {/* Texture overlays */}
-            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-foreground/10 mix-blend-overlay pointer-events-none" />
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
 
@@ -657,7 +657,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
                   >
-                    <Send className="w-4 h-4 text-brand-green" /> Send via DM
+                    <Send className="w-4 h-4 text-primary-text" /> Send via DM
                   </button>
                   <button
                     onClick={shareToX}
@@ -676,7 +676,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                     onClick={downloadCard}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-foreground hover:bg-secondary/60 transition-colors"
                   >
-                    <Download className="w-4 h-4 text-brand-green" /> Download
+                    <Download className="w-4 h-4 text-primary-text" /> Download
                     Image
                   </button>
                 </div>
@@ -724,7 +724,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
       {/* Full-screen Card Viewer */}
       <AnimatePresence>
         {isCardFullScreen && post && (
-          <motion.div
+          <m.div
             key="card-fullscreen"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -732,7 +732,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
             onClick={() => setIsCardFullScreen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
@@ -763,15 +763,15 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                 </p>
                 <CardWatermark color={textColor} />
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {/* Note Modal */}
       <AnimatePresence>
         {isNoteModalOpen && (
-          <motion.div
+          <m.div
             key="note-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -779,7 +779,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsNoteModalOpen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -787,7 +787,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-brand-green/5">
-                <h3 className="text-[17px] font-bold tracking-tight text-brand-green">
+                <h3 className="text-[17px] font-bold tracking-tight text-primary-text">
                   Private Note
                 </h3>
                 <button
@@ -834,8 +834,8 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

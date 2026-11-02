@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBlockedBetween } from "@/lib/blocks";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Follow from "@/models/follow";
 import User from "@/models/user";
 import Notification from "@/models/notification";
-import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
+import { sendCategoryPush } from "@/lib/notify";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
@@ -13,7 +15,8 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDB();
     const profileId = req.nextUrl.searchParams.get("profileId");
-    const viewerId = req.nextUrl.searchParams.get("viewerId");
+    const viewerId = await getViewerUid(req);
+    const claimsViewer = req.nextUrl.searchParams.has("viewerId");
     const list = req.nextUrl.searchParams.get("list");
     if (!profileId) return NextResponse.json({ error: "Profile ID is required" }, { status: 400 });
 
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
       { followersCount, followingCount, isFollowing, followsViewer },
       {
         headers: {
-          "Cache-Control": viewerId
+          "Cache-Control": viewerId || claimsViewer
             ? "private, no-store"
             : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
         },
@@ -61,7 +64,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { followerId, followingId } = await req.json();
+    const followerId = await getViewerUid(req);
+    if (!followerId) return unauthorized();
+    const { followingId } = await req.json();
     if (!followerId || !followingId || followerId === followingId) {
       return NextResponse.json({ error: "Invalid follow request" }, { status: 400 });
     }
@@ -72,6 +77,9 @@ export async function POST(req: NextRequest) {
       ),
     ]);
     if (!follower || !following) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (await isBlockedBetween(follower._id, following._id)) {
+      return NextResponse.json({ error: "You can't follow this person.", code: "blocked" }, { status: 403 });
+    }
 
     const existing = await Follow.findOne({ follower: follower._id, following: following._id });
     if (existing) {
@@ -85,31 +93,18 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
-    if (
-      following.preferences?.notifications !== false &&
-      following.pushSubscriptions?.length
-    ) {
-      const followerImage = String(follower.image || "");
-      const icon = followerImage.startsWith("http")
-        ? followerImage
-        : followerImage.startsWith("/")
-          ? `${APP_URL}${followerImage}`
-          : `${APP_URL}/icon-192.png`;
-      const payload = JSON.stringify({
+    const followerImage = String(follower.image || "");
+    await sendCategoryPush({
+      userId: following._id,
+      category: "follows",
+      payload: {
         title: "New follower",
         body: `${follower.name || "Someone"} followed you`,
-        icon,
-        badge: `${APP_URL}/icon-192.png`,
+        icon: followerImage.startsWith("http") ? followerImage : undefined,
         url: `${APP_URL}/profile/${encodeURIComponent(follower.firebaseId)}`,
         tag: `follow-${follower.firebaseId}`,
-      });
-
-      await sendPushNotifications({
-        recipientId: following._id,
-        subscriptions: following.pushSubscriptions as unknown as StoredPushSubscription[],
-        payload,
-      });
-    }
+      },
+    });
 
     return NextResponse.json({ isFollowing: true }, { status: 201 });
   } catch (error) {

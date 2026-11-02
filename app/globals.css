@@ -3,84 +3,111 @@
 
 
 
+/* ===========================================================================
+   DESIGN TOKENS
+   Semantic colors are HSL triplets so Tailwind opacity modifiers work
+   (bg-surface/80). Components use the semantic names only; raw hex values
+   belong here and nowhere else. Contrast (WCAG AA) was checked for every
+   text token against every surface token in both themes.
+   =========================================================================== */
 @layer base {
-  :root {
-    /* MindFuel Brand Palette */
-    --background: 210 17% 98%;       /* #f9fafb */
-    --foreground: 222 47% 11%;       /* #111827 */
+  :root,
+  .light {
+    /* Light theme. `.light` lets a subtree opt back into light tokens. */
+    --background: 0 0% 98%;            /* #fafafa page */
+    --foreground: 240 10% 4%;          /* #09090b text */
+    --surface: 0 0% 100%;              /* #ffffff cards, rails */
+    --surface-raised: 0 0% 100%;       /* popovers, modals */
+    --surface-elevated: 240 5% 96%;    /* #f4f4f5 inputs, hover */
+    --card: var(--surface);
+    --card-foreground: var(--foreground);
+    --popover: var(--surface-raised);
+    --popover-foreground: var(--foreground);
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --primary: 151 100% 37%;           /* #00bf63 brand fill */
+    --primary-hover: 150 100% 33%;     /* #00a855 */
+    --primary-foreground: 146 65% 5%;  /* #04130b text on brand fill (7.8:1) */
+    --primary-text: 150 100% 24%;      /* #007a3d brand-colored text (5.2:1) */
 
-    --surface: 210 17% 95%;
-    --surface-foreground: 222 47% 11%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 33%;    /* #52525b secondary text (7.4:1) */
+    --subtle-foreground: 240 4% 44%;   /* #6b6b74 tertiary text (5.0:1) */
+    --accent: 240 5% 94%;              /* neutral hover/selected fill */
+    --accent-foreground: 240 10% 4%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --destructive: 0 72% 42%;          /* #b91c1c */
+    --destructive-foreground: 0 0% 100%;
+    --success: 150 100% 24%;
+    --warning: 32 95% 34%;
 
-    --primary: 148 100% 37%;         /* #00bf63 */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 17% 93%;
-    --secondary-foreground: 222 47% 11%;
-
-    --muted: 210 17% 93%;
-    --muted-foreground: 220 9% 46%;
-
-    --accent: 210 17% 90%;
-    --accent-foreground: 222 47% 11%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 148 100% 37%;
+    --border: 240 6% 90%;              /* #e4e4e7 hairline */
+    --bubble-own: 109 85% 91%;         /* #d9fdd3 */
+    --bubble-own-line: 109 45% 80%;
+    --bubble-other: 0 0% 100%;
+    --chat-wallpaper: 36 25% 91%;      /* #efeae2 */
+    --border-strong: 240 5% 84%;       /* #d4d4d8 */
+    --input: 240 6% 90%;
+    --ring: 150 100% 24%;              /* focus ring, 5.2:1 on light */
 
     --radius: 0.75rem;
 
-    /* Brand tokens */
+    /* Legacy aliases kept while screens migrate to the semantic tokens. */
     --brand-green: #00bf63;
     --brand-green-rgb: 0, 191, 99;
     --brand-light: #f9fafb;
     --brand-dark: #111827;
 
-    /* Sidebar */
+    /* Layout */
     --sidebar-width: 88px;
     --sidebar-width-xl: 275px;
+    --rail-width: 88px;
+    --rail-width-wide: 264px;
+    --right-rail-width: 320px;
+    --tabbar-height: 56px;
+
+    /* Motion */
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+    color-scheme: light;
   }
 
   .dark {
-    --background: 160 35% 1.2%;       /* #010302 - Premium extreme dark forest black */
-    --foreground: 210 17% 98%;       /* #f9fafb */
+    /* Dark theme (default): neutral zinc, hairline borders, single accent */
+    --background: 240 10% 4%;          /* #09090b */
+    --foreground: 0 0% 98%;            /* #fafafa */
+    --surface: 240 6% 7%;              /* #111113 */
+    --surface-raised: 240 6% 10%;      /* #18181b */
+    --surface-elevated: 240 6% 13%;    /* #1f1f23 */
 
-    --card: 160 30% 3%;              /* #030705 - Darker card background */
-    --card-foreground: 210 17% 98%;
+    --primary-text: 151 100% 37%;      /* #00bf63 on dark (8.2:1) */
 
-    --surface: 160 25% 5%;           /* #050d09 - Darker surface */
-    --surface-foreground: 210 17% 98%;
+    --secondary: 240 6% 13%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 6% 13%;
+    --muted-foreground: 240 5% 65%;    /* #a1a1aa (7.8:1) */
+    --subtle-foreground: 240 4% 56%;   /* #8a8a94 (5.8:1) */
+    --accent: 240 5% 15%;
+    --accent-foreground: 0 0% 98%;
 
-    --popover: 160 30% 3%;           /* #030705 */
-    --popover-foreground: 210 17% 98%;
+    --destructive: 0 91% 71%;          /* #f87171 */
+    --destructive-foreground: 240 10% 4%;
+    --success: 151 100% 37%;
+    --warning: 38 92% 60%;
 
-    --primary: 148 100% 37%;
-    --primary-foreground: 0 0% 100%;
+    --border: 240 4% 16%;              /* #27272a */
+    --bubble-own: 172 86% 17%;         /* #064f46 */
+    --bubble-own-line: 172 87% 22%;    /* #07685b */
+    --bubble-other: 150 7% 11%;        /* #191e1b */
+    --chat-wallpaper: 150 50% 1%;      /* #010302 */
+    --border-strong: 240 5% 22%;
+    --input: 240 4% 16%;
+    --ring: 151 100% 37%;
 
-    --secondary: 160 25% 4.2%;        /* #040a07 */
-    --secondary-foreground: 210 17% 98%;
-
-    --muted: 160 12% 9%;              /* #0e1713 */
-    --muted-foreground: 160 8% 60%;  /* #8fa19a */
-
-    --accent: 160 20% 11%;            /* #112019 */
-    --accent-foreground: 210 17% 98%;
-
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 160 20% 7.2%;           /* #09120e - Subtle border */
-    --input: 160 20% 7.2%;
-    --ring: 148 100% 37%;
+    color-scheme: dark;
   }
 }
 
@@ -115,7 +142,7 @@
 
   /* Focus visible only for keyboard nav */
   :focus-visible {
-    outline: 2px solid var(--brand-green);
+    outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -164,7 +191,7 @@
 /* A lightweight, original chat doodle pattern. Kept in CSS so it loads
    instantly and remains subtle behind message content. */
 .chat-wallpaper {
-  background-color: #010302;
+  background-color: hsl(var(--chat-wallpaper));
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='%2300bf63' stroke-opacity='.055' stroke-width='1.4'%3E%3Cpath d='M18 24c8-9 19-6 20 3 1 8-10 14-20 21C8 41 1 35 3 27c2-8 9-10 15-3Z'/%3E%3Ccircle cx='75' cy='28' r='10'/%3E%3Cpath d='m70 28 4 4 7-9M116 13l3 9 9 3-9 4-3 9-4-9-9-4 9-3 4-9ZM151 27c11 2 16 9 14 18-8-1-15-7-14-18ZM165 45c-5 7-12 9-19 6M28 91c5-13 19-15 28-8 8 7 7 20-2 26-10 7-25 1-26-18ZM35 91h14M42 84v14M85 75c4-8 16-8 20 0 3 7-4 13-10 18-6-5-13-11-10-18ZM136 81l22-8-6 23-6-8-10-7ZM17 144c7-11 20-11 27-2M14 154h34M77 126l7 7-7 7-7-7 7-7ZM111 130c9-8 22-3 22 8 0 10-12 16-22 23-10-7-22-13-22-23 0-11 13-16 22-8ZM153 137h17M161 128v18'/%3E%3C/g%3E%3C/svg%3E");
   background-repeat: repeat;
@@ -337,12 +364,12 @@
 }
 
 .app-shell {
-  background: #010302;
+  background: hsl(var(--background));
   background-image: none;
 }
 
 .app-main {
-  background: #010302;
+  background: hsl(var(--background));
   box-shadow: none;
 }
 
@@ -351,7 +378,7 @@
   body,
   .app-shell,
   .app-main {
-    background: #010302 !important;
+    background: hsl(var(--background)) !important;
     background-image: none !important;
   }
 
@@ -361,7 +388,7 @@
 }
 
 .popover-solid {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   background-image: none !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
@@ -369,7 +396,7 @@
 }
 
 .modal-solid {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   background-image: none !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
@@ -378,7 +405,7 @@
 
 [data-slot="dropdown-menu-content"],
 [data-slot="dropdown-menu-sub-content"] {
-  background-color: #070b09 !important;
+  background-color: hsl(var(--surface-raised)) !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -487,7 +514,7 @@
    MOBILE CONTENT OFFSET
    =========================== */
 .mobile-content-offset {
-  padding-bottom: calc(100px + max(1rem, env(safe-area-inset-bottom)));
+  padding-bottom: calc(var(--tabbar-height) + 1.5rem + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) {
   .mobile-content-offset {
@@ -620,4 +647,48 @@
     width: 32px;
     height: 32px;
   }
+}
+
+/* ===========================
+   REDUCED MOTION
+   Motion only explains state changes, so it can be removed without losing
+   meaning. framer-motion components also read useReducedMotion().
+   =========================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* First-run coachmark: outline the real control being explained. */
+[data-coachmark-active="true"] {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===========================
+   MOBILE INPUTS
+   iOS zooms into fields with text smaller than 16px; touch devices always
+   get at least 16px. --keyboard-inset is set by KeyboardInset.
+   =========================== */
+:root {
+  --keyboard-inset: 0px;
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+.keyboard-safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom), var(--keyboard-inset));
 }

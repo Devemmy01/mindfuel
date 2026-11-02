@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Hash, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/PostCard";
@@ -155,13 +155,13 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
 
       <main className="flex-1 min-w-0">
         {posts.length === 0 ? (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="px-4 py-20 flex flex-col items-center justify-center text-center space-y-4"
           >
             <div className="w-20 h-20 rounded-full bg-brand-green/10 flex items-center justify-center border border-brand-green/20">
-              <Hash className="w-8 h-8 text-brand-green" />
+              <Hash className="w-8 h-8 text-primary-text" />
             </div>
             <div className="space-y-2 max-w-sm">
               <h2 className="text-xl font-bold">Nothing here yet</h2>
@@ -171,11 +171,11 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
             </div>
             <Link
               href="/create"
-              className="px-6 py-3 rounded-full bg-brand-green text-white font-bold shadow-brand-sm"
+              className="px-6 py-3 rounded-full bg-brand-green text-primary-foreground font-bold shadow-brand-sm"
             >
               Create a post
             </Link>
-          </motion.div>
+          </m.div>
         ) : (
           <div>
             {posts.map((post, i) => (

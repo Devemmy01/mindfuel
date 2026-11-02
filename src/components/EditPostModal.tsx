@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { X, Loader2, Smile } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { PostType } from "@/types";
 import { backgroundOptions, BackgroundStyle } from "@/lib/backgrounds";
 import { FontOption, getFontById } from "@/lib/fonts";
@@ -147,7 +147,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <m.div
           key="edit-modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -155,12 +155,12 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
           className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/95"
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 60, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.97 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="bg-white dark:bg-[#111827] border border-border w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+            className="bg-foreground dark:bg-[#111827] border border-border w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -191,11 +191,11 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                     ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30"
                     : editText.length > 900
                     ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20"
-                    : "border border-black/5 dark:border-white/5"
+                    : "border border-black/5 dark:border-foreground/5"
                 }`}
                 style={{ background: editBg.value, color: editBg.text }}
               >
-                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-foreground/10 mix-blend-overlay pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
                 <textarea
                   ref={editTextAreaRef}
@@ -221,7 +221,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                       ? "text-rose-500/70"
                       : editText.length > 900
                       ? "text-yellow-500/70"
-                      : "text-muted-foreground/60"
+                      : "text-subtle-foreground"
                   }`}
                 >
                   {editText.length}/1000
@@ -240,7 +240,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                   onClick={() => setShowEmojiPicker((p) => !p)}
                   className={`p-2 rounded-xl transition-colors shrink-0 ${
                     showEmojiPicker
-                      ? "text-brand-green bg-brand-green/10"
+                      ? "text-primary-text bg-brand-green/10"
                       : "text-muted-foreground hover:bg-secondary"
                   }`}
                   title="Add emoji"
@@ -250,14 +250,14 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
 
                 <AnimatePresence>
                   {showEmojiPicker && (
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
                       className="popover-solid absolute top-full left-0 mt-2 z-[9999] rounded-2xl border border-border/50 min-w-[320px]"
                     >
                       <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
               </div>
@@ -282,8 +282,8 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                 </button>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

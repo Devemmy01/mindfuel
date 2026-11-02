@@ -1,14 +1,20 @@
 "use client";
 
+import BrandLogo from "@/components/BrandLogo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
-import OnboardingOverlay from "@/components/OnboardingOverlay";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
+import TodayCard from "@/components/reflect/TodayCard";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
 import MindfulTip from "@/components/MindfulTip";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp, BookOpen, Loader2, RefreshCw, Users } from "lucide-react";
+import { m, AnimatePresence } from "framer-motion";
+import { ArrowUp, Loader2, RefreshCw } from "lucide-react";
+import IconButton from "@/components/ui/IconButton";
+import { buttonVariants } from "@/components/ui/button";
+import { Tabs, tabPanelProps, type TabItem } from "@/components/ui/Tabs";
+import MessagesShortcut from "@/components/shell/MessagesShortcut";
+import { copy } from "@/lib/copy";
 import Link from "next/link";
-import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
@@ -17,6 +23,12 @@ import useSWRInfinite from "swr/infinite";
 const FEED_CACHE_PREFIX = "mindfuel:feed:";
 const FEED_VIEW_STATE_PREFIX = "mindfuel:feed:view-state:";
 const FEED_LAST_TAB_KEY = "mindfuel:feed:last-tab";
+const FEED_TAB_INTRO_KEY = "mindfuel:feed:tab-intro-views";
+const FEED_TAB_INTRO_VISITS = 3;
+const FEED_TABS: TabItem<"reflections" | "feed">[] = [
+  { value: "reflections", label: copy.feedTabs.prompts.label, description: copy.feedTabs.prompts.description },
+  { value: "feed", label: copy.feedTabs.everything.label, description: copy.feedTabs.everything.description },
+];
 type FeedPage = { posts: PostType[]; hasMore: boolean; total: number; page: number };
 type FeedReturnState = {
   tab: "feed" | "reflections";
@@ -117,9 +129,28 @@ function SkeletonCard() {
   );
 }
 
-export default function FeedClient({ initialReflectionPosts = [] }: { initialReflectionPosts?: PostType[] }) {
+export default function FeedClient({
+  initialReflectionPosts = [],
+  todayPrompt,
+}: {
+  initialReflectionPosts?: PostType[];
+  todayPrompt?: DailyPrompt;
+}) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("reflections");
+  // Explain what each tab contains on the first few visits only.
+  const [showTabIntro, setShowTabIntro] = useState(false);
+  useEffect(() => {
+    try {
+      const visits = Number(localStorage.getItem(FEED_TAB_INTRO_KEY) || 0);
+      if (visits < FEED_TAB_INTRO_VISITS) {
+        setShowTabIntro(true);
+        localStorage.setItem(FEED_TAB_INTRO_KEY, String(visits + 1));
+      }
+    } catch {
+      // Storage can be unavailable (private mode); the tabs still work.
+    }
+  }, []);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [persistedFeed, setPersistedFeed] = useState<PostType[]>([]);
   const [persistedReflections, setPersistedReflections] = useState<PostType[]>(initialReflectionPosts);
@@ -362,12 +393,11 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
 
   return (
     <div ref={containerRef} className="relative">
-      <OnboardingOverlay />
 
       {/* Pull-to-refresh indicator — fixed so it doesn't affect layout */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -375,7 +405,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${isPullRefreshing ? "animate-spin" : ""
+                className={`w-3.5 h-3.5 text-primary-text ${isPullRefreshing ? "animate-spin" : ""
                   }`}
                 style={{
                   transform: isPullRefreshing
@@ -387,14 +417,14 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showScrollTop && (
           <div className="sticky top-24 z-50 flex justify-center pointer-events-none md:top-20">
-            <motion.button
+            <m.button
               type="button"
               initial={{ opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -402,119 +432,47 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
               transition={{ duration: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
               onClick={scrollToTop}
               aria-label="Scroll to top"
-              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-[#00a855] px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_14px_35px_rgba(0,168,85,0.35)] backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-[#00914a] active:scale-[0.98]"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-caption font-semibold text-foreground shadow-e2 transition-colors hover:bg-surface-elevated active:scale-[0.98]"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
-                <ArrowUp className="h-4 w-4" strokeWidth={2.6} />
-              </span>
+              <ArrowUp className="size-4" strokeWidth={2.4} aria-hidden />
               <span className="whitespace-nowrap">Back to top</span>
-            </motion.button>
+            </m.button>
           </div>
         )}
       </AnimatePresence>
 
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-2xl">
-        {/* Desktop/Mobile top bar */}
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-2.5 md:hidden">
-            <Image
-              src="/logoDarkbg.png"
-              alt="MindFuel"
-              width={120}
-              height={36}
-              className="h-9 w-auto object-contain"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            aria-label={isRefreshing ? "Refreshing feed" : "Refresh feed"}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-secondary/25 text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground active:scale-95 disabled:cursor-wait disabled:opacity-70 md:hidden"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isRefreshing ? "animate-spin text-brand-green" : ""}`}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-        {/* Feed view switcher */}
-        <div className="px-3 pb-2" role="tablist" aria-label="Feed view">
-          <div className="grid grid-cols-2 gap-1.5 rounded-full border border-line bg-surface-raised/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_8px_24px_rgba(0,0,0,0.16)]">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "reflections"}
-              onClick={() => handleTabClick("reflections")}
-              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
-                activeTab === "reflections"
-                  ? "border-transparent text-white"
-                  : "border-transparent text-muted-foreground hover:border-line-subtle hover:bg-white/[0.035] hover:text-foreground"
-              }`}
+      <header className="sticky top-0 z-sticky border-b border-line bg-background/90 backdrop-blur-md">
+        <div className="flex h-14 items-center justify-between px-4">
+<BrandLogo className="h-8 md:hidden" />
+          <h1 className="hidden text-h3 md:block">{copy.nav.home}</h1>
+          <div className="-mr-2 flex items-center">
+            <MessagesShortcut />
+            <IconButton
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              aria-label={isRefreshing ? "Refreshing" : "Refresh"}
+              className="md:hidden"
             >
-              {activeTab === "reflections" && (
-                <motion.span
-                  layoutId="feed-active-tab"
-                  className="absolute inset-0 rounded-full border border-brand-green/40 bg-gradient-to-b from-brand-green/[0.18] to-brand-green/[0.09] shadow-[0_8px_22px_rgba(0,191,99,0.10),inset_0_1px_0_rgba(255,255,255,0.06)]"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                />
-              )}
-              <BookOpen
-                className={`relative h-4 w-4 transition-colors ${
-                  activeTab === "reflections" ? "text-emerald-300" : "text-muted-foreground"
-                }`}
-                strokeWidth={activeTab === "reflections" ? 2.5 : 2}
-              />
-              <span className="relative">Reflections</span>
-              {activeTab === "reflections" && (
-                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "feed"}
-              onClick={() => handleTabClick("feed")}
-              className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full border px-3 py-2.5 text-[13px] font-bold transition-colors ${
-                activeTab === "feed"
-                  ? "border-transparent text-white"
-                  : "border-transparent text-muted-foreground hover:border-line-subtle hover:bg-white/[0.035] hover:text-foreground"
-              }`}
-            >
-              {activeTab === "feed" && (
-                <motion.span
-                  layoutId="feed-active-tab"
-                  className="absolute inset-0 rounded-full border border-brand-green/40 bg-gradient-to-b from-brand-green/[0.18] to-brand-green/[0.09] shadow-[0_8px_22px_rgba(0,191,99,0.10),inset_0_1px_0_rgba(255,255,255,0.06)]"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                />
-              )}
-              <Users
-                className={`relative h-4 w-4 transition-colors ${
-                  activeTab === "feed" ? "text-emerald-300" : "text-muted-foreground"
-                }`}
-                strokeWidth={activeTab === "feed" ? 2.5 : 2}
-              />
-              <span className="relative">Feed</span>
-              {activeTab === "feed" && (
-                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
-              )}
-            </button>
+              <RefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden />
+            </IconButton>
           </div>
         </div>
+        <Tabs
+          label="Feed"
+          idPrefix="feed"
+          value={activeTab}
+          onChange={handleTabClick}
+          showDescription={showTabIntro}
+          items={FEED_TABS}
+        />
       </header>
 
-      {/* The desktop tip lives in the right rail; keep it in the feed flow when
-          that rail collapses so it scrolls away with the rest of the content. */}
-      <div className="px-4 pb-4 lg:hidden">
-        <MindfulTip className="mt-4" />
-      </div>
-
       {/* ── Feed ── */}
+      <div {...tabPanelProps(activeTab, "feed")} className="outline-none">
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div
+          <m.div
             key="skeleton"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -523,12 +481,18 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             {[1, 2, 3, 4].map((i) => (
               <SkeletonCard key={i} />
             ))}
-          </motion.div>
+          </m.div>
         ) : activeTab === "reflections" ? (
           <div key={`${activeTab}-content`} className="relative">
               <div className="pt-4">
-                <DailyReflectionPrompt reflectors={activeReflectors} />
-                <div className="mt-4">
+                {/* Members start at today's reflection; guests see the prompt card. */}
+                {user ? <TodayCard initialPrompt={todayPrompt} /> : <DailyReflectionPrompt reflectors={activeReflectors} initialPrompt={todayPrompt} />}
+                {/* The tip lives in the right rail from xl; below that it follows
+                    today's prompt so the prompt stays the first thing people see. */}
+                <div className="px-4 pt-4 xl:hidden">
+                  <MindfulTip />
+                </div>
+                <div id="prompt-answers" className="mt-4 scroll-mt-28">
                   {posts.map((post, i) => (
                     <div
                       key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
@@ -539,8 +503,8 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
                   ))}
                   {posts.length === 0 && (
                     <div className="px-6 py-16 text-center">
-                      <h3 className="text-lg font-bold">Be the first to reflect today</h3>
-                      <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">Your perspective may be exactly what someone else needs to read.</p>
+                      <h3 className="text-lg font-bold">{copy.empty.promptsTitle}</h3>
+                      <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">{copy.empty.promptsBody}</p>
                     </div>
                   )}
                 </div>
@@ -560,13 +524,13 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             {!hasMore && (
               <div className="py-16 flex flex-col items-center justify-center opacity-40">
                 <div className="w-1.5 h-1.5 rounded-full bg-foreground mb-4" />
-                <p className="text-[13px] font-medium text-foreground tracking-wide">You&apos;re all caught up</p>
+                <p className="text-[13px] font-medium text-foreground tracking-wide">{copy.empty.caughtUp}</p>
               </div>
             )}
             <div className="h-6 w-full" />
           </div>
         ) : (
-          <motion.div
+          <m.div
             key={`${activeTab}-empty`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -576,24 +540,25 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
               <div className="w-8 h-8 rounded-full bg-brand-green/50" aria-hidden="true" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold">No reflections in your feed yet</h3>
+              <h3 className="text-xl font-bold">{copy.empty.feedTitle}</h3>
               <p className="text-muted-foreground text-[14px] max-w-[260px]">
-                Follow others or share a reflection to get started.
+                {copy.empty.feedBody}
               </p>
             </div>
             <Link
               href="/create"
-              className="px-8 py-3 text-white rounded-full font-bold text-[15px] bg-[#00a855] transition-colors shadow-brand-sm press-scale"
+              className={buttonVariants({ size: "lg" })}
             >
-              Share a Reflection
+              {copy.nav.writeLong}
             </Link>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
+      </div>
 
       <div ref={loadMoreRef} className="flex min-h-20 items-center justify-center py-6" aria-live="polite">
         {hasMore && (isLoadingMore || activeFeed.isValidating) && (
-          <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary-text" aria-label="Loading more posts" />
         )}
       </div>
 

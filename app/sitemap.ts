@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import Hashtag from "@/models/hashtag";
@@ -21,6 +22,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: contentUpdatedAt,
       changeFrequency: "weekly",
       priority: 1.0,
+      images: [`${siteUrl}/og-image-v2.png`],
+    },
+    {
+      url: `${siteUrl}/about`,
+      lastModified: new Date("2026-11-02"),
+      changeFrequency: "monthly",
+      priority: 0.8,
       images: [`${siteUrl}/og-image-v2.png`],
     },
     {
@@ -64,6 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     await connectToDB();
     const [posts, hashtags] = await Promise.all([
       Post.find({
+        ...PUBLIC_POSTS,
         text: { $regex: /[\s\S]{80}/ },
         $or: [
           { scheduledAt: null },

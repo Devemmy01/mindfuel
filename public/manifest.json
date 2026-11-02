@@ -2,17 +2,21 @@
   "id": "/feed",
   "name": "MindFuel",
   "short_name": "MindFuel",
-  "description": "A personal growth network where people grow together through reflection, shared lessons, and meaningful conversations.",
+  "description": "Write one honest reflection a day. Read what others learned.",
   "start_url": "/feed?source=pwa",
   "scope": "/",
   "display": "standalone",
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
-  "background_color": "#010302",
-  "theme_color": "#010302",
-  "orientation": "portrait-primary",
-  "categories": ["social", "lifestyle", "education"],
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "any",
+  "categories": [
+    "social",
+    "lifestyle",
+    "education"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -35,18 +39,40 @@
   ],
   "shortcuts": [
     {
-      "name": "New Post",
-      "short_name": "New Post",
-      "description": "Reflect and share a new thought",
-      "url": "/create",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "name": "Write today's reflection",
+      "short_name": "Reflect",
+      "description": "Open the composer with today's prompt",
+      "url": "/create?source=shortcut",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "My Profile",
+      "name": "Saved",
+      "short_name": "Saved",
+      "description": "Reflections you saved",
+      "url": "/collections?source=shortcut",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My profile",
       "short_name": "Profile",
-      "description": "View reflection streak and calendar history",
+      "description": "Your streak and reflection history",
       "url": "/profile",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "share_target": {
@@ -58,5 +84,21 @@
       "text": "share_text",
       "url": "url"
     }
-  }
+  },
+  "screenshots": [
+    {
+      "src": "/screenshots/home-narrow.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Answer today's prompt in a sentence or two"
+    },
+    {
+      "src": "/screenshots/home-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Write one honest reflection a day"
+    }
+  ]
 }

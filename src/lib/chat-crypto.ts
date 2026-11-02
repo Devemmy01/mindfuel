@@ -85,6 +85,21 @@ export async function decryptChatText(key: CryptoKey, ciphertext: string, iv: st
   return new TextDecoder().decode(plaintext);
 }
 
+/**
+ * Attachment bytes use the same conversation key as text (AES-GCM, fresh
+ * 96-bit IV per file), so whoever can read a conversation can read its photos
+ * and no one else can. See docs/proposals/chat-image-attachments.md.
+ */
+export async function encryptChatBytes(key: CryptoKey, bytes: ArrayBuffer | Uint8Array) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, bytes as BufferSource);
+  return { data, iv: bytesToBase64(iv) };
+}
+
+export async function decryptChatBytes(key: CryptoKey, data: ArrayBuffer, iv: string) {
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(iv) }, key, data);
+}
+
 export type EncryptedChatIdentity = {
   ciphertext: string;
   iv: string;

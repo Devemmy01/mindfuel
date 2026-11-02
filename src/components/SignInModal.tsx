@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { m, AnimatePresence } from "framer-motion";
+import { X, Lock, Flame, Bookmark } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/providers/AuthProvider";
@@ -29,7 +29,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -39,7 +39,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
           {/* Modal Container */}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -71,35 +71,32 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     Start your reflection practice
                   </h2>
                   <p className="text-muted-foreground text-sm px-4">
-                    Turn daily lessons into lasting growth—with a thoughtful
-                    community beside you.
+                    Write one honest reflection a day. Read what others learned.
                   </p>
                 </div>
 
-                {/* Features List */}
-                <div className="w-full space-y-4 mb-10 text-left px-2">
-                  <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80 text-center">
-                      <span className="font-bold text-foreground">
-                        Thoughtful prompts.
-                      </span>{" "}
-                      Begin without staring at a blank page.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80 text-center">
-                      <span className="font-bold text-foreground">
-                        Your growth archive.
-                      </span>{" "}
-                      Keep the insights you want to live by.
-                    </p>
-                  </div>
-                </div>
+                {/* What signing in adds */}
+                <ul className="mb-8 w-full space-y-3 text-left">
+                  {[
+                    { icon: Lock, title: "Private by default.", body: "Reflections are just for you unless you choose to share." },
+                    { icon: Flame, title: "A streak that keeps you going.", body: "One sentence a day is enough." },
+                    { icon: Bookmark, title: "Your growth archive.", body: "Save the reflections you want to come back to." },
+                  ].map(({ icon: Icon, title, body }) => (
+                    <li key={title} className="flex items-start gap-3">
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-primary-text">
+                        <Icon className="size-4" aria-hidden />
+                      </span>
+                      <p className="text-body-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{title}</span> {body}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
 
                 {/* Google Sign In Button */}
                 <button
                   onClick={handleGoogleSignIn}
-                  className="w-full h-12 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 rounded-full flex items-center justify-center gap-3 px-6 transition-all duration-200 shadow-sm active:scale-[0.98] group"
+                  className="w-full h-12 bg-foreground hover:bg-gray-50 text-gray-900 border border-gray-300 rounded-full flex items-center justify-center gap-3 px-6 transition-all duration-200 shadow-sm active:scale-[0.98] group"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -132,7 +129,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   By signing in, you agree to our{" "}
                   <Link
                     href="/terms"
-                    className="hover:text-brand-green underline transition-colors"
+                    className="hover:text-primary-text underline transition-colors"
                     onClick={onClose}
                   >
                     Terms of Service
@@ -140,7 +137,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   and{" "}
                   <Link
                     href="/privacy"
-                    className="hover:text-brand-green underline transition-colors"
+                    className="hover:text-primary-text underline transition-colors"
                     onClick={onClose}
                   >
                     Privacy Policy
@@ -148,7 +145,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   .
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </>
       )}

@@ -1,6 +1,15 @@
 {
   "functions": {
-    "api/socket.ts": {
+    "app/api/chat/attachments/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/chat/attachments/[id]/route.ts": {
+      "maxDuration": 15
+    },
+    "app/api/cron/following-digest/route.tsx": {
+      "maxDuration": 60
+    },
+    "app/api/socket/route.ts": {
       "maxDuration": 300
     },
     "app/api/chat/messages/route.ts": {
@@ -37,6 +46,10 @@
     {
       "path": "/api/cron/chat-recovery-reminder",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/chat-attachment-sweep",
+      "schedule": "0 4 * * *"
     }
   ]
 }

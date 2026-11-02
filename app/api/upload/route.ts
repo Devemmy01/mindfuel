@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import cloudinary from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
@@ -7,6 +8,7 @@ export const maxDuration = 15;
 // POST /api/upload — Upload an image to Cloudinary, return the URL
 export async function POST(req: NextRequest) {
   try {
+    if (!(await getViewerUid(req))) return unauthorized();
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

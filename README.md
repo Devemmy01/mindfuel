@@ -10,7 +10,7 @@ https://mind-fuel.app
 ![React](https://img.shields.io/badge/React_19-149ECA?style=flat&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb&logoColor=white)
-![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=flat&logo=socket.io&logoColor=white)
+![WebSockets](https://img.shields.io/badge/WebSockets-010101?style=flat&logo=socketdotio&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase_Auth-FFCA28?style=flat&logo=firebase&logoColor=black)
 ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
@@ -26,7 +26,7 @@ In simple terms: **MindFuel turns individual reflection into shared growth** —
 | **What it is** | Full-stack social journaling app — reflection feed, prompts, streaks, private messaging, notifications, PWA |
 | **Who it's for** | People who want a calmer, growth-oriented alternative to attention-driven social platforms |
 | **Standout engineering** | A real end-to-end encrypted chat system (RSA-OAEP + AES-GCM, multi-device linking, PIN-based account recovery with a server-enforced brute-force lockout) built from scratch on top of Web Crypto |
-| **Scale pattern** | Next.js App Router serving both frontend and API, MongoDB for durable state, Socket.IO + Redis adapter for realtime fan-out across instances |
+| **Scale pattern** | Next.js App Router serving both frontend and API, MongoDB for durable state, WebSockets on Vercel Functions + Redis pub/sub for realtime fan-out across instances |
 | **Also included** | Firebase auth, Cloudinary media, Resend email, web push, PWA install flow, Vercel cron jobs, Vitest test suite, GitHub Actions CI |
 
 If you're reviewing this repo quickly: the [End-to-End Encryption](#end-to-end-encryption) section below is the part most worth reading closely — it's a from-scratch cryptographic design (not a wrapper around a vendor SDK), including a deliberate architectural decision to move PIN-based account recovery from the client to the server specifically so a short PIN's brute-force protection is real rather than cosmetic.
@@ -94,7 +94,7 @@ MindFuel includes a two-way connection layer built around follower and following
 
 Members can start one-to-one conversations from profiles or the messages screen. Every message is encrypted client-side before it leaves the device; MindFuel's servers and database only ever see ciphertext. See [End-to-End Encryption](#end-to-end-encryption) below for the full design. On top of that cryptographic layer, chat includes:
 
-- Real-time message delivery through Socket.IO, with a Redis adapter so delivery works correctly across multiple server instances.
+- Real-time message delivery over WebSockets, with Redis pub/sub so delivery works across multiple function instances.
 - MongoDB-backed conversation history and unread counts (stored as ciphertext).
 - Optimistic sends with sending and failure states.
 - Typing indicators and conversation presence rooms.
@@ -230,7 +230,7 @@ MindFuel's own servers and database operators cannot read message content, canno
 - **Framer Motion** for interface animation.
 - **Lucide React** for icons.
 - **SWR** for client-side data fetching and caching.
-- **Socket.IO Client** for live messaging, typing, and read-receipt events.
+- **Native WebSocket client** (`src/lib/socket.ts`) for live messaging, typing, and read-receipt events.
 - **Web Crypto API** (`crypto.subtle`) for all client-side end-to-end encryption — no external crypto dependency.
 
 ### Backend
@@ -243,8 +243,8 @@ MindFuel's own servers and database operators cannot read message content, canno
 - **Cloudinary** for image upload and media hosting.
 - **Resend** for transactional and broadcast email.
 - **web-push** for browser push notifications.
-- **Socket.IO** for real-time conversation delivery.
-- **Redis / ioredis** with the Socket.IO Redis adapter for multi-instance event delivery.
+- **`ws` + `@vercel/functions` `upgradeWebSocket()`** for real-time conversation delivery.
+- **Redis / ioredis** pub/sub for multi-instance event delivery.
 
 ### PWA and Platform
 
@@ -273,7 +273,7 @@ Next.js App Router
   |
   |-- Pages: feed, create, profile, messages, search, collections, hashtags
   |-- API Routes: posts, comments, follows, chat, saves, users, notifications, push, cron
-  |-- Socket.IO: conversations, typing, message delivery, and seen receipts
+  |-- WebSocket hub: conversations, typing, message delivery, and seen receipts
   |-- Recovery decrypt (Node crypto, server-side only, rate-limited)
   |
 Data and Services
@@ -489,7 +489,7 @@ ADMIN_SECRET=...
 npm run dev
 ```
 
-This boots Next.js and Socket.IO together via `server.ts`. Open:
+This boots Next.js and the realtime hub together via `server.ts`. Open:
 
 ```text
 http://localhost:3000
@@ -541,7 +541,7 @@ Important deployment requirements:
 
 ## Real-Time Chat Infrastructure
 
-MindFuel uses Socket.IO on the same host as the web app. Locally, `npm run dev` boots Next.js and Socket.IO together through `server.ts`. On Vercel, the Socket.IO server is deployed as a WebSocket-capable Vercel Function, so no second application host or `NEXT_PUBLIC_SOCKET_URL` is required.
+MindFuel's realtime hub (`src/lib/realtime/hub.ts`) runs on the same host as the web app. Locally, `npm run dev` boots Next.js and the hub together through `server.ts`. On Vercel, `app/api/socket/route.ts` upgrades the request with `upgradeWebSocket()` from `@vercel/functions`, so no second host or `NEXT_PUBLIC_SOCKET_URL` is required. See `docs/chat-architecture.md`.
 
 Because connected clients can land on different Vercel Function instances, add an Upstash Redis integration from the Vercel Marketplace and expose its connection string as `REDIS_URL`. Redis relays transient live events (typing, presence, delivery pings) between instances; MongoDB remains the durable source of truth for conversations and ciphertext messages. The HTTP API keeps chat history usable during socket reconnects.
 

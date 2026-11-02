@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import EmptyState from "@/components/ui/EmptyState";
 import { useAuth } from "@/providers/AuthProvider";
 import PostCard from "@/components/PostCard";
 import { Bookmark, Loader2, LayoutGrid, List, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { SaveType } from "@/types";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
@@ -26,10 +28,10 @@ function BookmarkTile({ save }: { save: SaveType }) {
 
   return (
     <Link href={`/post/${post._id}`} className="block outline-none">
-      <motion.div
+      <m.div
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.97 }}
-        className="rounded-2xl overflow-hidden shadow-soft border border-black/5 dark:border-white/5 cursor-pointer"
+        className="rounded-2xl overflow-hidden shadow-soft border border-black/5 dark:border-foreground/5 cursor-pointer"
         style={{ ...bgStyle, color: textColor }}
       >
         <div className="p-3.5">
@@ -50,7 +52,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
             </span>
           </div>
         </div>
-      </motion.div>
+      </m.div>
     </Link>
   );
 }
@@ -86,7 +88,7 @@ export default function CollectionsPage() {
   if (authLoading)
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
       </div>
     );
 
@@ -94,7 +96,7 @@ export default function CollectionsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center space-y-6">
         <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-          <Bookmark className="w-9 h-9 text-brand-green" />
+          <Bookmark className="w-9 h-9 text-primary-text" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Your Bookmarks</h1>
@@ -117,7 +119,7 @@ export default function CollectionsPage() {
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -125,7 +127,7 @@ export default function CollectionsPage() {
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
+                className={`w-3.5 h-3.5 text-primary-text ${
                   isPullRefreshing ? "animate-spin" : ""
                 }`}
                 style={{
@@ -138,7 +140,7 @@ export default function CollectionsPage() {
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -179,21 +181,21 @@ export default function CollectionsPage() {
 
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
         </div>
       ) : saves.length > 0 ? (
         <div className={`${viewMode === "grid" ? "px-3 py-4" : "py-0"}`}>
           {viewMode === "grid" ? (
             <div className="masonry-grid">
               {saves.map((save, i) => (
-                <motion.div
+                <m.div
                   key={save._id}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.04 }}
                 >
                   <BookmarkTile save={save} />
-                </motion.div>
+                </m.div>
               ))}
             </div>
           ) : (
@@ -201,23 +203,12 @@ export default function CollectionsPage() {
           )}
         </div>
       ) : (
-        <div className="py-20 flex flex-col items-center justify-center text-center space-y-5 px-6">
-          <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-            <Bookmark className="w-9 h-9 text-brand-green/60" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold">Nothing saved yet</h3>
-            <p className="text-muted-foreground text-[14px] max-w-[260px]">
-              Tap the bookmark icon on any thought to save it here.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="px-8 py-3 bg-brand-green text-white rounded-full font-bold text-[15px] hover:bg-[#00a855] transition-colors shadow-brand-sm press-scale"
-          >
-            Browse Feed
-          </Link>
-        </div>
+        <EmptyState
+          icon={Bookmark}
+          title="Nothing saved yet"
+          description="Tap the bookmark on any reflection to keep it here."
+          action={<Link href="/feed" className={buttonVariants({ variant: "secondary" })}>Browse reflections</Link>}
+        />
       )}
 
       <div className="mobile-content-offset" />

@@ -75,6 +75,11 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    // Always defined so the end-to-end auth seam compiles to `false` (and is
+    // removed) in every build that does not opt in.
+    NEXT_PUBLIC_E2E_AUTH: process.env.NEXT_PUBLIC_E2E_AUTH || "",
+  },
   experimental: {
     // Reduces retained webpack graph data during long development sessions.
     webpackMemoryOptimizations: true,
@@ -108,13 +113,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: "/about",
-        destination: "/#about",
-        permanent: true,
-      },
-      {
         source: "/features",
-        destination: "/#features",
+        destination: "/about#features",
         permanent: true,
       },
     ];

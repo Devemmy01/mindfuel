@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
 import { PostType } from "@/types";
-import { syncPostHashtags } from "@/lib/hashtags";
+import { extractHashtags, syncPostHashtags } from "@/lib/hashtags";
+import { canViewPost, isPrivatePost, normalizeVisibility, redactHiddenQuote } from "@/lib/post-visibility";
+import { revalidateTag } from "next/cache";
 import { recalculateStreakFromPosts } from "@/lib/streakUtils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +28,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       })
       .lean()) as PostType | null;
 
-    if (!postRaw) {
+    // Someone else's private reflection reads exactly like a missing one.
+    const viewerUid = await getViewerUid(req);
+    const viewer = viewerUid
+      ? await User.findOne({ firebaseId: viewerUid }).select("_id").lean() as { _id: unknown } | null
+      : null;
+    if (!postRaw || !canViewPost(postRaw as { visibility?: string; userId?: unknown }, viewer?._id)) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
@@ -42,7 +50,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             : undefined,
     };
 
-    return NextResponse.json({ post }, { status: 200 });
+    return NextResponse.json(
+      { post: redactHiddenQuote(post, viewer?._id) },
+      {
+        status: 200,
+        headers: isPrivatePost(postRaw as { visibility?: string }) ? { "Cache-Control": "private, no-store" } : undefined,
+      },
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
@@ -56,7 +70,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     await connectToDB();
     const { id } = await params;
-    const { userId: firebaseId, text, backgroundStyle, fontFamily } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { text, backgroundStyle, fontFamily, visibility: requestedVisibility } = await req.json();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -84,15 +100,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (backgroundStyle) post.backgroundStyle = backgroundStyle;
     if (fontFamily) post.fontFamily = fontFamily;
 
-    if (text) {
-      post.hashtags = await syncPostHashtags({
+    const wasPublic = post.visibility !== "private";
+    if (requestedVisibility !== undefined) post.visibility = normalizeVisibility(requestedVisibility);
+    const isPublic = post.visibility !== "private";
+    const nextText = text || post.text;
+
+    // Only public reflections live in the hashtag index: going private removes
+    // them, going public adds them, and edits re-sync either way.
+    if (text || wasPublic !== isPublic) {
+      const tags = await syncPostHashtags({
         postId: post._id.toString(),
-        nextText: text,
-        previousTags,
+        nextText: isPublic ? nextText : "",
+        previousTags: wasPublic ? previousTags : [],
       });
+      post.hashtags = isPublic ? tags : extractHashtags(nextText);
     }
 
     await post.save();
+    if (wasPublic !== isPublic) {
+      revalidateTag("feed");
+      revalidateTag("public-profile");
+      revalidateTag("public-post");
+      revalidateTag("public-hashtag");
+    }
 
     return NextResponse.json({ message: "Post updated successfully", post }, { status: 200 });
   } catch (error: unknown) {
@@ -108,7 +138,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const { userId: firebaseId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });

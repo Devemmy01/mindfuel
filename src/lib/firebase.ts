@@ -1,20 +1,20 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+/**
+ * The Firebase client SDK is loaded after first paint instead of in every
+ * page's initial bundle. AuthProvider starts the load on mount, so by the time
+ * someone taps "Sign in" the module is ready and the popup opens inside the
+ * click (browsers block popups opened after an await).
+ */
+export type FirebaseClient = typeof import("./firebase-client");
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSy_MOCK_KEY",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "mock.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "mock-project-id",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "mock.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1234567890:web:mockapp",
-};
+let client: FirebaseClient | null = null;
+let pending: Promise<FirebaseClient> | null = null;
 
-// Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+export function loadFirebase() {
+  pending ??= import("./firebase-client").then((module) => (client = module));
+  return pending;
+}
 
-export { app, auth, db, googleProvider };
+/** The SDK if it has already loaded, for code that must stay synchronous. */
+export function loadedFirebase() {
+  return client;
+}

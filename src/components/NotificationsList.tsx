@@ -2,11 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { differenceInCalendarDays, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import Image from "next/image";
 import { MessageCircle, Heart, BellOff, UserPlus, Loader2, UserCheck } from "lucide-react";
 import useSWR from "swr";
 import Skeleton from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { buttonVariants } from "@/components/ui/button";
+import { copy } from "@/lib/copy";
 
 type CachedFollowState = {
   followersCount: number;
@@ -47,7 +50,8 @@ export interface AppNotification {
 
 interface NotificationsListProps {
   notifications: AppNotification[];
-  onMarkRead: () => void;
+  /** With an id, marks that notification read; without, marks all. */
+  onMarkRead: (id?: string) => void;
   isLoading: boolean;
   onClose?: () => void;
   currentUserId?: string;
@@ -88,7 +92,7 @@ function FollowBackButton({ notification, currentUserId }: { notification: AppNo
       const response = await fetch("/api/follows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followerId: currentUserId, followingId: notification.sender.firebaseId }),
+        body: JSON.stringify({ followingId: notification.sender.firebaseId }),
       });
       if (!response.ok) throw new Error("Follow failed");
       const data = await response.json();
@@ -105,7 +109,7 @@ function FollowBackButton({ notification, currentUserId }: { notification: AppNo
       type="button"
       onClick={toggleFollow}
       disabled={isLoading || !currentUserId}
-      className={`ml-auto flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition-colors disabled:opacity-60 ${isFollowing ? "border border-border bg-secondary text-foreground" : "bg-[#038142] text-white hover:bg-[#03944b]"}`}
+      className={`ml-auto flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition-colors disabled:opacity-60 ${isFollowing ? "border border-line bg-surface-elevated text-foreground" : "bg-primary text-primary-foreground hover:bg-primary-hover"}`}
       aria-label={isFollowing ? `Unfollow ${notification.sender.name}` : `Follow back ${notification.sender.name}`}
     >
       {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isFollowing ? <UserCheck className="h-3.5 w-3.5" /> : null}
@@ -137,16 +141,42 @@ function NotificationAvatar({ sender }: { sender: AppNotification["sender"] }) {
   );
 }
 
+const VERB: Record<AppNotification["type"], string> = {
+  follow: "followed you",
+  like: "liked your reflection",
+  save: "saved your reflection",
+  repost: "reposted your reflection",
+  quote: "quoted your reflection",
+  comment: "replied to your reflection",
+  reply: "replied to your comment",
+};
+
+function dayGroup(date: Date) {
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (differenceInCalendarDays(new Date(), date) < 7) return "Earlier this week";
+  return "Earlier";
+}
+
+function TypeBadge({ type }: { type: AppNotification["type"] }) {
+  const Icon = type === "like" || type === "save" ? Heart : type === "follow" ? UserPlus : MessageCircle;
+  return (
+    <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-background bg-surface-elevated text-foreground">
+      <Icon className="size-2.5" aria-hidden />
+    </span>
+  );
+}
+
 export default function NotificationsList({ notifications, onMarkRead, isLoading, onClose, currentUserId }: NotificationsListProps) {
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3 py-4">
-        {[1, 2, 3].map((i) => (
+      <div className="flex flex-col gap-4 py-4" aria-busy="true" aria-label="Loading notifications">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="flex gap-3 px-4">
-            <Skeleton className="w-10 h-10 rounded-full" />
+            <Skeleton className="size-10 rounded-full" />
             <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 rounded w-3/4" />
-              <Skeleton className="h-3 rounded w-1/4" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/4" />
             </div>
           </div>
         ))}
@@ -156,83 +186,80 @@ export default function NotificationsList({ notifications, onMarkRead, isLoading
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <div className="w-12 h-12 rounded-full bg-secondary/40 flex items-center justify-center mb-3">
-          <BellOff className="w-6 h-6 text-muted-foreground" strokeWidth={1.5} />
-        </div>
-        <p className="font-bold text-[15px]">No notifications yet</p>
-        <p className="text-muted-foreground text-[13px] max-w-[180px]">
-          We&apos;ll notify you here when someone likes or comments on your thoughts.
-        </p>
-      </div>
+      <EmptyState
+        icon={BellOff}
+        title={copy.empty.notificationsTitle}
+        description={copy.empty.notificationsBody}
+        action={
+          <Link href="/create" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+            Write a reflection
+          </Link>
+        }
+      />
     );
   }
 
+  const groups: Array<{ label: string; items: AppNotification[] }> = [];
+  for (const notification of notifications) {
+    if (!notification.sender) continue;
+    const label = dayGroup(new Date(notification.createdAt));
+    const group = groups[groups.length - 1];
+    if (group?.label === label) group.items.push(notification);
+    else groups.push({ label, items: [notification] });
+  }
+
   return (
-    <div className="flex flex-col w-full md:h-[350px] overflow-y-auto scrollbar-hide">
-      {notifications.map((notification) => {
-        if (!notification.sender) return null;
-
-        return (
-          <div
-            key={notification._id}
-            className={`relative flex w-full items-center gap-3 border-b border-border/40 px-4 py-3.5 transition-colors last:border-none hover:bg-secondary/40
-            ${!notification.isRead ? "bg-brand-green/[0.03]" : ""}
-          `}
-          >
-            {/* Unread indicator */}
-            {!notification.isRead && (
-              <div className="absolute left-1 top-1/2 h-1 w-1 -translate-y-1/2 rounded-full bg-brand-green shadow-[0_0_8px_var(--brand-green)]" />
-            )}
-
-            <Link
-              href={
-                notification.type === "follow"
-                  ? `/profile/${notification.sender.firebaseId}`
-                  : `/post/${notification.postId?._id}`
-              }
-              onClick={() => {
-                if (!notification.isRead) onMarkRead();
-                if (onClose) onClose();
-              }}
-              className="flex min-w-0 flex-1 gap-3"
-            >
-              <div className="relative shrink-0">
-                <NotificationAvatar sender={notification.sender} />
-                <div className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-popover shadow-sm ${notification.type === "like" ? "bg-rose-500" : "bg-blue-500"}`}>
-                  {notification.type === "like" ? (
-                    <Heart className="h-2.5 w-2.5 fill-current text-white" />
-                  ) : notification.type === "follow" ? (
-                    <UserPlus className="h-2.5 w-2.5 text-white" />
-                  ) : (
-                    <MessageCircle className="h-2.5 w-2.5 fill-current text-white" />
-                  )}
-                </div>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-[13.5px] leading-snug">
-                  <span className="font-bold text-foreground">{notification.sender.name}</span>{" "}
-                  <span className="text-muted-foreground">
-                    {notification.type === "follow" ? "followed you" : notification.type === "like" ? "liked your thought" : notification.type === "repost" ? "reposted your thought" : notification.type === "quote" ? "quoted your thought" : "commented on your thought"}
-                  </span>
-                </p>
-                {notification.postId?.text && (
-                  <p className="mt-0.5 max-w-[200px] truncate text-[12.5px] italic text-muted-foreground/60">
-                    &ldquo;{notification.postId.text}&rdquo;
-                  </p>
-                )}
-                <span className="mt-1 block text-[11px] font-medium text-muted-foreground/50">
-                  {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                </span>
-              </div>
-            </Link>
-            {notification.type === "follow" && (
-              <FollowBackButton notification={notification} currentUserId={currentUserId} />
-            )}
-          </div>
-        );
-      })}
+    <div className="flex w-full flex-col">
+      {groups.map((group) => (
+        <section key={group.label} aria-label={group.label}>
+          <h2 className="px-4 pb-1 pt-4 text-micro font-semibold uppercase tracking-wider text-subtle-foreground">{group.label}</h2>
+          <ul>
+            {group.items.map((notification) => {
+              const href = notification.type === "follow"
+                ? `/profile/${notification.sender.firebaseId}`
+                : `/post/${notification.postId?._id}`;
+              return (
+                <li key={notification._id} className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 ${notification.isRead ? "" : "bg-primary/[0.04]"}`}>
+                  {!notification.isRead ? (
+                    <span className="absolute left-1.5 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-primary" aria-hidden />
+                  ) : null}
+                  <Link
+                    href={href}
+                    onClick={() => {
+                      if (!notification.isRead) onMarkRead(notification._id);
+                      onClose?.();
+                    }}
+                    className="flex min-w-0 flex-1 gap-3"
+                  >
+                    <span className="relative shrink-0">
+                      <NotificationAvatar sender={notification.sender} />
+                      <TypeBadge type={notification.type} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-body-sm leading-snug">
+                        {!notification.isRead ? <span className="sr-only">Unread: </span> : null}
+                        <span className="font-semibold text-foreground">{notification.sender.name}</span>{" "}
+                        <span className="text-muted-foreground">{VERB[notification.type] || "interacted with your reflection"}</span>
+                      </span>
+                      {notification.postId?.text ? (
+                        <span className="mt-0.5 block truncate text-caption text-subtle-foreground">
+                          &ldquo;{notification.postId.text.replace(/^Reflecting on: "[^"]*"\s*/, "")}&rdquo;
+                        </span>
+                      ) : null}
+                      <time dateTime={notification.createdAt} className="mt-1 block text-micro text-subtle-foreground">
+                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                      </time>
+                    </span>
+                  </Link>
+                  {notification.type === "follow" ? (
+                    <FollowBackButton notification={notification} currentUserId={currentUserId} />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

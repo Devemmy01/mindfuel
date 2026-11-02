@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Report from "@/models/report";
 import User from "@/models/user";
@@ -6,7 +7,9 @@ import User from "@/models/user";
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { postId, userId: firebaseId, reason } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { postId, reason } = await req.json();
 
     if (!postId || !firebaseId) {
       return NextResponse.json({ error: "Post ID and User ID are required" }, { status: 400 });

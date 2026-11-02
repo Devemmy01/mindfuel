@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
+import { copy } from "@/lib/copy";
+import { loadDraft, saveDraft } from "@/lib/draft";
+import { useSubmitReflection, type ReflectionSaved } from "@/hooks/useSubmitReflection";
+import type { PostVisibility } from "@/lib/post-visibility";
+import VisibilityToggle from "@/components/reflect/VisibilityToggle";
+import ReflectionSavedPanel from "@/components/reflect/ReflectionSavedPanel";
+import { Button } from "@/components/ui/button";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { X, Smile, Image as ImageIcon, Trash2, Plus, Loader2 } from "lucide-react";
@@ -95,7 +102,8 @@ const CardCreator: React.FC = () => {
   const [text, setText] = useState("");
   const [promptId, setPromptId] = useState<string | null>(null);
   const [promptQuestion, setPromptQuestion] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<PostVisibility>("private");
+  const [savedResult, setSavedResult] = useState<ReflectionSaved | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [quotedPost, setQuotedPost] = useState<PostType | null>(null);
   const [pendingMilestones, setPendingMilestones] = useState<Array<{ id: string; label: string; emoji: string; description: string; tier: string }>>([]);
@@ -192,6 +200,23 @@ const CardCreator: React.FC = () => {
       setPromptQuestion(promptParam);
       setPromptId(promptIdParam);
       setText("");
+    }
+
+    // Restore an unsent draft (for example one started on the home page or
+    // before signing in) when it belongs to the same prompt.
+    const draft = loadDraft();
+    if (draft && !quoteIdParam) {
+      const samePrompt = promptParam
+        ? (draft.promptId || null) === (promptIdParam || null)
+        : true;
+      if (samePrompt) {
+        if (!promptParam && draft.prompt) {
+          setPromptQuestion(draft.prompt);
+          setPromptId(draft.promptId || null);
+        }
+        setText(draft.text);
+        if (draft.visibility) setVisibility(draft.visibility);
+      }
     }
 
     if (quoteIdParam) {
@@ -347,75 +372,65 @@ const CardCreator: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareText]);
 
-  const handleSubmit = async () => {
-    if (!user) { openSignInModal(); return; }
-    if (!text.trim() || isOverLimit || isSubmitting) return;
+  // Autosave so the text survives sign-in, reloads and navigation. Only after
+  // the person types, so opening another prompt never erases an older draft.
+  const userEdited = useRef(false);
+  useEffect(() => {
+    if (!userEdited.current) return;
+    const timer = window.setTimeout(() => {
+      if (!quotedPost) saveDraft({ text, prompt: promptQuestion, promptId, visibility });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [text, promptQuestion, promptId, quotedPost, visibility]);
 
-    setIsSubmitting(true);
-    try {
-      const hashtags = extractHashtags(displayText);
-      hashtags.forEach((tag) => persistRecentHashtag(tag));
-
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: displayText,
-          userId: user.uid,
-          backgroundStyle: { id: "obsidian", type: "color", value: "#0a0a0a", text: "#ffffff" },
-          fontFamily: "inter",
-          promptId: promptId || undefined,
-          imageUrl: imageUrl || undefined,
-          quotedPostId: quotedPost?._id || undefined,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        showToast(
-          <span className="flex items-center gap-1.5 whitespace-nowrap">Post created.</span>,
-          "success", 5000
-        );
-        if (data.newMilestones && data.newMilestones.length > 0) {
-          setPendingMilestones(data.newMilestones);
-          setShowMilestoneModal(true);
-          setPostAfterMilestone(true);
-        } else {
-          router.push("/");
-        }
-      }
-    } catch (err) {
-      console.error("Post failed", err);
-      showToast("Failed to post, please try again", "error");
-    } finally {
-      setIsSubmitting(false);
+  const { submit, busy, status, error: submitError } = useSubmitReflection((result) => {
+    setSavedResult(result);
+    if (result.newMilestones?.length) {
+      setPendingMilestones(result.newMilestones);
+      setShowMilestoneModal(true);
     }
+  });
+
+  const handleSubmit = async () => {
+    if (!text.trim() || isOverLimit || busy || isUploading) return;
+    extractHashtags(displayText).forEach((tag) => persistRecentHashtag(tag));
+    await submit({
+      text,
+      prompt: promptQuestion,
+      promptId,
+      visibility,
+      extra: {
+        imageUrl: imageUrl || undefined,
+        quotedPostId: quotedPost?._id || undefined,
+      },
+    });
   };
 
   const avatarSrc = profile?.image || user?.photoURL;
-  const displayName = profile?.name || user?.displayName || "Anonymous";
+  const displayName = profile?.name || user?.displayName || "You";
   const handle = profile?.username || displayName.replace(/\s+/g, "").toLowerCase();
+
+  if (savedResult) {
+    return (
+      <div className="flex min-h-[100dvh] w-full flex-col bg-background">
+        {showMilestoneModal && pendingMilestones.length > 0 && (
+          <MilestoneModal milestones={pendingMilestones} onClose={() => setShowMilestoneModal(false)} />
+        )}
+        <ReflectionSavedPanel result={savedResult} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-[100dvh] bg-background">
-      {/* Milestone Celebration Modal */}
-      {showMilestoneModal && pendingMilestones.length > 0 && (
-        <MilestoneModal
-          milestones={pendingMilestones}
-          onClose={() => {
-            setShowMilestoneModal(false);
-            if (postAfterMilestone) router.push("/");
-          }}
-        />
-      )}
 
       {/* Header */}
       <header className="glass-strong border-b border-border/60 flex items-center justify-between px-4 py-3 shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale">
+          <button type="button" aria-label="Close composer" onClick={() => router.back()} className="p-2 -ml-1 rounded-xl hover:bg-secondary/60 transition-colors press-scale">
             <X className="w-5 h-5" />
           </button>
-          <span className="font-bold text-[16px] tracking-tight hidden sm:inline">New Post</span>
+          <span className="font-bold text-[16px] tracking-tight hidden sm:inline">{copy.composer.title}</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Char counter ring */}
@@ -437,17 +452,15 @@ const CardCreator: React.FC = () => {
               )}
             </div>
           )}
-          <button
+          <Button
+            size="sm"
             onClick={handleSubmit}
-            disabled={!text.trim() || isOverLimit || isSubmitting || isUploading}
-            className="px-5 py-2 text-white rounded-full font-bold text-[14px] tracking-wide disabled:opacity-40 bg-[#00a855] transition-colors shadow-brand-sm press-scale"
+            loading={busy}
+            disabled={!text.trim() || isOverLimit || isUploading}
+            className="rounded-full px-5"
           >
-            {isSubmitting ? (
-              <span className="flex items-center gap-1.5">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Posting…
-              </span>
-            ) : "Post"}
-          </button>
+            {status === "signing-in" ? "Signing in…" : busy ? copy.composer.submitting : copy.composer.submit}
+          </Button>
         </div>
       </header>
 
@@ -469,7 +482,7 @@ const CardCreator: React.FC = () => {
           <div className="flex-1 min-w-0 pb-4">
             <div className="flex flex-col gap-1.5 mb-2">
               <span className="font-bold text-[15px]">{displayName}</span>
-              <span className="text-muted-foreground text-[13px] -mt-2">@{handle}</span>
+              {user ? <span className="text-muted-foreground text-[13px] -mt-2">@{handle}</span> : null}
             </div>
 
             {/* Prompt context */}
@@ -487,12 +500,15 @@ const CardCreator: React.FC = () => {
                 ref={textAreaRef}
                 id="post-textarea"
                 value={text}
-                onChange={(e) => handleTextChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+                onChange={(e) => {
+                  userEdited.current = true;
+                  handleTextChange(e.target.value, e.target.selectionStart ?? e.target.value.length);
+                }}
                 onKeyDown={handleHashtagKeyDown}
                 onClick={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
                 onKeyUp={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
                 onSelect={(e) => updateHashtagContext(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length)}
-                placeholder={promptQuestion ? "Share your reflection…" : "What's fueling your mind?"}
+                placeholder={promptQuestion ? copy.composer.placeholderWithPrompt : copy.composer.placeholder}
                 className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none text-[17px] leading-relaxed placeholder:text-muted-foreground/50 min-h-[120px]"
                 rows={4}
                 maxLength={maxChars}
@@ -542,24 +558,38 @@ const CardCreator: React.FC = () => {
               </div>
             )}
 
-            {!user && (
-              <p className="text-[12px] text-muted-foreground mt-3 text-center">
-                Sign in to publish your thought to the feed.
+            <p className="mt-2 text-caption text-muted-foreground">
+              {copy.composer.helper}
+              {!user ? " You'll sign in with Google when you save; your text stays here." : null}
+            </p>
+            {visibility === "public" ? (
+              <p className="mt-1 text-micro">
+                <span className="text-subtle-foreground">Sharing with the community? Follow the{" "}
+          <Link href="/terms#community-guidelines" className="underline-offset-4 hover:underline">community guidelines</Link>
+          {" · "}
+          <a href="mailto:hello@mind-fuel.app?subject=Report%20a%20problem" className="underline-offset-4 hover:underline">Report a problem</a></span>
               </p>
-            )}
+            ) : null}
+            {submitError ? (
+              <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-control border border-destructive/30 bg-destructive/10 px-3 py-2 text-caption text-foreground">
+                <span>{submitError}</span>
+                <Button size="sm" variant="secondary" onClick={handleSubmit} disabled={busy}>Try again</Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
 
 
       {/* Bottom toolbar */}
-      <div className="shrink-0 border-t border-border glass-strong px-4 py-3 pb-safe flex items-center justify-between">
+      <div className="keyboard-safe-bottom shrink-0 border-t border-border glass-strong px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-1">
           {/* Image upload */}
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} id="image-upload" />
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={!!imagePreview}
+            disabled={!!imagePreview || !user}
+            aria-label="Attach image"
             title="Attach image"
             className="p-2 rounded-xl text-muted-foreground hover:text-brand-green hover:bg-brand-green/10 transition-colors disabled:opacity-30 press-scale"
           >
@@ -585,11 +615,7 @@ const CardCreator: React.FC = () => {
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-border mx-2" />
-
-        {/* "Everyone can reply" indicator */}
-        <span className="text-[12px] text-brand-green font-semibold">Everyone can reply</span>
+        <VisibilityToggle value={visibility} onChange={setVisibility} disabled={busy} className="items-end" />
       </div>
     </div>
   );

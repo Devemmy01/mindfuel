@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Info, Flame, X } from "lucide-react";
 import { getStreakMilestoneMessage } from "@/lib/streakUtils";
+
+const STREAK_EXPLAINED_KEY = "mindfuel:streak-explained";
 
 interface StreakDisplayProps {
   streakDays: number;
@@ -37,6 +39,18 @@ export default function StreakDisplay({
     lg: 20,
   };
 
+  // Explain streaks the first time someone sees one, then only on request.
+  useEffect(() => {
+    if (streakDays <= 0) return;
+    try {
+      if (localStorage.getItem(STREAK_EXPLAINED_KEY)) return;
+      localStorage.setItem(STREAK_EXPLAINED_KEY, "1");
+      setShowInfo(true);
+    } catch {
+      // Without storage the explainer stays available on tap.
+    }
+  }, [streakDays]);
+
   const milestone = getStreakMilestoneMessage(streakDays);
   const isMilestone = milestone !== null;
 
@@ -57,12 +71,15 @@ export default function StreakDisplay({
   return (
     <div className={`relative inline-block ${className}`} ref={infoRef}>
       <div className="flex flex-col gap-2">
-        <motion.button
+        <m.button
+          type="button"
           onClick={() => setShowInfo(!showInfo)}
+          aria-expanded={showInfo}
+          aria-label={`${streakDays}-day reflection streak. What is a streak?`}
           className={`
             group relative overflow-hidden inline-flex items-center rounded-full font-bold transition-all
             ${streakDays > 0 
-              ? "bg-gradient-to-r from-brand-green/10 to-emerald-500/10 border border-brand-green/20 text-[#00a855] dark:text-brand-green hover:border-brand-green/40" 
+              ? "bg-gradient-to-r from-brand-green/10 to-emerald-500/10 border border-brand-green/20 text-[#00a855] dark:text-primary-text hover:border-brand-green/40" 
               : "bg-secondary/50 border border-border text-muted-foreground hover:bg-secondary"}
             ${sizeStyles[size]}
             shadow-sm hover:shadow-md active:scale-95
@@ -78,7 +95,7 @@ export default function StreakDisplay({
 
           <div className="relative flex items-center gap-1.5">
             {streakDays > 0 ? (
-              <motion.div
+              <m.div
                 animate={isMilestone ? { 
                   scale: [1, 1.2, 1],
                   filter: ["drop-shadow(0 0 0px #00bf63)", "drop-shadow(0 0 8px #00bf63)", "drop-shadow(0 0 0px #00bf63)"]
@@ -86,7 +103,7 @@ export default function StreakDisplay({
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 <Flame size={iconSizes[size]} className="fill-brand-green" strokeWidth={2.5} />
-              </motion.div>
+              </m.div>
             ) : (
               <Flame size={iconSizes[size]} className="text-muted-foreground/50" />
             )}
@@ -97,18 +114,18 @@ export default function StreakDisplay({
             
             <Info size={iconSizes[size] - 2} className="opacity-40 group-hover:opacity-100 transition-opacity ml-0.5" />
           </div>
-        </motion.button>
+        </m.button>
 
         {showMilestone && isMilestone && (
-          <motion.p
-            className="text-[12px] text-[#00a855] dark:text-brand-green font-bold flex items-center gap-1 ml-1"
+          <m.p
+            className="text-[12px] text-[#00a855] dark:text-primary-text font-bold flex items-center gap-1 ml-1"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <Flame size={12} />
             {milestone}
-          </motion.p>
+          </m.p>
         )}
       </div>
 
@@ -117,7 +134,7 @@ export default function StreakDisplay({
         {showInfo && (
           <>
             {/* Mobile Backdrop */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -125,7 +142,7 @@ export default function StreakDisplay({
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] md:hidden"
             />
 
-            <motion.div
+            <m.div
               initial={{ 
                 opacity: 0, 
                 y: window.innerWidth < 768 ? 100 : 10, 
@@ -159,7 +176,7 @@ export default function StreakDisplay({
                 <div className="flex items-center justify-between mb-4 md:mb-3">
                   <div className="flex items-center gap-3 md:gap-2">
                     <div className="w-10 h-10 md:w-8 md:h-8 rounded-xl md:rounded-lg bg-brand-green/10 flex items-center justify-center">
-                      <Flame size={window.innerWidth < 768 ? 22 : 18} className="text-brand-green" />
+                      <Flame size={window.innerWidth < 768 ? 22 : 18} className="text-primary-text" />
                     </div>
                     <h4 className="font-bold text-[18px] md:text-[15px]">Reflection Streak</h4>
                   </div>
@@ -174,7 +191,7 @@ export default function StreakDisplay({
                 <div className="space-y-4 md:space-y-3">
                   <p className="text-[15px] md:text-[13px] text-foreground/80 leading-relaxed">
                     Your streak reflects your consistency in daily mindfulness. 
-                    <span className="font-bold text-brand-green"> Share a thought every day</span> to keep the flame alive!
+                    <span className="font-bold text-primary-text"> Share a thought every day</span> to keep the flame alive!
                   </p>
                   
                   <div className="bg-secondary/40 rounded-2xl md:rounded-xl p-4 md:p-3 border border-border/50">
@@ -203,7 +220,7 @@ export default function StreakDisplay({
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>

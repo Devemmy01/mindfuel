@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { getMilestoneById, TIER_COLORS } from "@/lib/milestones";
 
 interface MilestoneModalProps {
@@ -52,7 +52,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         key="milestone-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -60,13 +60,13 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
         className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
         onClick={onClose}
       >
-        <motion.div
+        <m.div
           key={`milestone-card-${current.id}`}
           initial={{ opacity: 0, scale: 0.7, y: 40 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ type: "spring", damping: 18, stiffness: 260 }}
-          className="relative w-full max-w-sm bg-[#0a0f0b] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl"
+          className="relative w-full max-w-sm bg-[#0a0f0b] border border-foreground/10 rounded-[2rem] overflow-hidden shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Ambient particles */}
@@ -82,14 +82,14 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
           {/* Content */}
           <div className="relative px-8 pt-10 pb-8 flex flex-col items-center text-center gap-5">
             {/* Badge circle */}
-            <motion.div
+            <m.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", damping: 10, stiffness: 200, delay: 0.15 }}
               className={`w-28 h-28 rounded-full ${colors.bg} border-2 ${colors.border} ${colors.glow} flex items-center justify-center`}
             >
               <span className="text-6xl select-none">{current.emoji}</span>
-            </motion.div>
+            </m.div>
 
             {/* Tier badge */}
             <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
@@ -98,22 +98,22 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
 
             {/* Text */}
             <div className="space-y-2">
-              <motion.h2
+              <m.h2
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="text-[26px] font-black text-white tracking-tight leading-tight"
+                className="text-[26px] font-black text-foreground tracking-tight leading-tight"
               >
                 {current.label}
-              </motion.h2>
-              <motion.p
+              </m.h2>
+              <m.p
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
-                className="text-[14px] text-white/60 leading-relaxed"
+                className="text-[14px] text-foreground/60 leading-relaxed"
               >
                 {current.description}
-              </motion.p>
+              </m.p>
             </div>
 
             {/* Progress dots if multiple */}
@@ -123,7 +123,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
                   <div
                     key={i}
                     className={`h-1.5 rounded-full transition-all ${
-                      i === currentIndex ? `w-4 ${colors.bg.replace("/10", "")}/80` : "w-1.5 bg-white/20"
+                      i === currentIndex ? `w-4 ${colors.bg.replace("/10", "")}/80` : "w-1.5 bg-foreground/20"
                     }`}
                   />
                 ))}
@@ -131,7 +131,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
             )}
 
             {/* CTA button */}
-            <motion.button
+            <m.button
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.45 }}
@@ -147,10 +147,10 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
               }`}
             >
               {isLast ? "🎉 Awesome!" : `Next (${currentIndex + 2}/${milestones.length})`}
-            </motion.button>
+            </m.button>
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       <style jsx global>{`
         @keyframes milestoneFloat {

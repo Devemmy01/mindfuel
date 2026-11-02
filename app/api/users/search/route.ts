@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import Follow from "@/models/follow";
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
     const query = req.nextUrl.searchParams.get("q");
 
     if (!query || query.length < 2) {
-      const viewerId = req.nextUrl.searchParams.get("viewerId");
+      const viewerId = await getViewerUid(req);
       if (!viewerId) return NextResponse.json({ users: [] }, { status: 200 });
       const viewer = await User.findOne({ firebaseId: viewerId }).select("_id");
       if (!viewer) return NextResponse.json({ users: [] }, { status: 200 });
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       const users = await User.find({ _id: { $nin: excluded } }).sort({ createdAt: -1 }).limit(4).select("name image firebaseId username bio").lean();
       return NextResponse.json(
         { users },
-        { status: 200, headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } }
+        { status: 200, headers: { "Cache-Control": "private, no-store" } }
       );
     }
 

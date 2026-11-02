@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { emailAllowed } from "@/lib/notify";
+import { unsubscribeFor } from "@/lib/unsubscribe";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { Resend } from "resend";
@@ -12,8 +14,11 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 750;
 
 type BroadcastRecipient = {
+  _id?: unknown;
   name?: string;
   email: string;
+  preferences?: { notifications?: boolean; dailyEmail?: boolean };
+  notificationSettings?: Record<string, unknown>;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -65,13 +70,12 @@ export async function POST(req: NextRequest) {
       targetUsers = [{ name: "Test User", email: testEmail }];
     } else {
       // Production mode: fetch all users with emails and notification preferences
-      targetUsers = await User.find({
-        email: { $exists: true, $ne: "" },
-        "preferences.notifications": { $ne: false },
-      })
-        .select("name email -_id")
+      // Product updates respect each person's "Product updates" email choice.
+      targetUsers = (await User.find({ email: { $exists: true, $ne: "" } })
+        .select("name email preferences notificationSettings")
         .sort({ email: 1 })
-        .lean<BroadcastRecipient[]>();
+        .lean<BroadcastRecipient[]>())
+        .filter((user) => emailAllowed(user, "product"));
     }
 
     targetUsers = targetUsers.filter((user) => Boolean(user.email));
@@ -97,11 +101,13 @@ export async function POST(req: NextRequest) {
               from: "MindFuel <updates@mind-fuel.app>",
               to: user.email,
               subject: `New on MindFuel: ${updateTitle}`,
+              headers: user._id ? unsubscribeFor(String(user._id), "product").headers : undefined,
               react: (
                 <UpdateEmail
                   userName={user.name || "there"}
                   updateTitle={updateTitle}
                   updateDetails={updateDetails}
+                  unsubscribeUrl={user._id ? unsubscribeFor(String(user._id), "product").url : undefined}
                 />
               ) as React.ReactElement,
             })),

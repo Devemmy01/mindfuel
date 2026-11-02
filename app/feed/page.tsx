@@ -4,6 +4,7 @@ import { absoluteUrl, defaultOgImage } from "@/lib/seo";
 import { getInitialReflectionPosts } from "@/lib/initialFeed";
 import { Suspense } from "react";
 import type { PostType } from "@/types";
+import { getTodayPrompt } from "@/lib/dailyPrompts";
 
 export const revalidate = 300;
 
@@ -44,13 +45,13 @@ async function CachedFeed() {
     console.error("Unable to prepare initial feed snapshot", error);
   }
 
-  return <FeedClient initialReflectionPosts={initialPosts} />;
+  return <FeedClient initialReflectionPosts={initialPosts} todayPrompt={getTodayPrompt()} />;
 }
 
 export default function FeedPage() {
   return (
     <div className="flex flex-col w-full min-h-screen">
-      <Suspense fallback={<FeedClient />}>
+      <Suspense fallback={<FeedClient todayPrompt={getTodayPrompt()} />}>
         <CachedFeed />
       </Suspense>
     </div>

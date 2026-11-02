@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unauthorized } from "@/lib/api-auth";
+import { requireFirebaseUser } from "@/lib/firebase-admin";
 import { connectToDB } from "@/utils/database";
 import User, { IUser } from "@/models/user";
 import { resend } from "@/lib/resend";
@@ -8,9 +10,14 @@ import React from "react";
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { firebaseId, email, name, image } = await req.json();
+    // Identity and email come from the verified token, never from the body.
+    const decoded = await requireFirebaseUser(req);
+    if (!decoded) return unauthorized();
+    const firebaseId = decoded.uid;
+    const email = decoded.email;
+    const { name, image } = await req.json();
 
-    if (!firebaseId || !email) {
+    if (!email) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },

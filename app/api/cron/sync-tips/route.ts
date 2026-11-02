@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/api-auth";
+import { initialTipStatus, screenTip } from "@/lib/tip-screen";
 import { connectToDB } from "@/utils/database";
 import Tip from "@/models/tip";
 
@@ -80,9 +82,7 @@ async function fetchAffirmations() {
 }
 
 export async function GET(req: NextRequest) {
-  // Simple auth check
-  const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -107,9 +107,18 @@ export async function GET(req: NextRequest) {
 
         for (const tipData of tips) {
           try {
+            // Screen on the way in: off-tone tips are rejected, joke-advice
+            // sources wait for a person (scripts/review-tips.ts).
+            const screened = screenTip(tipData.text);
             const result = await Tip.findOneAndUpdate(
               { text: tipData.text },
-              { $setOnInsert: tipData },
+              {
+                $setOnInsert: {
+                  ...tipData,
+                  status: initialTipStatus(tipData.text, tipData.source),
+                  ...(screened.ok ? {} : { screenReason: screened.reason }),
+                },
+              },
               { upsert: true, new: true, rawResult: true }
             );
             if (!result.lastErrorObject.updatedExisting) {

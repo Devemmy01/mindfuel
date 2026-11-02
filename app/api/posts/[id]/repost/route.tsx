@@ -1,5 +1,10 @@
 import React from "react";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound } from "@/lib/post-access";
+import { canViewPost, isPrivatePost } from "@/lib/post-visibility";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import User from "@/models/user";
@@ -18,7 +23,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const { userId: firebaseId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,11 +32,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const [user, originalPost] = await Promise.all([
       User.findOne({ firebaseId }).select("_id name username"),
-      Post.findById(postId).populate("userId", "name email"),
+      Post.findById(postId).populate("userId", "name email preferences notificationSettings"),
     ]);
 
     if (!user || !originalPost) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    // Private reflections cannot be reposted: others cannot see them, and a
+    // repost by the author would publish them indirectly.
+    if (isPrivatePost(originalPost)) {
+      return canViewPost(originalPost, user._id)
+        ? NextResponse.json({ error: "Share this reflection with the community before reposting it." }, { status: 400 })
+        : postNotFound();
     }
 
     // Check if already reposted
@@ -67,14 +80,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       }
 
       // Send email notification if reposter is not the author
-      if (originalPost.userId._id.toString() !== user._id.toString() && originalPost.userId.email) {
+      if (
+        originalPost.userId._id.toString() !== user._id.toString() &&
+        originalPost.userId.email &&
+        emailAllowed(originalPost.userId, "reposts")
+      ) {
         try {
           const postLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://mind-fuel.app"}/post/${postId}`;
           
           await resend.emails.send({
             from: "MindFuel <notifications@mind-fuel.app>",
             to: originalPost.userId.email,
-            subject: `${user.name} reposted your thought`,
+            subject: `${user.name} reposted your reflection`,
+            headers: unsubscribeFor(String(originalPost.userId._id), "reposts").headers,
             react: RepostEmail({
               authorName: originalPost.userId.name,
               reposterName: user.name,
@@ -100,7 +118,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     await connectToDB();
     const { id: postId } = await params;
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    const firebaseId = await getViewerUid(req);
 
     if (!firebaseId) {
       return NextResponse.json({ isReposted: false });

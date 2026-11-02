@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { logoDarkBase64 } from "@/lib/logoBase64";
 
 // The downloaded card always uses this social-friendly 4:5 resolution.
@@ -332,7 +332,7 @@ function DownloadContent() {
           </div>
         </header>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
@@ -418,19 +418,19 @@ function DownloadContent() {
 
               <div aria-live="polite" className="min-h-12">
                 {hasDownloaded && !isDownloading && (
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-brand-green/15 bg-brand-green/[0.07] px-3 py-3 text-center text-xs font-bold text-emerald-300"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Saved successfully
-                  </motion.div>
+                  </m.div>
                 )}
               </div>
             </div>
           </aside>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* Kept off-screen at full resolution so the exported PNG never depends

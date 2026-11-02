@@ -17,7 +17,12 @@ import {
   CheckCheck,
   ChevronsDown,
   CircleAlert,
+  Ban,
+  BellOff,
+  BellRing,
   Copy,
+  ImagePlus,
+  Trash2,
   Info,
   KeyRound,
   Link2,
@@ -38,7 +43,10 @@ import { useToast } from "@/providers/ToastProvider";
 import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
-import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
+import { addToOutbox, readOutbox, removeFromOutbox, type OutboxEntry } from "@/lib/chat-outbox";
+import { createConversationKey, decryptChatText, encryptChatBytes, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
+import { ENVELOPE_ENCRYPTION_VERSION, messagePreviewText, parseEnvelope, prepareImage, serializeEnvelope, type LinkPreviewData } from "@/lib/chat-attachments";
+import EncryptedImage from "@/components/chat/EncryptedImage";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import IconButton from "@/components/ui/IconButton";
 import ChatDeviceLinkModal from "@/components/chat/ChatDeviceLinkModal";
@@ -69,6 +77,9 @@ type ChatMessage = {
   } | null;
   readBy?: string[];
   deliveryState?: "sending" | "failed";
+  /** Deleted for everyone: show a placeholder instead of content. */
+  deletedAt?: string | null;
+  clientMessageId?: string;
   ciphertext?: string;
   iv?: string;
   encryptionVersion?: number;
@@ -157,6 +168,12 @@ type Conversation = {
   lastMessage?: ChatMessage;
   lastMessageAt: string;
   unreadCount: number;
+  /** The viewer muted message notifications for this conversation. */
+  muted?: boolean;
+  /** Either person has blocked the other. */
+  blocked?: boolean;
+  /** A message request waiting for the viewer to accept. */
+  request?: boolean;
   encryptionVersion?: number;
   encryptedKeys?: Array<{ user: Person; wrappedKey: string }>;
 };
@@ -210,7 +227,7 @@ function Avatar({ person, size = 44, online = false }: { person: Person; size?: 
     />
   ) : (
     <span
-      className="flex shrink-0 items-center justify-center rounded-full bg-brand-green/15 font-bold text-brand-green"
+      className="flex shrink-0 items-center justify-center rounded-full bg-brand-green/15 font-bold text-primary-text"
       style={{ width: size, height: size }}
     >
       {person.name?.[0]?.toUpperCase()}
@@ -222,6 +239,7 @@ function Avatar({ person, size = 44, online = false }: { person: Person; size?: 
       <span
         className={`absolute bottom-0 right-0 rounded-full border-2 border-surface ${online ? "bg-[#35d07f]" : "bg-[#5f6b65]"}`}
         style={{ width: Math.max(10, Math.round(size * 0.24)), height: Math.max(10, Math.round(size * 0.24)) }}
+        role="img"
         aria-label={online ? "Online" : "Offline"}
         title={online ? "Online" : "Offline"}
       />
@@ -236,6 +254,22 @@ export default function MessagesClient() {
   const [active, setActive] = useState<Conversation | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = active ? drafts[active._id] || "" : "";
+  const [pendingPhoto, setPendingPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [sendingPhoto, setSendingPhoto] = useState(false);
+  // Link previews are opt-in: fetching one tells our server that URL, so the sender chooses.
+  const [linkPreview, setLinkPreview] = useState<{ url: string; data: LinkPreviewData | null; loading: boolean } | null>(null);
+  const draftUrl = draft.match(/https?:\/\/[^\s<>"']+/i)?.[0] || "";
+  useEffect(() => {
+    if (linkPreview && linkPreview.url !== draftUrl) setLinkPreview(null);
+  }, [draftUrl, linkPreview]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const clearPendingPhoto = useCallback(() => {
+    setPendingPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+  }, []);
+  useEffect(() => clearPendingPhoto, [active?._id, clearPendingPhoto]);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [typingName, setTypingName] = useState("");
   const [query, setQuery] = useState("");
@@ -344,7 +378,7 @@ export default function MessagesClient() {
     if (!response.ok) throw new Error("Unable to load messages");
     return (await response.json()).messages || [];
   }, [user]);
-  const { data: messageData, mutate: mutateMessages } = useSWR<ChatMessage[]>(
+  const { data: messageData, mutate: mutateMessages, error: messagesError } = useSWR<ChatMessage[]>(
     messagesUrl,
     messagesFetcher,
     {
@@ -357,7 +391,50 @@ export default function MessagesClient() {
       refreshWhenHidden: false,
     },
   );
-  const messages = useMemo(() => messageData || [], [messageData]);
+  const serverMessages = useMemo(() => messageData || [], [messageData]);
+  // Shown only when syncing really fails (offline, or the server unreachable);
+  // a down socket alone is not a problem because polling still delivers.
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    const update = () => setIsOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  // Unsent messages live in a local outbox so they survive polls, reloads and
+  // going offline. They render after the server's messages until it confirms
+  // them (matched by clientMessageId).
+  const [outboxVersion, setOutboxVersion] = useState(0);
+  const [outboxStatus, setOutboxStatus] = useState<Record<string, "sending" | "failed">>({});
+  const messages = useMemo<ChatMessage[]>(() => {
+    if (!user || !active) return serverMessages;
+    const confirmed = new Set(serverMessages.map((message) => message.clientMessageId).filter(Boolean));
+    const pending = readOutbox(user.uid)
+      .filter((entry) => entry.conversationId === active._id && !confirmed.has(entry.clientMessageId))
+      .map((entry): ChatMessage => ({
+        _id: `pending-${entry.clientMessageId}`,
+        clientMessageId: entry.clientMessageId,
+        text: entry.text,
+        createdAt: entry.createdAt,
+        sender: {
+          _id: user.uid,
+          firebaseId: user.uid,
+          name: profile?.name || user.displayName || "You",
+          username: profile?.username,
+          image: profile?.image || user.photoURL || undefined,
+        },
+        readBy: [],
+        replyTo: null,
+        deliveryState: outboxStatus[entry.clientMessageId] || "failed",
+      }));
+    return pending.length ? [...serverMessages, ...pending] : serverMessages;
+    // outboxVersion re-reads storage after outbox changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, outboxStatus, outboxVersion, profile, serverMessages, user]);
   const setMessages = useCallback(
     (next: React.SetStateAction<ChatMessage[]>) => {
       void mutateMessages(
@@ -557,9 +634,12 @@ export default function MessagesClient() {
       ) || conversation.participants[0],
     [user?.uid],
   );
+  const [listTab, setListTab] = useState<"chats" | "requests">("chats");
+  const requestCount = conversations.filter((conversation) => conversation.request).length;
   const visibleConversations = useMemo(
     () =>
       conversations
+        .filter((conversation) => Boolean(conversation.request) === (listTab === "requests"))
         .filter((conversation) => {
           const person = otherPerson(conversation);
           const search = query.trim().toLowerCase();
@@ -573,7 +653,7 @@ export default function MessagesClient() {
             new Date(right.lastMessageAt || 0).getTime() -
             new Date(left.lastMessageAt || 0).getTime(),
         ),
-    [conversations, query, otherPerson],
+    [listTab, conversations, query, otherPerson],
   );
 
   useEffect(() => {
@@ -739,6 +819,11 @@ export default function MessagesClient() {
     socket.on("typing:update", onTyping);
     socket.on("messages:read", onRead);
     socket.on("message:reaction", onReaction);
+    const onDeleted = ({ conversationId, messageId }: { conversationId: string; messageId: string }) => {
+      if (conversationId !== active._id) return;
+      setMessages((rows) => rows.map((row) => row._id === messageId ? { ...row, text: "", ciphertext: "", iv: "", reactions: [], deletedAt: new Date().toISOString() } : row));
+    };
+    socket.on("message:deleted", onDeleted);
     const loadTypingState = async () => {
       try {
         const response = await chatFetch(user,
@@ -803,6 +888,7 @@ export default function MessagesClient() {
       socket.off("typing:update", onTyping);
       socket.off("messages:read", onRead);
       socket.off("message:reaction", onReaction);
+      socket.off("message:deleted", onDeleted);
       socket.off("connect", onReconnect);
     };
   }, [active, user, profile?.name, setConversations, setMessages, updateTypingState, mutateMessages]);
@@ -981,6 +1067,90 @@ export default function MessagesClient() {
     }
   };
 
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const activePersonId = active?.participants.find((participant) => participant.firebaseId !== user?.uid)?.firebaseId;
+  useEffect(() => {
+    setBlockedByMe(false);
+    if (!user || !activePersonId || !active?.blocked) return;
+    void chatFetch(user, `/api/users/block?userId=${encodeURIComponent(activePersonId)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status) => setBlockedByMe(Boolean(status?.blockedByMe)))
+      .catch(() => undefined);
+  }, [user, activePersonId, active?.blocked]);
+
+  const updateActive = (changes: Partial<Conversation>) => {
+    if (!active) return;
+    setActive({ ...active, ...changes });
+    setConversations((rows) => rows.map((row) => (row._id === active._id ? { ...row, ...changes } : row)));
+  };
+
+  const respondToRequest = async (action: "accept" | "decline") => {
+    if (!user || !active) return;
+    const response = await chatFetch(user, "/api/chat/conversations/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: active._id, action }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast("Couldn't update this request.", "error");
+      return;
+    }
+    if (action === "accept") {
+      updateActive({ request: false });
+      setListTab("chats");
+    } else {
+      const removedId = active._id;
+      setConversations((rows) => rows.filter((row) => row._id !== removedId));
+      setActive(null);
+      showToast("Request deleted. They aren't told.", "success");
+    }
+  };
+
+  const toggleMute = async () => {
+    if (!user || !active) return;
+    const muted = !active.muted;
+    setShowConversationMenu(false);
+    const response = await chatFetch(user, "/api/chat/conversations/mute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: active._id, muted }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast("Couldn't change notifications for this conversation.", "error");
+      return;
+    }
+    updateActive({ muted });
+    showToast(muted ? "Muted. You won't get notifications for this conversation." : "Notifications are back on.", "success");
+  };
+
+  const toggleBlock = async () => {
+    if (!user || !active || !activePersonId) return;
+    const name = active.participants.find((participant) => participant.firebaseId === activePersonId)?.name || "this person";
+    const blocking = !blockedByMe;
+    setShowConversationMenu(false);
+    if (blocking && !window.confirm(`Block ${name}? They won't be able to message or follow you, and you'll unfollow each other. They aren't told.`)) return;
+    const response = await chatFetch(user, "/api/users/block", {
+      method: blocking ? "POST" : "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: activePersonId }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast(blocking ? "Couldn't block right now." : "Couldn't unblock right now.", "error");
+      return;
+    }
+    setBlockedByMe(blocking);
+    if (blocking) {
+      updateActive({ blocked: true });
+    } else {
+      // They may still have blocked you; ask the server.
+      const status = await chatFetch(user, `/api/users/block?userId=${encodeURIComponent(activePersonId)}`)
+        .then((result) => (result.ok ? result.json() : null))
+        .catch(() => null);
+      updateActive({ blocked: Boolean(status?.blockedMe) });
+    }
+    showToast(blocking ? `${name} is blocked.` : `${name} is unblocked.`, "success");
+  };
+
   const copyProfileLink = async (person: Person) => {
     try {
       await navigator.clipboard.writeText(
@@ -993,17 +1163,112 @@ export default function MessagesClient() {
     }
   };
 
+  /** POSTs one outbox entry. Retries reuse its clientMessageId, so the server never duplicates. */
+  const deliver = useCallback(async (entry: OutboxEntry): Promise<boolean> => {
+    if (!user) return false;
+    setOutboxStatus((status) => ({ ...status, [entry.clientMessageId]: "sending" }));
+    try {
+      const response = await chatFetch(user, "/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: entry.conversationId,
+          ...entry.payload,
+          ...(entry.attachmentId ? { attachmentId: entry.attachmentId } : {}),
+          replyTo: entry.replyTo,
+          clientMessageId: entry.clientMessageId,
+        }),
+      });
+      if (!response.ok) throw new Error(`Message failed with ${response.status}`);
+      const data = await response.json();
+      removeFromOutbox(user.uid, entry.clientMessageId);
+      setOutboxStatus((status) => {
+        const next = { ...status };
+        delete next[entry.clientMessageId];
+        return next;
+      });
+      setOutboxVersion((version) => version + 1);
+      if (activeIdRef.current === entry.conversationId) {
+        setMessages((rows) =>
+          rows.some((row) => row._id === data.message._id) ? rows : [...rows, { ...data.message, text: entry.text, decrypted: true }],
+        );
+      }
+      setConversations((rows) => {
+        const current = rows.find((row) => row._id === entry.conversationId);
+        if (!current) return rows;
+        const updated = { ...current, lastMessage: { ...data.message, text: entry.text }, lastMessageAt: data.message.createdAt };
+        return [updated, ...rows.filter((row) => row._id !== entry.conversationId)];
+      });
+      if (!data.duplicate) {
+        getSocket(user.uid).emit("message:published", { conversationId: entry.conversationId, message: data.message });
+      }
+      return true;
+    } catch {
+      setOutboxStatus((status) => ({ ...status, [entry.clientMessageId]: "failed" }));
+      return false;
+    }
+  }, [setConversations, setMessages, user]);
+
+  // Send anything left in the outbox, oldest first, stopping at the first
+  // failure so order is preserved.
+  const flushingRef = useRef(false);
+  const flushOutbox = useCallback(async () => {
+    if (!user || flushingRef.current || !navigator.onLine) return;
+    flushingRef.current = true;
+    try {
+      for (const entry of readOutbox(user.uid)) {
+        if (!(await deliver(entry))) break;
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [deliver, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void flushOutbox();
+    const socket = getSocket(user.uid);
+    const onBack = () => void flushOutbox();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void flushOutbox();
+    };
+    window.addEventListener("online", onBack);
+    document.addEventListener("visibilitychange", onVisible);
+    socket.on("connect", onBack);
+    return () => {
+      window.removeEventListener("online", onBack);
+      document.removeEventListener("visibilitychange", onVisible);
+      socket.off("connect", onBack);
+    };
+  }, [flushOutbox, user]);
+
+  const retryMessage = (message: ChatMessage) => {
+    if (!user || !message.clientMessageId) return;
+    const entry = readOutbox(user.uid).find((item) => item.clientMessageId === message.clientMessageId);
+    if (entry) void deliver(entry);
+  };
+
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !active || !draft.trim()) return;
+    if (!user || !active || (!draft.trim() && !pendingPhoto)) return;
+    if (pendingPhoto) {
+      await sendPhoto(pendingPhoto.file, draft.trim());
+      return;
+    }
     const text = draft.trim();
     const conversationId = active._id;
+    // Replying to a request accepts it (the server does the same).
+    if (active.request) updateActive({ request: false });
     const temporaryId = `pending-${crypto.randomUUID()}`;
     const socket = getSocket(user.uid);
     let encryptedPayload: { ciphertext: string; iv: string; encryptionVersion: number };
+    const preview = linkPreview?.data && text.includes(linkPreview.data.url.replace(/\/$/, "")) ? linkPreview.data : null;
+    const body = preview ? serializeEnvelope({ t: "text", text, preview }) : text;
     try {
       const key = await prepareConversationKey(active);
-      encryptedPayload = await encryptChatText(key, text);
+      encryptedPayload = preview
+        ? { ...(await encryptChatText(key, body)), encryptionVersion: ENVELOPE_ENCRYPTION_VERSION }
+        : await encryptChatText(key, text);
     } catch (error) {
       if (isChatKeyMismatchError(error) || (error instanceof Error && error.message.includes("not linked"))) {
         setHasChatKeyConflict(true);
@@ -1014,28 +1279,7 @@ export default function MessagesClient() {
       }
       return;
     }
-    const optimisticMessage: ChatMessage = {
-      _id: temporaryId,
-      text,
-      createdAt: new Date().toISOString(),
-      sender: {
-        _id: user.uid,
-        firebaseId: user.uid,
-        name: profile?.name || user.displayName || "You",
-        username: profile?.username,
-        image: profile?.image || user.photoURL || undefined,
-      },
-      readBy: [],
-      replyTo: replyingTo
-        ? {
-            _id: replyingTo._id,
-            text: replyingTo.text,
-            createdAt: replyingTo.createdAt,
-            sender: replyingTo.sender,
-          }
-        : null,
-      deliveryState: "sending",
-    };
+    const clientMessageId = temporaryId.replace(/^pending-/, "");
     if (typingTimer.current) clearTimeout(typingTimer.current);
     isTypingRef.current = false;
     socket.emit("typing:stop", {
@@ -1050,56 +1294,170 @@ export default function MessagesClient() {
     });
     const replyToId = replyingTo?._id;
     setReplyingTo(null);
-    setMessages((rows) => [...rows, optimisticMessage]);
-    setConversations((rows) => {
-      const current = rows.find((row) => row._id === conversationId);
-      if (!current) return rows;
-      const updated = {
-        ...current,
-        lastMessage: optimisticMessage,
-        lastMessageAt: optimisticMessage.createdAt,
-      };
-      return [updated, ...rows.filter((row) => row._id !== conversationId)];
-    });
-
-    try {
-      const response = await chatFetch(user, "/api/chat/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, ...encryptedPayload, replyTo: replyToId }),
-      });
-      if (!response.ok) throw new Error("Message failed to send");
-      const data = await response.json();
-      setMessages((rows) =>
-        rows.map((message) =>
-          message._id === temporaryId ? data.message : message,
-        ),
+    const entry: OutboxEntry = {
+      clientMessageId,
+      conversationId,
+      payload: encryptedPayload,
+      replyTo: replyToId,
+      text: body,
+      createdAt: new Date().toISOString(),
+    };
+    setLinkPreview(null);
+    addToOutbox(user.uid, entry);
+    setOutboxVersion((version) => version + 1);
+    const delivered = await deliver(entry);
+    if (!delivered) {
+      showToast(
+        navigator.onLine ? "Message not sent. Tap Retry to try again." : "You're offline. This message will send when you're back.",
+        navigator.onLine ? "error" : "info",
       );
-      setConversations((rows) => {
-        const current = rows.find((row) => row._id === conversationId);
-        if (!current) return rows;
-        const updated = {
-          ...current,
-          lastMessage: data.message,
-          lastMessageAt: data.message.createdAt,
-        };
-        return [updated, ...rows.filter((row) => row._id !== conversationId)];
-      });
-      socket.emit("message:published", {
-        conversationId,
-        message: data.message,
-      });
-    } catch {
-      setMessages((rows) =>
-        rows.map((message) =>
-          message._id === temporaryId
-            ? { ...message, deliveryState: "failed" }
-            : message,
-        ),
-      );
-      showToast("Message could not be sent", "error");
     }
   };
+
+  /**
+   * Photo: re-encode (drops EXIF), encrypt with the conversation key, upload
+   * ciphertext, then send an encrypted envelope as an ordinary message.
+   */
+  const sendPhoto = async (file: File, caption: string) => {
+    if (!user || !active || sendingPhoto) return;
+    if (!navigator.onLine) {
+      showToast("You're offline. Photos need a connection to send.", "info");
+      return;
+    }
+    const conversationId = active._id;
+    setSendingPhoto(true);
+    try {
+      const key = await prepareConversationKey(active);
+      const image = await prepareImage(file);
+      const encrypted = await encryptChatBytes(key, await image.blob.arrayBuffer());
+      const upload = await chatFetch(user, `/api/chat/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: encrypted.data,
+      });
+      const uploaded = await upload.json().catch(() => ({}));
+      if (!upload.ok) throw new Error(uploaded.error || "Couldn't send that photo.");
+      const text = serializeEnvelope({
+        t: "image",
+        id: uploaded.id,
+        iv: encrypted.iv,
+        w: image.width,
+        h: image.height,
+        mime: image.mime,
+        caption: caption || undefined,
+      });
+      const payload = { ...(await encryptChatText(key, text)), encryptionVersion: ENVELOPE_ENCRYPTION_VERSION };
+      const replyToId = replyingTo?._id;
+      setReplyingTo(null);
+      clearPendingPhoto();
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[conversationId];
+        return next;
+      });
+      const entry: OutboxEntry = {
+        clientMessageId: crypto.randomUUID(),
+        conversationId,
+        payload,
+        replyTo: replyToId,
+        attachmentId: uploaded.id,
+        text,
+        createdAt: new Date().toISOString(),
+      };
+      addToOutbox(user.uid, entry);
+      setOutboxVersion((version) => version + 1);
+      if (!(await deliver(entry))) showToast("Photo not sent. Tap Retry to try again.", "error");
+    } catch (error) {
+      if (isChatKeyMismatchError(error)) {
+        setHasChatKeyConflict(true);
+        setDeviceLinkMode("target");
+        showToast("Link this browser to a trusted device before sending encrypted messages.", "error", 8000);
+      } else {
+        showToast(error instanceof Error ? error.message : "Couldn't send that photo.", "error", 6000);
+      }
+    } finally {
+      setSendingPhoto(false);
+    }
+  };
+
+  const pickPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Choose a photo to send.", "error");
+      return;
+    }
+    clearPendingPhoto();
+    setPendingPhoto({ file, previewUrl: URL.createObjectURL(file) });
+    composerRef.current?.focus();
+  };
+
+  const [deleteMenuFor, setDeleteMenuFor] = useState<string | null>(null);
+
+  // Swipe a bubble right to reply (touch only). Vertical movement cancels, so scrolling still works.
+  const swipe = useRef<{ x: number; y: number; dx: number; el: HTMLElement } | null>(null);
+  const SWIPE_REPLY_PX = 56;
+  const swipeHandlers = (message: ChatMessage) => ({
+    onTouchStart: (event: React.TouchEvent<HTMLElement>) => {
+      const touch = event.touches[0];
+      swipe.current = { x: touch.clientX, y: touch.clientY, dx: 0, el: event.currentTarget };
+      event.currentTarget.style.transition = "none";
+    },
+    onTouchMove: (event: React.TouchEvent<HTMLElement>) => {
+      const state = swipe.current;
+      if (!state) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - state.x;
+      const dy = touch.clientY - state.y;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+        state.el.style.transform = "";
+        swipe.current = null;
+        return;
+      }
+      state.dx = Math.max(0, Math.min(72, dx));
+      state.el.style.transform = `translateX(${state.dx}px)`;
+    },
+    onTouchEnd: () => {
+      const state = swipe.current;
+      swipe.current = null;
+      if (!state) return;
+      state.el.style.transition = "transform 160ms ease-out";
+      state.el.style.transform = "";
+      if (state.dx >= SWIPE_REPLY_PX && !message.deletedAt) {
+        setReplyingTo(message);
+        navigator.vibrate?.(10);
+        composerRef.current?.focus();
+      }
+    },
+  });
+
+  const deleteMessage = async (message: ChatMessage, scope: "me" | "everyone", confirmed = false) => {
+    if (!user || !active) return;
+    setDeleteMenuFor(null);
+    if (scope === "everyone" && !confirmed && !window.confirm("Delete this message for everyone? It's removed for both of you.")) return;
+    const response = await chatFetch(user, "/api/chat/messages", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId: message._id, scope }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast("Couldn't delete that message.", "error");
+      return;
+    }
+    if (replyingTo?._id === message._id) setReplyingTo(null);
+    if (scope === "me") {
+      setMessages((rows) => rows.filter((row) => row._id !== message._id));
+    } else {
+      setMessages((rows) => rows.map((row) => row._id === message._id ? { ...row, text: "", ciphertext: "", iv: "", reactions: [], deletedAt: new Date().toISOString() } : row));
+      getSocket(user.uid).emit("message:deleted", { conversationId: active._id, messageId: message._id });
+    }
+  };
+
+  const getActiveKey = useCallback(
+    () => (active ? prepareConversationKey(active) : Promise.reject(new Error("No conversation"))),
+    [active, prepareConversationKey],
+  );
 
   const reactToMessage = async (messageId: string, emoji: string) => {
     if (!user || !active) return;
@@ -1280,20 +1638,20 @@ export default function MessagesClient() {
   if (authLoading)
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
       </div>
     );
   if (!user)
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center px-8 text-center">
-        <MessageCircle className="mb-4 h-12 w-12 text-brand-green" />
+        <MessageCircle className="mb-4 h-12 w-12 text-primary-text" />
         <h1 className="text-xl font-bold">Conversations are personal</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in to connect and chat with the MindFuel community.
         </p>
         <button
           onClick={openSignInModal}
-          className="mt-6 rounded-full bg-brand-green px-6 py-3 font-bold text-white"
+          className="mt-6 rounded-full bg-brand-green px-6 py-3 font-bold text-primary-foreground"
         >
           Sign in
         </button>
@@ -1316,14 +1674,14 @@ export default function MessagesClient() {
               <button
                 type="button"
                 onClick={() => setShowNewMessage(false)}
-                className="rounded-full p-2 hover:bg-white/[0.07]"
+                className="rounded-full p-2 hover:bg-foreground/[0.07]"
                 aria-label="Close new message"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-4">
-              <label className="flex items-center gap-2 rounded-full bg-surface-elevated px-4 ring-1 ring-white/[0.06] focus-within:ring-brand-green/60">
+              <label className="flex items-center gap-2 rounded-full bg-surface-elevated px-4 ring-1 ring-foreground/[0.06] focus-within:ring-brand-green/60">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
                   autoFocus
@@ -1333,7 +1691,7 @@ export default function MessagesClient() {
                   className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
                 {recipientSearchLoading && (
-                  <Loader2 className="h-4 w-4 animate-spin text-brand-green" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-text" />
                 )}
               </label>
             </div>
@@ -1353,7 +1711,7 @@ export default function MessagesClient() {
                     type="button"
                     onClick={() => startConversation(recipient)}
                     disabled={Boolean(startingRecipientId)}
-                    className="flex w-full items-center gap-3 border-b border-line-subtle px-5 py-3.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-60"
+                    className="flex w-full items-center gap-3 border-b border-line-subtle px-5 py-3.5 text-left transition-colors hover:bg-foreground/[0.05] disabled:opacity-60"
                   >
                     <Avatar person={recipient} size={44} online={isOnline(recipient.firebaseId)} />
                     <span className="min-w-0 flex-1">
@@ -1365,7 +1723,7 @@ export default function MessagesClient() {
                       </span>
                     </span>
                     {startingRecipientId === recipient.firebaseId && (
-                      <Loader2 className="h-4 w-4 animate-spin text-brand-green" />
+                      <Loader2 className="h-4 w-4 animate-spin text-primary-text" />
                     )}
                   </button>
                 ))
@@ -1384,26 +1742,26 @@ export default function MessagesClient() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-green/15 text-primary-text">
                 <Reply className="h-5 w-5" />
               </div>
               <button
                 type="button"
                 onClick={closeReplyTip}
-                className="rounded-full p-2 text-white/55 hover:bg-white/[0.07] hover:text-white"
+                className="rounded-full p-2 text-foreground/55 hover:bg-foreground/[0.07] hover:text-foreground"
                 aria-label="Close reply tip"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <h2 className="text-lg font-bold">Reply and react quickly</h2>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-2 text-sm leading-6 text-foreground/65">
               Tap or click any message to reply. On a phone or tablet, use the smile button in the reply strip to react. Tap a quoted reply to jump back to it.
             </p>
             <button
               type="button"
               onClick={closeReplyTip}
-              className="mt-5 w-full rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white"
+              className="mt-5 w-full rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-primary-foreground"
             >
               Got it
             </button>
@@ -1526,11 +1884,27 @@ export default function MessagesClient() {
               className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </label>
+          {(requestCount > 0 || listTab === "requests") && (
+            <div role="tablist" aria-label="Conversations" className="mt-3 flex gap-1">
+              {(["chats", "requests"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={listTab === tab}
+                  onClick={() => setListTab(tab)}
+                  className={`h-9 rounded-full px-4 text-[13px] font-semibold transition-colors ${listTab === tab ? "bg-foreground text-background" : "bg-surface-elevated text-muted-foreground hover:text-foreground"}`}
+                >
+                  {tab === "chats" ? "Chats" : `Requests${requestCount ? ` (${requestCount})` : ""}`}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
         <div className="thin-scrollbar flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center p-10">
-              <Loader2 className="h-5 w-5 animate-spin text-brand-green" />
+              <Loader2 className="h-5 w-5 animate-spin text-primary-text" />
             </div>
           ) : visibleConversations.length ? (
             visibleConversations.map((conversation) => {
@@ -1544,7 +1918,7 @@ export default function MessagesClient() {
                 <button
                   key={conversation._id}
                   onClick={() => setActive(conversation)}
-                  className={`flex w-full items-center gap-3 border-b border-line-subtle px-4 py-3 text-left transition-colors ${selected ? "bg-white/[0.08]" : "hover:bg-white/[0.045]"}`}
+                  className={`flex w-full items-center gap-3 border-b border-line-subtle px-4 py-3 text-left transition-colors ${selected ? "bg-foreground/[0.08]" : "hover:bg-foreground/[0.045]"}`}
                 >
                   <Avatar person={other} size={48} online={isOnline(other.firebaseId)} />
                   <span className="min-w-0 flex-1">
@@ -1623,7 +1997,7 @@ export default function MessagesClient() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {query.trim()
                   ? "Try a name, username, or recent message."
-                  : "Visit someone’s profile and say hello."}
+                  : "Start a conversation from anyone's profile, or with the new message button above."}
               </p>
             </div>
           )}
@@ -1637,7 +2011,7 @@ export default function MessagesClient() {
             <header className="sticky top-0 z-20 flex h-[64px] shrink-0 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur-xl">
               <button
                 onClick={() => setActive(null)}
-                className="rounded-full p-2 hover:bg-white/[0.07] md:hidden"
+                className="rounded-full p-2 hover:bg-foreground/[0.07] md:hidden"
                 aria-label="Back to conversations"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -1647,9 +2021,15 @@ export default function MessagesClient() {
                 <strong className="block truncate text-[15px] ">
                   {person.name}
                 </strong>
-                <small className={`text-xs ${isOnline(person.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}`}>
-                  {isOnline(person.firebaseId) ? "Online" : "Offline"} · @{getUserHandle(person)}
-                </small>
+                {isOffline || messagesError ? (
+                  <small role="status" className="text-xs text-amber-300">
+                    {isOffline ? "You're offline. Messages will send when you're back." : "Reconnecting…"}
+                  </small>
+                ) : (
+                  <small className={`text-xs ${isOnline(person.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}`}>
+                    {isOnline(person.firebaseId) ? "Online" : "Offline"} · @{getUserHandle(person)}
+                  </small>
+                )}
               </span>
               <div className="ml-auto flex items-center justify-start">
                 <div className="relative">
@@ -1657,7 +2037,7 @@ export default function MessagesClient() {
                     onClick={() =>
                       setShowConversationMenu((visible) => !visible)
                     }
-                    className="rounded-full p-2.5 hover:bg-white/[0.07]"
+                    className="rounded-full p-2.5 hover:bg-foreground/[0.07]"
                     aria-label="More options"
                     aria-expanded={showConversationMenu}
                   >
@@ -1678,7 +2058,7 @@ export default function MessagesClient() {
                             setShowConversationInfo(true);
                             setShowConversationMenu(false);
                           }}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <Info className="h-4 w-4" />
                           Conversation info
@@ -1686,7 +2066,7 @@ export default function MessagesClient() {
                         <Link
                           href={`/profile/${person.firebaseId}`}
                           onClick={() => setShowConversationMenu(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex items-center gap-3 px-4 py-3 text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <UserRound className="h-4 w-4" />
                           View profile
@@ -1694,12 +2074,28 @@ export default function MessagesClient() {
                         <button
                           type="button"
                           onClick={() => copyProfileLink(person)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <Copy className="h-4 w-4" />
                           {profileLinkCopied
                             ? "Profile link copied"
                             : "Copy profile link"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleMute()}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
+                        >
+                          {active.muted ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                          {active.muted ? "Unmute notifications" : "Mute notifications"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleBlock()}
+                          className="flex w-full items-center gap-3 border-t border-line-subtle px-4 py-3 text-left text-[13px] font-medium text-destructive hover:bg-destructive/10"
+                        >
+                          <Ban className="h-4 w-4" />
+                          {blockedByMe ? `Unblock ${person.name?.split(" ")[0] || ""}`.trim() : `Block ${person.name?.split(" ")[0] || ""}`.trim()}
                         </button>
                       </div>
                     </>
@@ -1729,7 +2125,7 @@ export default function MessagesClient() {
                 </button>
               </div>
             ) : showEncryptionBanner && (
-              <div className="flex items-center gap-2 border-b border-line-subtle bg-brand-green/[0.06] py-1.5 pl-4 pr-2 text-[11px] text-brand-green">
+              <div className="flex items-center gap-2 border-b border-line-subtle bg-brand-green/[0.06] py-1.5 pl-4 pr-2 text-[11px] text-primary-text">
                 <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 text-center">
                   {active.encryptionVersion
@@ -1739,7 +2135,7 @@ export default function MessagesClient() {
                 <button
                   type="button"
                   onClick={dismissEncryptionBanner}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-brand-green/70 hover:bg-brand-green/10 hover:text-brand-green"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-primary-text/70 hover:bg-brand-green/10 hover:text-primary-text"
                   aria-label="Dismiss encryption notice"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -1761,7 +2157,7 @@ export default function MessagesClient() {
                     <button
                       type="button"
                       onClick={() => setShowConversationInfo(false)}
-                      className="rounded-full p-2 hover:bg-white/[0.07]"
+                      className="rounded-full p-2 hover:bg-foreground/[0.07]"
                       aria-label="Close conversation info"
                     >
                       <X className="h-5 w-5" />
@@ -1777,7 +2173,7 @@ export default function MessagesClient() {
                   <div className="space-y-2 px-4">
                     <Link
                       href={`/profile/${person.firebaseId}`}
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-primary-foreground"
                     >
                       <UserRound className="h-4 w-4" />
                       View profile
@@ -1785,7 +2181,7 @@ export default function MessagesClient() {
                     <button
                       type="button"
                       onClick={() => copyProfileLink(person)}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-3 text-sm font-bold hover:bg-white/[0.06]"
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-3 text-sm font-bold hover:bg-foreground/[0.06]"
                     >
                       <Copy className="h-4 w-4" />
                       {profileLinkCopied
@@ -1804,7 +2200,10 @@ export default function MessagesClient() {
               <div className="relative z-[1] mx-auto flex max-w-3xl flex-col gap-0.5">
                 {messages.map((message, index) => {
                   const own = message.sender.firebaseId === user.uid;
-                  const emojiOnly = isEmojiOnlyMessage(message.text);
+                  const envelope = parseEnvelope(message.text);
+                  const photo = envelope?.t === "image" ? envelope : null;
+                  const linked = envelope?.t === "text" ? envelope : null;
+                  const emojiOnly = !envelope && isEmojiOnlyMessage(message.text);
                   const hasBeenRead = own && (message.readBy?.length || 0) > 1;
                   const showDate =
                     index === 0 ||
@@ -1815,7 +2214,7 @@ export default function MessagesClient() {
                         <div className="relative z-10 my-4 flex w-full shrink-0 justify-center">
                           <time
                             dateTime={message.createdAt}
-                            className="rounded-full border border-line-subtle bg-surface-raised/95 px-3 py-1.5 text-[11px] font-semibold text-white/80 shadow-sm backdrop-blur-md"
+                            className="rounded-full border border-line-subtle bg-surface-raised/95 px-3 py-1.5 text-[11px] font-semibold text-foreground/80 shadow-sm backdrop-blur-md"
                           >
                             {messageDateLabel(message.createdAt)}
                           </time>
@@ -1828,7 +2227,8 @@ export default function MessagesClient() {
                         <div
                           role="button"
                           tabIndex={0}
-                          onClick={() => setReplyingTo(message)}
+                          {...swipeHandlers(message)}
+                          onClick={() => !message.deletedAt && setReplyingTo(message)}
                           onKeyDown={(event) => {
                             if (event.target !== event.currentTarget) return;
                             if (event.key === "Enter" || event.key === " ") {
@@ -1836,7 +2236,7 @@ export default function MessagesClient() {
                               setReplyingTo(message);
                             }
                           }}
-                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-[#07685b] bg-[#064f46] text-white" : "rounded-tl-[3px] border-line-subtle bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-bubble-own-line bg-bubble-own text-foreground" : "rounded-tl-[3px] border-line-subtle bg-bubble-other text-foreground"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-foreground/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
                           aria-label="Reply to message"
                         >
                           {message.replyTo && (
@@ -1857,18 +2257,54 @@ export default function MessagesClient() {
                                 {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
                               </strong>
                               <span className="block max-w-sm truncate text-[12px] text-[#d1d7db]/75">
-                                {message.replyTo.text || (message.replyTo.ciphertext ? "Encrypted message" : "")}
+                                {messagePreviewText(message.replyTo.text) || (message.replyTo.ciphertext ? "Encrypted message" : "")}
                               </span>
                             </button>
                           )}
                           <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${emojiOnly ? "text-[30px] leading-none" : ""}`}>
-                            {renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)}
+                            {message.deletedAt ? (
+                              <span className="italic text-foreground/50">This message was deleted</span>
+                            ) : photo ? (
+                              <span className="flex flex-col gap-1.5">
+                                <EncryptedImage user={user} envelope={photo} getKey={getActiveKey} />
+                                {photo.caption ? renderMessageText(photo.caption, false) : null}
+                              </span>
+                            ) : linked ? (
+                              <span className="flex flex-col gap-1.5">
+                                {renderMessageText(linked.text, false)}
+                                <a
+                                  href={linked.preview.url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="block rounded-md border-l-2 border-brand-green bg-foreground/[0.06] px-2.5 py-1.5 no-underline"
+                                >
+                                  {linked.preview.siteName && <span className="block text-[11px] text-foreground/55">{linked.preview.siteName}</span>}
+                                  <span className="block text-[13px] font-semibold text-foreground">{linked.preview.title}</span>
+                                  {linked.preview.description && <span className="mt-0.5 line-clamp-2 block text-[12px] text-foreground/65">{linked.preview.description}</span>}
+                                </a>
+                              </span>
+                            ) : (
+                              renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)
+                            )}
                           </p>
-                          <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-white/65" : "text-white/45"}`}>
+                          <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-foreground/65" : "text-foreground/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
                             {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
-                            {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
-                            {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
+                            {own && message.deliveryState === "failed" && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  retryMessage(message);
+                                }}
+                                className="inline-flex items-center gap-1 rounded px-1 text-[11px] font-semibold text-red-200 underline-offset-2 hover:underline"
+                              >
+                                <CircleAlert className="h-3.5 w-3.5" aria-hidden />
+                                Not sent · Retry
+                              </button>
+                            )}
+                            {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-foreground/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
                           {!!message.reactions?.length && (
                             <div className="absolute -bottom-[18px] left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-0.5">
@@ -1888,12 +2324,41 @@ export default function MessagesClient() {
                                 event.stopPropagation();
                                 openReactionPicker(message._id, event.currentTarget);
                               }}
-                              className={`hidden h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[0.08] hover:text-white md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-white/[0.10] text-brand-green opacity-100" : ""}`}
+                              className={`hidden h-8 w-8 items-center justify-center rounded-full text-foreground/55 transition hover:bg-foreground/[0.08] hover:text-foreground md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-foreground/[0.10] text-primary-text opacity-100" : ""}`}
                               aria-label="React to message"
                               aria-expanded={reactionPickerMessageId === message._id}
                             >
                               <Smile className="h-4 w-4" />
                             </button>
+                            {!message._id.startsWith("pending-") && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDeleteMenuFor((current) => (current === message._id ? null : message._id));
+                                }}
+                                className={`mt-1 hidden h-8 w-8 items-center justify-center rounded-full text-foreground/55 transition hover:bg-foreground/[0.08] hover:text-foreground md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${deleteMenuFor === message._id ? "bg-foreground/[0.10] opacity-100" : ""}`}
+                                aria-label="Delete message"
+                                aria-expanded={deleteMenuFor === message._id}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            {deleteMenuFor === message._id && (
+                              <div
+                                className={`popover-solid absolute top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-line-strong py-1 shadow-2xl ${own ? "left-0" : "right-0"}`}
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <button type="button" onClick={() => void deleteMessage(message, "me")} className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] hover:bg-foreground/[0.07]">
+                                  Delete for me
+                                </button>
+                                {own && !message.deletedAt && (
+                                  <button type="button" onClick={() => void deleteMessage(message, "everyone")} className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-destructive hover:bg-destructive/10">
+                                    Delete for everyone
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1903,14 +2368,14 @@ export default function MessagesClient() {
                 {typingName && (
                   <div className="flex items-end gap-2 px-1 py-2" aria-live="polite">
                     {person && <Avatar person={person} size={28} online={isOnline(person.firebaseId)} />}
-                    <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-[#191e1b] px-3 py-2 shadow-sm">
-                      <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-brand-green">
+                    <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-bubble-other px-3 py-2 shadow-sm">
+                      <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-primary-text">
                         {typingName}
                       </span>
                       <span className="flex h-5 items-center gap-1.5" aria-label={`${typingName} is typing`}>
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.24s]" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.12s]" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70 [animation-delay:-0.24s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70 [animation-delay:-0.12s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70" />
                       </span>
                     </div>
                   </div>
@@ -1921,16 +2386,26 @@ export default function MessagesClient() {
                 <button
                   type="button"
                   onClick={scrollToBottom}
-                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-raised/95 text-white shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
+                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-raised/95 text-foreground shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-primary-text"
                   aria-label="Jump to latest messages"
                 >
                   <ChevronsDown className="h-5 w-5" />
                 </button>
               )}
             </div>
+            {active.blocked ? (
+              <div className="keyboard-safe-bottom sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface px-4 py-4 text-center">
+                <p className="text-body-sm text-muted-foreground">You can&apos;t send messages in this conversation.</p>
+                {blockedByMe ? (
+                  <button type="button" onClick={() => void toggleBlock()} className="mt-2 text-body-sm font-semibold text-primary-text underline-offset-4 hover:underline">
+                    Unblock {person.name?.split(" ")[0] || "them"}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
             <form
               onSubmit={send}
-              className="sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 py-2 pb-safe backdrop-blur-xl"
+              className="keyboard-safe-bottom sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 pt-2 backdrop-blur-xl"
             >
               {replyingTo && (
                 <div
@@ -1945,27 +2420,107 @@ export default function MessagesClient() {
                     >
                       Replying to {replyingTo.sender.firebaseId === user.uid ? "yourself" : replyingTo.sender.name}
                     </strong>
-                    <p className="truncate text-xs text-white/50">{replyingTo.text}</p>
+                    <p className="truncate text-xs text-foreground/50">{messagePreviewText(replyingTo.text)}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => openReactionPicker(replyingTo._id)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-green hover:bg-white/[0.07] md:hidden"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary-text hover:bg-foreground/[0.07] md:hidden"
                     aria-label="React to message"
                   >
                     <Smile className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-white/45 hover:bg-white/[0.07] hover:text-white" aria-label="Cancel reply">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = replyingTo;
+                      const mine = target.sender.firebaseId === user.uid;
+                      if (mine && !target.deletedAt && window.confirm("Delete this message for everyone? Choose Cancel to delete it just for you.")) {
+                        void deleteMessage(target, "everyone", true);
+                      } else if (window.confirm("Delete this message for you?")) {
+                        void deleteMessage(target, "me", true);
+                      }
+                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground/55 hover:bg-foreground/[0.07] md:hidden"
+                    aria-label="Delete message"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Cancel reply">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               )}
-              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-surface-elevated p-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
+              {active.request && !active.blocked && (
+                <div className="mx-auto mb-2 max-w-3xl rounded-xl border border-line bg-surface-elevated p-3 text-center">
+                  <p className="text-body-sm">
+                    <strong>{person.name || "This person"}</strong> isn&apos;t someone you follow. They won&apos;t know you&apos;ve read this until you reply or accept.
+                  </p>
+                  <div className="mt-2 flex justify-center gap-2">
+                    <button type="button" onClick={() => void respondToRequest("accept")} className="h-9 rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground">Accept</button>
+                    <button type="button" onClick={() => void respondToRequest("decline")} className="h-9 rounded-full border border-line-strong px-4 text-[13px] font-semibold">Delete</button>
+                    <button type="button" onClick={() => void toggleBlock()} className="h-9 rounded-full px-4 text-[13px] font-semibold text-destructive hover:bg-destructive/10">Block</button>
+                  </div>
+                </div>
+              )}
+              {draftUrl && !pendingPhoto && (
+                <div className="mx-auto mb-2 flex max-w-3xl items-center gap-3 rounded-xl border border-line bg-surface-elevated px-3 py-2">
+                  {linkPreview?.data ? (
+                    <span className="min-w-0 flex-1 border-l-2 border-brand-green pl-2">
+                      {linkPreview.data.siteName && <span className="block truncate text-[11px] text-muted-foreground">{linkPreview.data.siteName}</span>}
+                      <span className="block truncate text-[13px] font-semibold">{linkPreview.data.title}</span>
+                    </span>
+                  ) : (
+                    <span className="min-w-0 flex-1 text-caption text-muted-foreground">
+                      {linkPreview?.loading
+                        ? "Getting a preview…"
+                        : linkPreview && !linkPreview.data
+                          ? "No preview available for this link."
+                          : "Add a preview? MindFuel's server fetches the page title; the link isn't stored."}
+                    </span>
+                  )}
+                  {linkPreview?.data ? (
+                    <button type="button" onClick={() => setLinkPreview(null)} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Remove link preview">
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : !linkPreview ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!user) return;
+                        const url = draftUrl;
+                        setLinkPreview({ url, data: null, loading: true });
+                        const result = await chatFetch(user, `/api/chat/link-preview?url=${encodeURIComponent(url)}`)
+                          .then((response) => (response.ok ? response.json() : null))
+                          .catch(() => null);
+                        setLinkPreview((current) => (current?.url === url ? { url, data: result?.preview ?? null, loading: false } : current));
+                      }}
+                      className="h-8 shrink-0 rounded-full border border-line-strong px-3 text-[12px] font-semibold hover:bg-foreground/[0.06]"
+                    >
+                      Add link preview
+                    </button>
+                  ) : null}
+                </div>
+              )}
+              {pendingPhoto && (
+                <div className="mx-auto mb-2 flex max-w-3xl items-center gap-3 rounded-xl border border-line bg-surface-elevated p-2">
+                  {/* A local preview of the picked file; it's encrypted before upload. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pendingPhoto.previewUrl} alt="Photo to send" className="h-14 w-14 rounded-lg object-cover" />
+                  <p className="min-w-0 flex-1 text-caption text-muted-foreground">
+                    {sendingPhoto ? "Encrypting and sending…" : "Add a caption, or send as is. Location data is removed."}
+                  </p>
+                  <button type="button" onClick={clearPendingPhoto} disabled={sendingPhoto} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Remove photo">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-surface-elevated p-1.5 ring-1 ring-foreground/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
                 <div ref={emojiPickerRef} className="static mb-0.5 shrink-0 self-end">
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker((open) => !open)}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-brand-green" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-primary-text" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"}`}
                     aria-label="Add emoji"
                     aria-expanded={showEmojiPicker}
                   >
@@ -1980,6 +2535,16 @@ export default function MessagesClient() {
                     </div>
                   )}
                 </div>
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} tabIndex={-1} aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={sendingPhoto}
+                  className="mb-0.5 flex h-11 w-11 shrink-0 self-end items-center justify-center rounded-full text-foreground/55 transition-colors hover:bg-foreground/[0.07] hover:text-foreground disabled:opacity-40"
+                  aria-label="Send a photo"
+                >
+                  <ImagePlus className="h-5 w-5" />
+                </button>
                 <textarea
                   ref={composerRef}
                   value={draft}
@@ -1993,11 +2558,11 @@ export default function MessagesClient() {
                   placeholder="Start a new message"
                   rows={1}
                   maxLength={2000}
-                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-base leading-5 text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none sm:text-sm"
+                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-base leading-5 text-foreground placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none sm:text-sm"
                 />
                 <button
                   type="submit"
-                  disabled={!draft.trim()}
+                  disabled={(!draft.trim() && !pendingPhoto) || sendingPhoto}
                   className="mb-0.5 flex h-10 w-10 shrink-0 self-end items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: "var(--brand-green, #00bf63)" }}
                   aria-label="Send message"
@@ -2006,10 +2571,11 @@ export default function MessagesClient() {
                 </button>
               </div>
             </form>
+            )}
           </>
         ) : (
           <div className="m-auto max-w-sm px-8 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/15">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-foreground/15">
               <MessageCircle className="h-10 w-10" />
             </div>
             <h2 className="mt-5 text-2xl font-extrabold tracking-tight">
@@ -2020,7 +2586,7 @@ export default function MessagesClient() {
             </p>
             <button
               onClick={() => setShowNewMessage(true)}
-              className="mt-6 rounded-full bg-brand-green px-6 py-3 text-sm font-bold text-white"
+              className="mt-6 rounded-full bg-brand-green px-6 py-3 text-sm font-bold text-primary-foreground"
             >
               New message
             </button>

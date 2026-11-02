@@ -18,6 +18,8 @@ export interface IPost extends Document {
   };
   fontFamily: string;
   promptId?: string;
+  /** Missing on legacy posts, which are public. See src/lib/post-visibility.ts. */
+  visibility?: "private" | "public";
   viewedBy?: string[];
   poll?: {
     options: { id: string; text: string; votes: number }[];
@@ -91,6 +93,12 @@ const PostSchema = new Schema(
       type: String,
       default: null,
     },
+    // No default on purpose: Mongoose applies defaults when hydrating, which
+    // would make legacy posts (no field, public) read as private.
+    visibility: {
+      type: String,
+      enum: ["private", "public"],
+    },
     viewedBy: {
       type: [String],
       default: [],
@@ -131,6 +139,7 @@ const PostSchema = new Schema(
 
 // Performance indexes
 PostSchema.index({ createdAt: -1 });
+PostSchema.index({ visibility: 1, createdAt: -1 });
 PostSchema.index({ userId: 1, createdAt: -1 });
 PostSchema.index({ likesCount: -1, views: -1, createdAt: -1 });
 PostSchema.index({ hashtags: 1, createdAt: -1 });

@@ -18,7 +18,7 @@ export default function ProfileRedirect() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-green" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary-text" />
       </div>
     );
   }
@@ -27,7 +27,7 @@ export default function ProfileRedirect() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center space-y-6">
         <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-          <User className="w-9 h-9 text-brand-green" />
+          <User className="w-9 h-9 text-primary-text" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Your Profile</h1>

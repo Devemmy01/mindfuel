@@ -6,7 +6,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { Heart, Loader2, Smile, CornerDownRight } from "lucide-react";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import { formatDistanceToNow } from "date-fns";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -152,7 +152,7 @@ function Composer({
     showEmoji && typeof document !== "undefined"
       ? createPortal(
           <AnimatePresence>
-            <motion.div
+            <m.div
               ref={pickerRef}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -167,7 +167,7 @@ function Composer({
               className="popover-solid z-[100000] rounded-2xl overflow-hidden border border-border"
             >
               <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
-            </motion.div>
+            </m.div>
           </AnimatePresence>,
           document.body
         )
@@ -200,7 +200,7 @@ function Composer({
               }}
               aria-label="Open emoji picker"
               aria-expanded={showEmoji}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10 transition-all active:scale-90">
+              className="w-8 h-8 flex items-center justify-center rounded-full text-primary-text hover:bg-brand-green/10 transition-all active:scale-90">
               <Smile className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
             {emojiPicker}
@@ -208,7 +208,7 @@ function Composer({
           <div className="flex items-center gap-2">
             {text.length > 0 && <CharRing current={text.length} limit={CHAR_LIMIT} />}
             <button type="submit" disabled={!text.trim() || submitting || text.length > CHAR_LIMIT}
-              className={`px-4 bg-brand-green text-white font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green/90 active:scale-95 transition-all flex items-center gap-1.5 ${compact ? "h-8 text-[12px]" : "h-9 text-[13px]"}`}>
+              className={`px-4 bg-brand-green text-foreground font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green/90 active:scale-95 transition-all flex items-center gap-1.5 ${compact ? "h-8 text-[12px]" : "h-9 text-[13px]"}`}>
               {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : submitLabel}
             </button>
           </div>
@@ -293,7 +293,7 @@ function CommentNode({
                 <button
                   onClick={handleEditSubmit}
                   disabled={isSubmittingEdit}
-                  className="px-3 py-1 bg-brand-green text-white text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
+                  className="px-3 py-1 bg-brand-green text-primary-foreground text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
                 >
                   {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Save"}
                 </button>
@@ -313,7 +313,7 @@ function CommentNode({
           <div className="flex items-center gap-4 mt-0.5 md:mt-2">
             <div className="flex items-center gap-3">
               <button onClick={() => onReply(comment)}
-                className="flex items-center gap-1 text-[12px] md:text-[13px] font-bold text-brand-green/80 hover:text-brand-green transition-colors">
+                className="flex items-center gap-1 text-[12px] md:text-[13px] font-bold text-primary-text/80 hover:text-primary-text transition-colors">
                 <CornerDownRight className="w-3 h-3" />
                 Reply
               </button>
@@ -322,10 +322,10 @@ function CommentNode({
                 <>
                   <button onClick={() => onToggleEdit(comment._id)}
                     disabled={isSubmittingEdit}
-                    className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-blue-500 transition-colors disabled:opacity-50">
+                    className="text-[12px] md:text-[13px] font-medium text-subtle-foreground hover:text-blue-500 transition-colors disabled:opacity-50">
                     {isEditingThis ? "Cancel Edit" : "Edit"}
                   </button>
-                  <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-rose-500 transition-colors">Delete</button>
+                  <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-subtle-foreground hover:text-rose-500 transition-colors">Delete</button>
                 </>
               )}
             </div>
@@ -333,7 +333,7 @@ function CommentNode({
             <div className="flex-1" />
             
             <button onClick={() => onLike(comment._id)}
-              className={`flex items-center gap-1 transition-colors ${comment.isLiked ? "text-rose-500" : "text-muted-foreground/60 hover:text-rose-500"}`}>
+              className={`flex items-center gap-1 transition-colors ${comment.isLiked ? "text-rose-500" : "text-subtle-foreground hover:text-rose-500"}`}>
               <Heart className={`w-4 h-4 ${comment.isLiked ? "fill-current" : ""}`} />
               <span className="text-[12px] md:text-[13px] font-bold">{comment.likesCount}</span>
             </button>
@@ -342,7 +342,7 @@ function CommentNode({
           {/* Inline Show/Hide Toggle */}
           {hasReplies && (
             <button onClick={() => toggleExpand(comment._id)}
-              className="-mt-0.5 md:mt-2.5 text-[11px] font-bold text-brand-green/60 hover:text-brand-green flex items-center gap-1 pb-1">
+              className="-mt-0.5 md:mt-2.5 text-[11px] font-bold text-primary-text/60 hover:text-primary-text flex items-center gap-1 pb-1">
               {isExpanded ? "Hide replies" : `Show ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
             </button>
           )}
@@ -354,8 +354,8 @@ function CommentNode({
         <div className="ml-6 md:ml-14 px-3 md:px-4 pb-3">
           <div className="bg-secondary/10 rounded-xl p-2 border border-border/20">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] md:text-[12px] text-muted-foreground">Replying to <span className="text-brand-green font-bold">@{username(comment.userId)}</span></span>
-              <button onClick={() => onReply(comment)} className="text-[10px] font-bold text-muted-foreground/60 hover:text-foreground">Cancel</button>
+              <span className="text-[10px] md:text-[12px] text-muted-foreground">Replying to <span className="text-primary-text font-bold">@{username(comment.userId)}</span></span>
+              <button onClick={() => onReply(comment)} className="text-[10px] font-bold text-subtle-foreground hover:text-foreground">Cancel</button>
             </div>
             <Composer onSubmit={onSubmitReply} placeholder="Post your reply" compact autoFocus />
           </div>
@@ -365,7 +365,7 @@ function CommentNode({
       {/* Render children recursively if expanded */}
       <AnimatePresence>
         {isExpanded && hasReplies && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+          <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             {replies.map(reply => (
               <CommentNode
                 key={reply._id}
@@ -385,7 +385,7 @@ function CommentNode({
                 onToggleEdit={onToggleEdit}
               />
             ))}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -566,7 +566,7 @@ const CommentSection: React.FC<{
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-brand-green" /></div>
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary-text" /></div>
       ) : (
         <div className="flex flex-col">
           {topLevel.map(comment => (
@@ -600,20 +600,20 @@ const CommentSection: React.FC<{
       {user && (
         <AnimatePresence>
           {isVisible && (
-            <motion.div
+            <m.div
               initial={{ y: 150, x: "-50%", opacity: 0.5 }}
               animate={{ y: 0, x: "-50%", opacity: 1 }}
               exit={{ y: 150, x: "-50%", opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="fixed bottom-[100px] md:bottom-10 left-1/2 w-full max-w-[500px] px-3 z-50 will-change-transform"
             >
-              <div className="modal-solid border border-white/10 rounded-[28px] p-1.5">
+              <div className="modal-solid border border-foreground/10 rounded-[28px] p-1.5">
                 <div className="flex items-center gap-2 px-2">
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden flex-shrink-0">
                       {currentUserImage ? (
                         <Image src={currentUserImage} width={36} height={36} alt="You" className="object-cover w-full h-full" />
                       ) : (
-                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-white text-[12px]">
+                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-primary-foreground text-[12px]">
                           {currentUserInitial.toUpperCase()}
                         </div>
                       )}
@@ -623,7 +623,7 @@ const CommentSection: React.FC<{
                     </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       )}

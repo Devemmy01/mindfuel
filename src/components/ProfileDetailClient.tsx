@@ -1,6 +1,9 @@
 "use client";
 
+import ThemeChoice from "@/components/ThemeChoice";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import EmptyState from "@/components/ui/EmptyState";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,14 +11,16 @@ import PostCard from "@/components/PostCard";
 import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
+import WeekStrip from "@/components/reflect/WeekStrip";
+import { formatDistanceToNowStrict } from "date-fns";
 import MilestonesGrid from "@/components/MilestonesGrid";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, Ban, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine, Sparkles } from "lucide-react";
+import { UnseenDot, useWhatsNew, WhatsNewDialog } from "@/components/shell/WhatsNew";
+import { m, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import InstallAppButton from "@/components/InstallAppButton";
 import { getUserHandle } from "@/lib/userHandle";
 import useSWR from "swr";
@@ -72,7 +77,7 @@ function FollowListRow({ user, onNavigate }: { user: FollowListUser; onNavigate:
             className="h-11 w-11 rounded-full object-cover ring-1 ring-border"
           />
         ) : (
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-brand-green ring-1 ring-brand-green/20">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-primary-text ring-1 ring-brand-green/20">
             {user.name?.[0]?.toUpperCase() || "U"}
           </span>
         )}
@@ -99,7 +104,6 @@ export default function DynamicProfilePage({
   const { id: profileId } = useParams() as { id: string };
   const { user: currentUser, loading: authLoading, logout, openSignInModal } = useAuth();
   const { showToast } = useToast();
-  const { subscribeUser, isSubscribing } = usePushNotifications();
   const router = useRouter();
   const isOnline = usePresence([profileId]);
 
@@ -134,6 +138,35 @@ export default function DynamicProfilePage({
   const [followListReload, setFollowListReload] = useState(0);
 
   const isOwnProfile = currentUser?.uid === profileId;
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  useEffect(() => {
+    if (!currentUser || isOwnProfile || !profileId) return;
+    void fetch(`/api/users/block?userId=${encodeURIComponent(profileId)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status) => setBlockedByMe(Boolean(status?.blockedByMe)))
+      .catch(() => undefined);
+  }, [currentUser, isOwnProfile, profileId]);
+
+  const toggleBlock = async () => {
+    const name = profileUser?.name || "this person";
+    const blocking = !blockedByMe;
+    if (blocking && !window.confirm(`Block ${name}? They won't be able to message or follow you, and you'll unfollow each other. They aren't told.`)) return;
+    setIsMobileSettingsOpen(false);
+    const response = await fetch("/api/users/block", {
+      method: blocking ? "POST" : "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: profileId }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast(blocking ? "Couldn't block right now." : "Couldn't unblock right now.", "error");
+      return;
+    }
+    setBlockedByMe(blocking);
+    if (blocking) void mutateFollowState();
+    showToast(blocking ? `${name} is blocked.` : `${name} is unblocked.`, "success");
+  };
+  const whatsNew = useWhatsNew();
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const followStateKey = profileId
     ? `/api/follows?profileId=${profileId}${currentUser?.uid ? `&viewerId=${currentUser.uid}` : ""}`
     : null;
@@ -429,7 +462,7 @@ export default function DynamicProfilePage({
   if (loading && !profileUser)
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
       </div>
     );
 
@@ -438,7 +471,7 @@ export default function DynamicProfilePage({
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
         <h1 className="text-2xl font-bold mb-2">User not found</h1>
         <p className="text-muted-foreground mb-6">The profile you&apos;re looking for doesn&apos;t exist.</p>
-        <button onClick={() => router.back()} className="text-brand-green font-bold">Go Back</button>
+        <button onClick={() => router.back()} className="text-primary-text font-bold">Go Back</button>
       </div>
     );
 
@@ -449,7 +482,7 @@ export default function DynamicProfilePage({
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm overflow-hidden">
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -492,7 +525,7 @@ export default function DynamicProfilePage({
                       className="frosted-input w-full pl-8 pr-4 h-12 text-[14px] outline-none border-none focus:ring-2 focus:ring-brand-green/30 rounded-2xl"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground/60 ml-1">
+                  <p className="text-[11px] text-subtle-foreground ml-1">
                     At least 3 characters. Letters, numbers, underscores, and dots only.
                   </p>
                 </div>
@@ -513,21 +546,21 @@ export default function DynamicProfilePage({
                   Save Changes
                 </button>
               </form>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {followListType && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
             onClick={() => setFollowListType(null)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -560,11 +593,11 @@ export default function DynamicProfilePage({
               </div>
               <div className="min-h-52 overflow-y-auto scrollbar-hide">
                 {followListLoading ? (
-                  <div className="flex h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-green" /></div>
+                  <div className="flex h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary-text" /></div>
                 ) : followListError ? (
                   <div className="flex h-52 flex-col items-center justify-center gap-3 px-6 text-center">
                     <p className="text-sm text-muted-foreground">Couldn&apos;t load this list.</p>
-                    <button type="button" onClick={() => setFollowListReload((value) => value + 1)} className="text-sm font-bold text-brand-green">Try again</button>
+                    <button type="button" onClick={() => setFollowListReload((value) => value + 1)} className="text-sm font-bold text-primary-text">Try again</button>
                   </div>
                 ) : followListUsers.length === 0 ? (
                   <div className="flex h-52 items-center justify-center px-6 text-center text-sm text-muted-foreground">
@@ -576,8 +609,8 @@ export default function DynamicProfilePage({
                   </div>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -611,8 +644,9 @@ export default function DynamicProfilePage({
           </button>
           <button
             onClick={() => setIsMobileSettingsOpen(true)}
-            className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 transition-colors press-scale"
+            className={`${isOwnProfile ? "lg:hidden " : ""}p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 transition-colors press-scale`}
             title="Options"
+            aria-label="Options"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
           </button>
@@ -622,7 +656,7 @@ export default function DynamicProfilePage({
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -630,7 +664,7 @@ export default function DynamicProfilePage({
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
+                className={`w-3.5 h-3.5 text-primary-text ${
                   isPullRefreshing ? "animate-spin" : ""
                 }`}
                 style={{
@@ -643,7 +677,7 @@ export default function DynamicProfilePage({
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -659,7 +693,7 @@ export default function DynamicProfilePage({
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Share your reflections daily</p>
             </div>
           </div>
-          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-white text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
+          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-primary-foreground text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
             Join Now
           </button>
         </div>
@@ -678,18 +712,13 @@ export default function DynamicProfilePage({
           
           <div className="absolute top-4 right-4 flex items-center gap-2">
             {isOwnProfile && (
-              <button
-                onClick={subscribeUser}
-                disabled={isSubscribing}
-                className={`p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95 ${isSubscribing ? "opacity-50 cursor-not-allowed" : ""}`}
-                title="Enable Daily Notifications"
+              <Link
+                href="/settings/notifications"
+                aria-label="Notification settings"
+                className="flex size-11 items-center justify-center rounded-full bg-foreground/10 backdrop-blur-md border border-foreground/20 text-foreground hover:bg-foreground/20 transition-all active:scale-95"
               >
-                {isSubscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Bell className="w-4 h-4" />
-                )}
-              </button>
+                <Bell className="w-4 h-4" />
+              </Link>
             )}
             <button
               onClick={() => {
@@ -701,7 +730,7 @@ export default function DynamicProfilePage({
                   showToast("Profile link copied!", "success");
                 }
               }}
-              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95"
+              className="p-2.5 rounded-full bg-foreground/10 backdrop-blur-md border border-foreground/20 text-foreground hover:bg-foreground/20 transition-all active:scale-95"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -724,7 +753,7 @@ export default function DynamicProfilePage({
                 className="w-18 h-18 rounded-full flex items-center justify-center shadow-inner"
                 style={{ backgroundColor: "#0b100d" }}
               >
-                <span className="text-3xl font-bold text-white selection:bg-transparent">
+                <span className="text-3xl font-bold text-foreground selection:bg-transparent">
                   {profileUser.name[0]?.toUpperCase()}
                 </span>
               </div>
@@ -750,7 +779,7 @@ export default function DynamicProfilePage({
         
         <AnimatePresence>
           {isProfilePicOpen && profileUser.image && !profileUser.image.startsWith("#") && (
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -759,12 +788,12 @@ export default function DynamicProfilePage({
             >
               <button
                 onClick={() => setIsProfilePicOpen(false)}
-                className="absolute top-6 right-6 z-[120] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10 shadow-xl press-scale"
+                className="absolute top-6 right-6 z-[120] p-3 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-full transition-all backdrop-blur-md border border-foreground/10 shadow-xl press-scale"
               >
                 <X className="w-6 h-6" />
               </button>
               
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.92, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 30 }}
@@ -778,10 +807,10 @@ export default function DynamicProfilePage({
                   width={560}
                   height={560}
                   unoptimized
-                  className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-white/10 object-cover shadow-2xl"
+                  className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-foreground/10 object-cover shadow-2xl"
                 />
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           )}
         </AnimatePresence>
         {isOwnProfile ? (
@@ -792,11 +821,11 @@ export default function DynamicProfilePage({
           </div>
         ) : (
           <div className="absolute -bottom-14 right-4 flex items-center gap-2">
-            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface-raised px-4 text-[13px] font-bold text-foreground transition-colors hover:border-white/20 hover:bg-surface-elevated" aria-label={`Message ${profileUser.name}`}>
+            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface-raised px-4 text-[13px] font-bold text-foreground transition-colors hover:border-foreground/20 hover:bg-surface-elevated" aria-label={`Message ${profileUser.name}`}>
               <MessageCircle className="h-4 w-4" />
               <span>Message</span>
             </Link>
-            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-white hover:bg-brand-green-active"}`}>
+            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-primary-foreground hover:bg-brand-green-active"}`}>
               {followLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : followState.isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
               {followState.isFollowing ? "Unfollow" : followState.followsViewer ? "Follow back" : "Follow"}
             </button>
@@ -815,7 +844,7 @@ export default function DynamicProfilePage({
           )}
         </p>
         {!isOwnProfile && followState.followsViewer && (
-          <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-brand-green">
+          <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-primary-text">
             Follows you
           </span>
         )}
@@ -834,11 +863,11 @@ export default function DynamicProfilePage({
             <span className="font-bold text-[16px]">{ownLikesCount}</span>
             <span className="text-muted-foreground text-[13px]">Likes</span>
           </div>
-          <button type="button" onClick={() => setFollowListType("followers")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+          <button type="button" onClick={() => setFollowListType("followers")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
             <span className="font-bold text-[16px]">{followState.followersCount}</span>
             <span className="text-muted-foreground text-[13px]">Followers</span>
           </button>
-          <button type="button" onClick={() => setFollowListType("following")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+          <button type="button" onClick={() => setFollowListType("following")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
             <span className="font-bold text-[16px]">{followState.followingCount}</span>
             <span className="text-muted-foreground text-[13px]">Following</span>
           </button>
@@ -846,6 +875,19 @@ export default function DynamicProfilePage({
             <StreakDisplay streakDays={streakDays} size="sm" />
           )}
         </div>
+
+        {isOwnProfile && allUserPosts.length > 0 && (
+          <section aria-labelledby="this-week-title" className="mt-6 rounded-card border border-line bg-surface p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="this-week-title" className="text-body font-semibold">This week</h2>
+              <p className="text-caption text-muted-foreground">
+                Last reflection{" "}
+                {formatDistanceToNowStrict(new Date(allUserPosts[0].createdAt), { addSuffix: true })}
+              </p>
+            </div>
+            <WeekStrip className="mt-3" dates={allUserPosts.filter((post) => !post.isRepost).map((post) => post.createdAt)} />
+          </section>
+        )}
 
         {allUserPosts.length > 0 && (
           <div className="mt-8 pt-8 border-t border-border/40 space-y-8">
@@ -867,19 +909,19 @@ export default function DynamicProfilePage({
           ))}
         </div>
         <div className="flex gap-1 ml-4 pl-3 border-l border-border/40">
-          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><List className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
-          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><Grid3X3 className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
+          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-primary-text bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><List className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
+          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-primary-text bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><Grid3X3 className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
         </div>
       </div>
 
       <div className="flex-1">
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
+          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary-text" /></div>
         ) : posts.length > 0 ? (
           <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 p-3" : "flex flex-col"}>
             {posts.map((post, i) => (
               viewMode === "list" ? (
-                <motion.div 
+                <m.div 
                   key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, y: 16 }} 
                   animate={{ opacity: 1, y: 0 }} 
@@ -890,9 +932,9 @@ export default function DynamicProfilePage({
                   }}
                 >
                   <PostCard post={post} />
-                </motion.div>
+                </m.div>
               ) : (
-                <motion.div 
+                <m.div 
                   key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, scale: 0.9 }} 
                   animate={{ opacity: 1, scale: 1 }} 
@@ -912,12 +954,12 @@ export default function DynamicProfilePage({
                       <p className="text-[12px] font-semibold leading-tight line-clamp-4">{post.text}</p>
                     </div>
                   </Link>
-                </motion.div>
+                </m.div>
               )
             ))}
             
             <div ref={loadMoreRef} className="col-span-full flex min-h-20 items-center justify-center py-6" aria-live="polite">
-              {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />}
+              {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-primary-text" aria-label="Loading more posts" />}
             </div>
             {!hasMorePosts && (
               <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-40">
@@ -927,21 +969,31 @@ export default function DynamicProfilePage({
             )}
           </div>
         ) : (
-          <div className="py-24 text-center px-6">
-            <div className="w-16 h-16 bg-secondary/40 rounded-full flex items-center justify-center mx-auto mb-4"><UserIcon className="w-7 h-7 text-muted-foreground" /></div>
-            <p className="font-bold text-lg">Nothing to show yet</p>
-            <p className="text-muted-foreground text-[14px]">This user hasn&apos;t shared any thoughts.</p>
-          </div>
+          isOwnProfile ? (
+            <EmptyState
+              icon={PenLine}
+              title="Your reflections will live here"
+              description="Private ones only you can see; shared ones everyone can read. A sentence or two is enough to start."
+              action={<Link href="/create" className={buttonVariants()}>Write your first reflection</Link>}
+            />
+          ) : (
+            <EmptyState
+              icon={UserIcon}
+              title="No shared reflections yet"
+              description="When they share a reflection with the community, it will show up here."
+            />
+          )
         )}
       </div>
 
       <div className="mobile-content-offset" />
+      <WhatsNewDialog open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
 
       {/* Mobile Settings / Info Bottom Sheet */}
       <AnimatePresence>
         {isMobileSettingsOpen && (
           <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileSettingsOpen(false)}>
-            <motion.div
+            <m.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -950,16 +1002,20 @@ export default function DynamicProfilePage({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drag Handle */}
-              <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-4" />
+              <div className="w-12 h-1 bg-foreground/10 rounded-full mx-auto mb-4" />
 
               <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-black text-white">Options</h3>
+                <h3 className="text-[17px] font-black text-foreground">Options</h3>
                 <button onClick={() => setIsMobileSettingsOpen(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-micro font-semibold uppercase tracking-wider text-subtle-foreground">Appearance</p>
+                  <ThemeChoice />
+                </div>
                 {isOwnProfile && (
                   <div className="space-y-2">
                     <button
@@ -967,67 +1023,85 @@ export default function DynamicProfilePage({
                         setIsMobileSettingsOpen(false);
                         setIsEditModalOpen(true);
                       }}
-                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                      className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
-                      <UserIcon className="w-4 h-4 text-brand-green" />
+                      <UserIcon className="w-4 h-4 text-primary-text" />
                       Edit Profile
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsMobileSettingsOpen(false);
-                        subscribeUser();
-                      }}
-                      disabled={isSubscribing}
-                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                    <Link
+                      href="/settings/notifications"
+                      onClick={() => setIsMobileSettingsOpen(false)}
+                      className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
-                      <Bell className="w-4 h-4 text-brand-green" />
-                      Enable Daily Notifications
-                    </button>
+                      <Bell className="w-4 h-4 text-primary-text" />
+                      Notification settings
+                    </Link>
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <div className="pt-2 pb-1 text-[11px] font-black text-white/30 uppercase tracking-widest pl-1">
+                  <div className="pt-2 pb-1 text-[11px] font-black text-foreground/30 uppercase tracking-widest pl-1">
                     Information
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="relative h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      onClick={() => {
+                        setIsMobileSettingsOpen(false);
+                        setWhatsNewOpen(true);
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 text-primary-text" />
+                      What&apos;s new
+                      {whatsNew.unseen ? <UnseenDot className="ml-auto" /> : null}
+                    </button>
                     <Link
                       href="/about"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <Info className="w-4 h-4 text-brand-green" />
+                      <Info className="w-4 h-4 text-primary-text" />
                       About
                     </Link>
                     <Link
                       href="/privacy"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <Shield className="w-4 h-4 text-brand-green" />
+                      <Shield className="w-4 h-4 text-primary-text" />
                       Privacy
                     </Link>
                     <Link
                       href="/terms"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <FileText className="w-4 h-4 text-brand-green" />
+                      <FileText className="w-4 h-4 text-primary-text" />
                       Terms
                     </Link>
                     <Link
                       href="/cookies"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <HelpCircle className="w-4 h-4 text-brand-green" />
+                      <HelpCircle className="w-4 h-4 text-primary-text" />
                       Cookies
                     </Link>
                   </div>
-                  <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-brand-green transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
+                  <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-primary-text transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
                 </div>
 
+                {!isOwnProfile && currentUser && (
+                  <button
+                    onClick={() => void toggleBlock()}
+                    className="w-full h-12 px-4 mt-2 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 flex items-center gap-3 text-rose-500 text-[14px] font-bold active:scale-[0.98] transition-all"
+                  >
+                    <Ban className="w-4 h-4" />
+                    {blockedByMe ? `Unblock ${profileUser?.name?.split(" ")[0] || ""}`.trim() : `Block ${profileUser?.name?.split(" ")[0] || ""}`.trim()}
+                  </button>
+                )}
                 {isOwnProfile && (
                   <button
                     onClick={() => {
@@ -1042,12 +1116,12 @@ export default function DynamicProfilePage({
                 )}
               </div>
 
-              <div className="pt-4 text-center border-t border-white/5 mt-2">
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+              <div className="pt-4 text-center border-t border-foreground/5 mt-2">
+                <p className="text-[10px] font-black text-foreground/30 uppercase tracking-widest">
                   MindFuel by Lumyn
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>

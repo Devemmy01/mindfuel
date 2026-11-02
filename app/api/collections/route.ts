@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Collection from "@/models/collection";
 import User from "@/models/user";
@@ -7,7 +8,9 @@ import User from "@/models/user";
 export async function GET(req: NextRequest) {
   try {
     await connectToDB();
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    // Collections are private to their owner.
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
@@ -36,7 +39,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { userId: firebaseId, name } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { name } = await req.json();
 
     if (!firebaseId || !name) {
       return NextResponse.json({ error: "userId and name are required" }, { status: 400 });

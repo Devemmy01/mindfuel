@@ -4,11 +4,14 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/providers/ClientProviders";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/react";
+import UpdateBanner from "@/components/pwa/UpdateBanner";
+import KeyboardInset from "@/components/pwa/KeyboardInset";
+import OfflineReflectionSync from "@/components/pwa/OfflineReflectionSync";
 import InstallPWA from "@/components/InstallPWA";
 import LayoutContent from "@/components/LayoutContent";
 import OfflineNotice from "@/components/OfflineNotice";
-import ClientBadgeUpdater from "@/components/ClientBadgeUpdater";
 import {
   absoluteUrl,
   defaultOgImage,
@@ -92,12 +95,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
-    { media: "(prefers-color-scheme: dark)", color: "#010302" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  // Lets fixed bars extend under the notch and home indicator; they pad
+  // themselves with env(safe-area-inset-*).
+  viewportFit: "cover",
+  // Android Chrome shrinks the layout when the keyboard opens, so bottom
+  // inputs stay visible. iOS uses --keyboard-inset (KeyboardInset).
+  interactiveWidget: "resizes-content",
 };
 
 // JSON-LD structured data
@@ -182,7 +191,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         {process.env.NODE_ENV === "development" && (
@@ -219,15 +228,18 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
         <ClientProviders>
           {/* Top accent line */}
-          <div className="brand-accent-line" />
           <LayoutContent>{children}</LayoutContent>
-          <ClientBadgeUpdater />
           <InstallPWA />
+          <UpdateBanner />
+          <KeyboardInset />
+          <OfflineReflectionSync />
           <OfflineNotice />
           <Analytics />
         </ClientProviders>
+        </ThemeProvider>
       </body>
     </html>
   );

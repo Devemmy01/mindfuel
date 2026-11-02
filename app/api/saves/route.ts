@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound, viewablePost } from "@/lib/post-access";
+import { canViewPost, redactHiddenQuote } from "@/lib/post-visibility";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Save from "@/models/save";
 import User, { IUser } from "@/models/user";
@@ -12,8 +15,10 @@ import { Types } from "mongoose";
 export async function GET(req: NextRequest) {
   try {
     await connectToDB();
-    const firebaseId = req.nextUrl.searchParams.get("userId");
-    const currentUserId = req.nextUrl.searchParams.get("currentUserId");
+    // Saved reflections are private to their owner.
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const currentUserId = firebaseId;
 
     if (!firebaseId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
@@ -79,7 +84,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const enrichedSaves = (saves as Array<{ postId?: PostType }>).map((save) => {
+    // A saved reflection its author later made private disappears for others.
+    const enrichedSaves = (saves as Array<{ postId?: PostType }>)
+      .filter((save) => !save.postId || canViewPost(save.postId as unknown as { visibility?: string; userId?: unknown }, user._id))
+      .map((save) => save.postId ? { ...save, postId: redactHiddenQuote(save.postId, user._id) } : save)
+      .map((save) => {
       if (!save.postId) return save;
       
       const p = save.postId as unknown as PostType & { quotedPostId: unknown };
@@ -112,7 +121,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { saves: enrichedSaves, total, hasMore: skip + saves.length < total, page },
-      { status: 200, headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" } }
+      { status: 200, headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -127,7 +136,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDB();
-    const { userId: firebaseId, postId, collectionId, note } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
+    const { postId, collectionId, note } = await req.json();
 
     if (!firebaseId || !postId) {
       return NextResponse.json(
@@ -140,6 +151,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    if (!(await viewablePost(postId, user._id))) return postNotFound();
 
     const existingSave = await Save.findOne({ userId: user._id, postId });
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
 import CommentLike from "@/models/commentLike";
@@ -8,7 +9,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     await connectToDB();
     const { id: commentId } = await params;
-    const { userId: firebaseId } = await req.json();
+    const firebaseId = await getViewerUid(req);
+    if (!firebaseId) return unauthorized();
 
     if (!firebaseId) {
       return NextResponse.json({ error: "firebaseId is required" }, { status: 400 });
@@ -47,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     await connectToDB();
     const { id: commentId } = await params;
-    const firebaseId = req.nextUrl.searchParams.get("userId");
+    const firebaseId = await getViewerUid(req);
 
     if (!firebaseId) {
       return NextResponse.json({ liked: false }, { status: 200 });
