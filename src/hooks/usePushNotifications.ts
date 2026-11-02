@@ -21,15 +21,16 @@ export function usePushNotifications() {
     return outputArray;
   };
 
-  const subscribeUser = useCallback(async () => {
+  /** Resolves true when this device is subscribed. */
+  const subscribeUser = useCallback(async (): Promise<boolean> => {
     if (!user) {
       console.log("Push: No user found in auth context");
-      return;
+      return false;
     }
     
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       showToast("Push notifications are not supported on this browser", "warning");
-      return;
+      return false;
     }
 
     // Never install the production caching worker on localhost. It can keep
@@ -43,13 +44,13 @@ export function usePushNotifications() {
         await Promise.all(cacheKeys.map((key) => caches.delete(key)));
       }
       showToast("Push notifications are available in production builds", "warning");
-      return;
+      return false;
     }
 
     if (!VAPID_PUBLIC_KEY) {
       console.error("Push: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing from environment");
       showToast("System configuration error (VAPID)", "error");
-      return;
+      return false;
     }
 
     setIsSubscribing(true);
@@ -75,15 +76,14 @@ export function usePushNotifications() {
         });
       };
 
-      const permission = await Promise.race([
-        requestPermission(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Permission request timed out")), 5000))
-      ]) as NotificationPermission;
+      // No timeout: people may take a while to read the browser prompt, and
+      // rejecting early left them without a subscription after they allowed.
+      const permission = await requestPermission();
 
       if (permission !== "granted") {
         console.warn("Push: Permission denied by user");
-        showToast("Notification permission denied", "warning");
-        return;
+        showToast("Notifications are blocked for MindFuel. You can allow them in your browser's site settings.", "warning");
+        return false;
       }
 
       // 2. Acquire the root Service Worker registration used by next-pwa.
@@ -188,14 +188,14 @@ export function usePushNotifications() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subscription,
-          userId: user.uid,
           deviceId,
         }),
       });
 
       if (res.ok) {
         console.log("Push: Successfully synced with backend!");
-        showToast("You're all set for daily tips alerts!", "success");
+        showToast("Reminders are on for this device.", "success");
+        return true;
       } else {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to sync subscription");
@@ -204,6 +204,7 @@ export function usePushNotifications() {
       console.error("Push subscription error:", error);
       const message = error instanceof Error ? error.message : "Failed to enable notifications";
       showToast(message, "error");
+      return false;
     } finally {
       setIsSubscribing(false);
     }

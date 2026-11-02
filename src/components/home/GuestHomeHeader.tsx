@@ -17,8 +17,13 @@ export default function GuestHomeHeader() {
   const { user, loading, openSignInModal } = useAuth();
   const router = useRouter();
 
+  // Only members who *arrive* signed in are sent to their feed. Someone who
+  // signs in here (to save a first reflection) stays for the confirmation.
+  const decided = React.useRef(false);
   React.useEffect(() => {
-    if (loading || !user) return;
+    if (loading || decided.current) return;
+    decided.current = true;
+    if (!user) return;
     if (new URLSearchParams(window.location.search).get("view") === "landing") return;
     router.replace("/feed");
   }, [loading, router, user]);
