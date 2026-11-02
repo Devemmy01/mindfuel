@@ -208,7 +208,7 @@ function Composer({
           <div className="flex items-center gap-2">
             {text.length > 0 && <CharRing current={text.length} limit={CHAR_LIMIT} />}
             <button type="submit" disabled={!text.trim() || submitting || text.length > CHAR_LIMIT}
-              className={`px-4 bg-brand-green text-white font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green/90 active:scale-95 transition-all flex items-center gap-1.5 ${compact ? "h-8 text-[12px]" : "h-9 text-[13px]"}`}>
+              className={`px-4 bg-brand-green text-foreground font-bold rounded-full disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-green/90 active:scale-95 transition-all flex items-center gap-1.5 ${compact ? "h-8 text-[12px]" : "h-9 text-[13px]"}`}>
               {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : submitLabel}
             </button>
           </div>
@@ -293,7 +293,7 @@ function CommentNode({
                 <button
                   onClick={handleEditSubmit}
                   disabled={isSubmittingEdit}
-                  className="px-3 py-1 bg-brand-green text-white text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
+                  className="px-3 py-1 bg-brand-green text-foreground text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
                 >
                   {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Save"}
                 </button>
@@ -607,13 +607,13 @@ const CommentSection: React.FC<{
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="fixed bottom-[100px] md:bottom-10 left-1/2 w-full max-w-[500px] px-3 z-50 will-change-transform"
             >
-              <div className="modal-solid border border-white/10 rounded-[28px] p-1.5">
+              <div className="modal-solid border border-foreground/10 rounded-[28px] p-1.5">
                 <div className="flex items-center gap-2 px-2">
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden flex-shrink-0">
                       {currentUserImage ? (
                         <Image src={currentUserImage} width={36} height={36} alt="You" className="object-cover w-full h-full" />
                       ) : (
-                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-white text-[12px]">
+                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-foreground text-[12px]">
                           {currentUserInitial.toUpperCase()}
                         </div>
                       )}

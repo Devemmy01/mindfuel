@@ -18,7 +18,7 @@ export default function OfflinePage() {
       </div>
       <Link 
         href="/" 
-        className="inline-flex items-center space-x-2 px-8 py-4 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-semibold rounded-2xl transition-transform hover:scale-105 active:scale-95"
+        className="inline-flex items-center space-x-2 px-8 py-4 bg-neutral-900 dark:bg-foreground text-foreground dark:text-neutral-900 font-semibold rounded-2xl transition-transform hover:scale-105 active:scale-95"
       >
         <Home className="w-5 h-5" />
         <span>Try Home</span>

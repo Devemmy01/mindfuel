@@ -43,6 +43,9 @@
     --warning: 32 95% 34%;
 
     --border: 240 6% 90%;              /* #e4e4e7 hairline */
+    --bubble-own: 109 85% 91%;         /* #d9fdd3 */
+    --bubble-own-line: 109 45% 80%;
+    --bubble-other: 0 0% 100%;
     --border-strong: 240 5% 84%;       /* #d4d4d8 */
     --input: 240 6% 90%;
     --ring: 150 100% 24%;              /* focus ring, 5.2:1 on light */
@@ -95,6 +98,9 @@
     --warning: 38 92% 60%;
 
     --border: 240 4% 16%;              /* #27272a */
+    --bubble-own: 172 86% 17%;         /* #064f46 */
+    --bubble-own-line: 172 87% 22%;    /* #07685b */
+    --bubble-other: 150 7% 11%;        /* #191e1b */
     --border-strong: 240 5% 22%;
     --input: 240 4% 16%;
     --ring: 151 100% 37%;

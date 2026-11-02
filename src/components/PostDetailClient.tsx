@@ -526,7 +526,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             style={{ ...bgStyle, color: textColor }}
           >
             {/* Texture overlays */}
-            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-foreground/10 mix-blend-overlay pointer-events-none" />
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12)_0%,transparent_60%)] pointer-events-none" />
 

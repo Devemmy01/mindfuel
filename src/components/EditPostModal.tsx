@@ -160,7 +160,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.97 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="bg-white dark:bg-[#111827] border border-border w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+            className="bg-foreground dark:bg-[#111827] border border-border w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -191,11 +191,11 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                     ? "border-2 border-rose-500/50 ring-2 ring-rose-500/30"
                     : editText.length > 900
                     ? "border-2 border-yellow-500/30 ring-2 ring-yellow-500/20"
-                    : "border border-black/5 dark:border-white/5"
+                    : "border border-black/5 dark:border-foreground/5"
                 }`}
                 style={{ background: editBg.value, color: editBg.text }}
               >
-                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 mix-blend-overlay pointer-events-none" />
+                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-foreground/10 mix-blend-overlay pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-20 pointer-events-none" />
                 <textarea
                   ref={editTextAreaRef}

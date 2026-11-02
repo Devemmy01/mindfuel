@@ -1,7 +1,7 @@
 "use client";
 
+import BrandLogo from "@/components/BrandLogo";
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
@@ -35,7 +35,7 @@ export default function GuestHomeHeader() {
     <header className="sticky top-0 z-sticky border-b border-line bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
         <Link href="/" aria-label="MindFuel home" className="mr-auto flex items-center">
-          <Image src="/logoDarkbg.png" alt="MindFuel" width={120} height={36} priority className="h-8 w-auto" />
+          <BrandLogo priority className="h-8" />
         </Link>
         <nav aria-label="Site" className="flex items-center gap-1">
           <Link href="/feed" className={buttonVariants({ variant: "ghost", size: "sm" })}>

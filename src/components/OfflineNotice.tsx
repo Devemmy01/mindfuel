@@ -36,8 +36,8 @@ export default function OfflineNotice() {
               <WifiOff className="w-5 h-5 text-rose-500" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-[16px] text-white leading-tight mb-1">You&apos;re Offline</h3>
-              <p className="text-[13px] text-white/60 leading-snug">
+              <h3 className="font-bold text-[16px] text-foreground leading-tight mb-1">You&apos;re Offline</h3>
+              <p className="text-[13px] text-foreground/60 leading-snug">
                 Check your connection. Some features may not work until you&apos;re back online.
               </p>
             </div>
@@ -45,7 +45,7 @@ export default function OfflineNotice() {
           
           <button 
             onClick={() => window.location.reload()}
-            className="w-full mt-4 bg-white/5 hover:bg-white/10 text-white font-semibold py-2.5 rounded-xl text-[13px] transition-all flex items-center justify-center gap-2 border border-white/10"
+            className="w-full mt-4 bg-foreground/5 hover:bg-foreground/10 text-foreground font-semibold py-2.5 rounded-xl text-[13px] transition-all flex items-center justify-center gap-2 border border-foreground/10"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Retry Connection

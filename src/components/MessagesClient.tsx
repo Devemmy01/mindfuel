@@ -1369,7 +1369,7 @@ export default function MessagesClient() {
         </p>
         <button
           onClick={openSignInModal}
-          className="mt-6 rounded-full bg-brand-green px-6 py-3 font-bold text-white"
+          className="mt-6 rounded-full bg-brand-green px-6 py-3 font-bold text-foreground"
         >
           Sign in
         </button>
@@ -1392,14 +1392,14 @@ export default function MessagesClient() {
               <button
                 type="button"
                 onClick={() => setShowNewMessage(false)}
-                className="rounded-full p-2 hover:bg-white/[0.07]"
+                className="rounded-full p-2 hover:bg-foreground/[0.07]"
                 aria-label="Close new message"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-4">
-              <label className="flex items-center gap-2 rounded-full bg-surface-elevated px-4 ring-1 ring-white/[0.06] focus-within:ring-brand-green/60">
+              <label className="flex items-center gap-2 rounded-full bg-surface-elevated px-4 ring-1 ring-foreground/[0.06] focus-within:ring-brand-green/60">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
                   autoFocus
@@ -1429,7 +1429,7 @@ export default function MessagesClient() {
                     type="button"
                     onClick={() => startConversation(recipient)}
                     disabled={Boolean(startingRecipientId)}
-                    className="flex w-full items-center gap-3 border-b border-line-subtle px-5 py-3.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-60"
+                    className="flex w-full items-center gap-3 border-b border-line-subtle px-5 py-3.5 text-left transition-colors hover:bg-foreground/[0.05] disabled:opacity-60"
                   >
                     <Avatar person={recipient} size={44} online={isOnline(recipient.firebaseId)} />
                     <span className="min-w-0 flex-1">
@@ -1466,20 +1466,20 @@ export default function MessagesClient() {
               <button
                 type="button"
                 onClick={closeReplyTip}
-                className="rounded-full p-2 text-white/55 hover:bg-white/[0.07] hover:text-white"
+                className="rounded-full p-2 text-foreground/55 hover:bg-foreground/[0.07] hover:text-foreground"
                 aria-label="Close reply tip"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <h2 className="text-lg font-bold">Reply and react quickly</h2>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-2 text-sm leading-6 text-foreground/65">
               Tap or click any message to reply. On a phone or tablet, use the smile button in the reply strip to react. Tap a quoted reply to jump back to it.
             </p>
             <button
               type="button"
               onClick={closeReplyTip}
-              className="mt-5 w-full rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white"
+              className="mt-5 w-full rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground"
             >
               Got it
             </button>
@@ -1620,7 +1620,7 @@ export default function MessagesClient() {
                 <button
                   key={conversation._id}
                   onClick={() => setActive(conversation)}
-                  className={`flex w-full items-center gap-3 border-b border-line-subtle px-4 py-3 text-left transition-colors ${selected ? "bg-white/[0.08]" : "hover:bg-white/[0.045]"}`}
+                  className={`flex w-full items-center gap-3 border-b border-line-subtle px-4 py-3 text-left transition-colors ${selected ? "bg-foreground/[0.08]" : "hover:bg-foreground/[0.045]"}`}
                 >
                   <Avatar person={other} size={48} online={isOnline(other.firebaseId)} />
                   <span className="min-w-0 flex-1">
@@ -1713,7 +1713,7 @@ export default function MessagesClient() {
             <header className="sticky top-0 z-20 flex h-[64px] shrink-0 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur-xl">
               <button
                 onClick={() => setActive(null)}
-                className="rounded-full p-2 hover:bg-white/[0.07] md:hidden"
+                className="rounded-full p-2 hover:bg-foreground/[0.07] md:hidden"
                 aria-label="Back to conversations"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -1739,7 +1739,7 @@ export default function MessagesClient() {
                     onClick={() =>
                       setShowConversationMenu((visible) => !visible)
                     }
-                    className="rounded-full p-2.5 hover:bg-white/[0.07]"
+                    className="rounded-full p-2.5 hover:bg-foreground/[0.07]"
                     aria-label="More options"
                     aria-expanded={showConversationMenu}
                   >
@@ -1760,7 +1760,7 @@ export default function MessagesClient() {
                             setShowConversationInfo(true);
                             setShowConversationMenu(false);
                           }}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <Info className="h-4 w-4" />
                           Conversation info
@@ -1768,7 +1768,7 @@ export default function MessagesClient() {
                         <Link
                           href={`/profile/${person.firebaseId}`}
                           onClick={() => setShowConversationMenu(false)}
-                          className="flex items-center gap-3 px-4 py-3 text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex items-center gap-3 px-4 py-3 text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <UserRound className="h-4 w-4" />
                           View profile
@@ -1776,7 +1776,7 @@ export default function MessagesClient() {
                         <button
                           type="button"
                           onClick={() => copyProfileLink(person)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-white/[0.07]"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
                         >
                           <Copy className="h-4 w-4" />
                           {profileLinkCopied
@@ -1843,7 +1843,7 @@ export default function MessagesClient() {
                     <button
                       type="button"
                       onClick={() => setShowConversationInfo(false)}
-                      className="rounded-full p-2 hover:bg-white/[0.07]"
+                      className="rounded-full p-2 hover:bg-foreground/[0.07]"
                       aria-label="Close conversation info"
                     >
                       <X className="h-5 w-5" />
@@ -1859,7 +1859,7 @@ export default function MessagesClient() {
                   <div className="space-y-2 px-4">
                     <Link
                       href={`/profile/${person.firebaseId}`}
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground"
                     >
                       <UserRound className="h-4 w-4" />
                       View profile
@@ -1867,7 +1867,7 @@ export default function MessagesClient() {
                     <button
                       type="button"
                       onClick={() => copyProfileLink(person)}
-                      className="flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-3 text-sm font-bold hover:bg-white/[0.06]"
+                      className="flex w-full items-center justify-center gap-2 rounded-full border border-line-strong px-4 py-3 text-sm font-bold hover:bg-foreground/[0.06]"
                     >
                       <Copy className="h-4 w-4" />
                       {profileLinkCopied
@@ -1897,7 +1897,7 @@ export default function MessagesClient() {
                         <div className="relative z-10 my-4 flex w-full shrink-0 justify-center">
                           <time
                             dateTime={message.createdAt}
-                            className="rounded-full border border-line-subtle bg-surface-raised/95 px-3 py-1.5 text-[11px] font-semibold text-white/80 shadow-sm backdrop-blur-md"
+                            className="rounded-full border border-line-subtle bg-surface-raised/95 px-3 py-1.5 text-[11px] font-semibold text-foreground/80 shadow-sm backdrop-blur-md"
                           >
                             {messageDateLabel(message.createdAt)}
                           </time>
@@ -1918,7 +1918,7 @@ export default function MessagesClient() {
                               setReplyingTo(message);
                             }
                           }}
-                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-[#07685b] bg-[#064f46] text-white" : "rounded-tl-[3px] border-line-subtle bg-[#191e1b] text-white"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-white/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
+                          className={`relative min-w-0 max-w-[84%] cursor-pointer rounded-lg border px-2.5 py-1.5 text-left text-[14px] leading-[1.35] shadow-sm transition sm:max-w-[76%] ${message.reactions?.length ? "min-w-[5.5rem]" : ""} ${own ? "rounded-tr-[3px] border-bubble-own-line bg-bubble-own text-foreground" : "rounded-tl-[3px] border-line-subtle bg-bubble-other text-foreground"} ${message.deliveryState === "failed" ? "border-red-500/60" : ""} ${highlightedMessageId === message._id ? "ring-2 ring-brand-green/70" : "hover:ring-1 hover:ring-foreground/10 focus:outline-none focus:ring-2 focus:ring-brand-green/70"}`}
                           aria-label="Reply to message"
                         >
                           {message.replyTo && (
@@ -1946,7 +1946,7 @@ export default function MessagesClient() {
                           <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${emojiOnly ? "text-[30px] leading-none" : ""}`}>
                             {renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)}
                           </p>
-                          <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-white/65" : "text-white/45"}`}>
+                          <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-foreground/65" : "text-foreground/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
                             {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
                             {own && message.deliveryState === "failed" && (
@@ -1962,7 +1962,7 @@ export default function MessagesClient() {
                                 Not sent · Retry
                               </button>
                             )}
-                            {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
+                            {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-foreground/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
                           {!!message.reactions?.length && (
                             <div className="absolute -bottom-[18px] left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-0.5">
@@ -1982,7 +1982,7 @@ export default function MessagesClient() {
                                 event.stopPropagation();
                                 openReactionPicker(message._id, event.currentTarget);
                               }}
-                              className={`hidden h-8 w-8 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[0.08] hover:text-white md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-white/[0.10] text-brand-green opacity-100" : ""}`}
+                              className={`hidden h-8 w-8 items-center justify-center rounded-full text-foreground/55 transition hover:bg-foreground/[0.08] hover:text-foreground md:flex md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${reactionPickerMessageId === message._id ? "bg-foreground/[0.10] text-brand-green opacity-100" : ""}`}
                               aria-label="React to message"
                               aria-expanded={reactionPickerMessageId === message._id}
                             >
@@ -1997,14 +1997,14 @@ export default function MessagesClient() {
                 {typingName && (
                   <div className="flex items-end gap-2 px-1 py-2" aria-live="polite">
                     {person && <Avatar person={person} size={28} online={isOnline(person.firebaseId)} />}
-                    <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-[#191e1b] px-3 py-2 shadow-sm">
+                    <div className="relative max-w-[78%] rounded-lg rounded-tl-[3px] bg-bubble-other px-3 py-2 shadow-sm">
                       <span className="mb-1 block max-w-36 truncate text-[11px] font-semibold text-brand-green">
                         {typingName}
                       </span>
                       <span className="flex h-5 items-center gap-1.5" aria-label={`${typingName} is typing`}>
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.24s]" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.12s]" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-white/70" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70 [animation-delay:-0.24s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70 [animation-delay:-0.12s]" />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/70" />
                       </span>
                     </div>
                   </div>
@@ -2015,7 +2015,7 @@ export default function MessagesClient() {
                 <button
                   type="button"
                   onClick={scrollToBottom}
-                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-raised/95 text-white shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
+                  className="sticky bottom-3 z-20 ml-auto mr-1 mt-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-raised/95 text-foreground shadow-xl backdrop-blur transition hover:border-brand-green/50 hover:text-brand-green"
                   aria-label="Jump to latest messages"
                 >
                   <ChevronsDown className="h-5 w-5" />
@@ -2039,27 +2039,27 @@ export default function MessagesClient() {
                     >
                       Replying to {replyingTo.sender.firebaseId === user.uid ? "yourself" : replyingTo.sender.name}
                     </strong>
-                    <p className="truncate text-xs text-white/50">{replyingTo.text}</p>
+                    <p className="truncate text-xs text-foreground/50">{replyingTo.text}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => openReactionPicker(replyingTo._id)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-green hover:bg-white/[0.07] md:hidden"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-green hover:bg-foreground/[0.07] md:hidden"
                     aria-label="React to message"
                   >
                     <Smile className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-white/45 hover:bg-white/[0.07] hover:text-white" aria-label="Cancel reply">
+                  <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Cancel reply">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               )}
-              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-surface-elevated p-1.5 ring-1 ring-white/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
+              <div className={`relative mx-auto flex min-h-12 max-w-3xl items-end gap-1 bg-surface-elevated p-1.5 ring-1 ring-foreground/[0.06] focus-within:ring-brand-green/50 ${composerExpanded ? "rounded-[26px]" : "rounded-full"}`}>
                 <div ref={emojiPickerRef} className="static mb-0.5 shrink-0 self-end">
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker((open) => !open)}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-brand-green" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${showEmojiPicker ? "bg-brand-green/15 text-brand-green" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"}`}
                     aria-label="Add emoji"
                     aria-expanded={showEmojiPicker}
                   >
@@ -2087,7 +2087,7 @@ export default function MessagesClient() {
                   placeholder="Start a new message"
                   rows={1}
                   maxLength={2000}
-                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-base leading-5 text-white placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none sm:text-sm"
+                  className="thin-scrollbar min-h-10 min-w-0 flex-1 resize-none overflow-x-hidden bg-transparent px-1 py-2.5 text-base leading-5 text-foreground placeholder:text-muted-foreground [overflow-wrap:anywhere] outline-none sm:text-sm"
                 />
                 <button
                   type="submit"
@@ -2103,7 +2103,7 @@ export default function MessagesClient() {
           </>
         ) : (
           <div className="m-auto max-w-sm px-8 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/15">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-foreground/15">
               <MessageCircle className="h-10 w-10" />
             </div>
             <h2 className="mt-5 text-2xl font-extrabold tracking-tight">
@@ -2114,7 +2114,7 @@ export default function MessagesClient() {
             </p>
             <button
               onClick={() => setShowNewMessage(true)}
-              className="mt-6 rounded-full bg-brand-green px-6 py-3 text-sm font-bold text-white"
+              className="mt-6 rounded-full bg-brand-green px-6 py-3 text-sm font-bold text-foreground"
             >
               New message
             </button>

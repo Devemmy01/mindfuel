@@ -190,11 +190,11 @@ export default function InstallPWA() {
               {showIOSPrompt ? (
                 <div className="bg-secondary/30 rounded-2xl p-3.5 flex items-center justify-center gap-3 text-[13px] font-medium border border-border/40">
                   <span>Tap</span>
-                  <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-lg flex items-center justify-center shadow-sm">
+                  <div className="w-8 h-8 bg-foreground dark:bg-foreground/10 rounded-lg flex items-center justify-center shadow-sm">
                     <Share className="w-4 h-4 text-blue-500" />
                   </div>
                   <span>then</span>
-                  <span className="bg-white/50 dark:bg-white/10 px-2 py-1 rounded-md text-[12px] font-bold">Add to Home Screen</span>
+                  <span className="bg-foreground/50 dark:bg-foreground/10 px-2 py-1 rounded-md text-[12px] font-bold">Add to Home Screen</span>
                 </div>
               ) : showManualPrompt ? (
                 <div className="rounded-2xl border border-border/40 bg-secondary/30 p-3.5 text-[13px] leading-relaxed text-muted-foreground">
@@ -203,7 +203,7 @@ export default function InstallPWA() {
               ) : (
                 <button
                   onClick={handleInstallClick}
-                  className="w-full bg-brand-green hover:bg-brand-green/90 text-white font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full bg-brand-green hover:bg-brand-green/90 text-foreground font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" /> Download MindFuel App
                 </button>

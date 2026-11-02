@@ -1,5 +1,6 @@
 "use client";
 
+import ThemeChoice from "@/components/ThemeChoice";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import EmptyState from "@/components/ui/EmptyState";
@@ -664,7 +665,7 @@ export default function DynamicProfilePage({
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Share your reflections daily</p>
             </div>
           </div>
-          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-white text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
+          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-foreground text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
             Join Now
           </button>
         </div>
@@ -686,7 +687,7 @@ export default function DynamicProfilePage({
               <Link
                 href="/settings/notifications"
                 aria-label="Notification settings"
-                className="flex size-11 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95"
+                className="flex size-11 items-center justify-center rounded-full bg-foreground/10 backdrop-blur-md border border-foreground/20 text-foreground hover:bg-foreground/20 transition-all active:scale-95"
               >
                 <Bell className="w-4 h-4" />
               </Link>
@@ -701,7 +702,7 @@ export default function DynamicProfilePage({
                   showToast("Profile link copied!", "success");
                 }
               }}
-              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95"
+              className="p-2.5 rounded-full bg-foreground/10 backdrop-blur-md border border-foreground/20 text-foreground hover:bg-foreground/20 transition-all active:scale-95"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -724,7 +725,7 @@ export default function DynamicProfilePage({
                 className="w-18 h-18 rounded-full flex items-center justify-center shadow-inner"
                 style={{ backgroundColor: "#0b100d" }}
               >
-                <span className="text-3xl font-bold text-white selection:bg-transparent">
+                <span className="text-3xl font-bold text-foreground selection:bg-transparent">
                   {profileUser.name[0]?.toUpperCase()}
                 </span>
               </div>
@@ -759,7 +760,7 @@ export default function DynamicProfilePage({
             >
               <button
                 onClick={() => setIsProfilePicOpen(false)}
-                className="absolute top-6 right-6 z-[120] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10 shadow-xl press-scale"
+                className="absolute top-6 right-6 z-[120] p-3 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-full transition-all backdrop-blur-md border border-foreground/10 shadow-xl press-scale"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -778,7 +779,7 @@ export default function DynamicProfilePage({
                   width={560}
                   height={560}
                   unoptimized
-                  className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-white/10 object-cover shadow-2xl"
+                  className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-foreground/10 object-cover shadow-2xl"
                 />
               </m.div>
             </m.div>
@@ -792,11 +793,11 @@ export default function DynamicProfilePage({
           </div>
         ) : (
           <div className="absolute -bottom-14 right-4 flex items-center gap-2">
-            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface-raised px-4 text-[13px] font-bold text-foreground transition-colors hover:border-white/20 hover:bg-surface-elevated" aria-label={`Message ${profileUser.name}`}>
+            <Link href={currentUser ? `/messages?with=${profileId}` : "#"} onClick={(event) => { if (!currentUser) { event.preventDefault(); openSignInModal(); } }} className="flex h-10 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface-raised px-4 text-[13px] font-bold text-foreground transition-colors hover:border-foreground/20 hover:bg-surface-elevated" aria-label={`Message ${profileUser.name}`}>
               <MessageCircle className="h-4 w-4" />
               <span>Message</span>
             </Link>
-            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-white hover:bg-brand-green-active"}`}>
+            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-foreground hover:bg-brand-green-active"}`}>
               {followLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : followState.isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
               {followState.isFollowing ? "Unfollow" : followState.followsViewer ? "Follow back" : "Follow"}
             </button>
@@ -973,16 +974,20 @@ export default function DynamicProfilePage({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drag Handle */}
-              <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-4" />
+              <div className="w-12 h-1 bg-foreground/10 rounded-full mx-auto mb-4" />
 
               <div className="flex items-center justify-between">
-                <h3 className="text-[17px] font-black text-white">Options</h3>
+                <h3 className="text-[17px] font-black text-foreground">Options</h3>
                 <button onClick={() => setIsMobileSettingsOpen(false)} className="p-2 hover:bg-secondary/60 rounded-full transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-micro font-semibold uppercase tracking-wider text-subtle-foreground">Appearance</p>
+                  <ThemeChoice />
+                </div>
                 {isOwnProfile && (
                   <div className="space-y-2">
                     <button
@@ -990,7 +995,7 @@ export default function DynamicProfilePage({
                         setIsMobileSettingsOpen(false);
                         setIsEditModalOpen(true);
                       }}
-                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                      className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
                       <UserIcon className="w-4 h-4 text-brand-green" />
                       Edit Profile
@@ -998,7 +1003,7 @@ export default function DynamicProfilePage({
                     <Link
                       href="/settings/notifications"
                       onClick={() => setIsMobileSettingsOpen(false)}
-                      className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+                      className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
                       <Bell className="w-4 h-4 text-brand-green" />
                       Notification settings
@@ -1007,14 +1012,14 @@ export default function DynamicProfilePage({
                 )}
 
                 <div className="space-y-2">
-                  <div className="pt-2 pb-1 text-[11px] font-black text-white/30 uppercase tracking-widest pl-1">
+                  <div className="pt-2 pb-1 text-[11px] font-black text-foreground/30 uppercase tracking-widest pl-1">
                     Information
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      className="relative h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="relative h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => {
                         setIsMobileSettingsOpen(false);
                         setWhatsNewOpen(true);
@@ -1026,7 +1031,7 @@ export default function DynamicProfilePage({
                     </button>
                     <Link
                       href="/about"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
                       <Info className="w-4 h-4 text-brand-green" />
@@ -1034,7 +1039,7 @@ export default function DynamicProfilePage({
                     </Link>
                     <Link
                       href="/privacy"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
                       <Shield className="w-4 h-4 text-brand-green" />
@@ -1042,7 +1047,7 @@ export default function DynamicProfilePage({
                     </Link>
                     <Link
                       href="/terms"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
                       <FileText className="w-4 h-4 text-brand-green" />
@@ -1050,7 +1055,7 @@ export default function DynamicProfilePage({
                     </Link>
                     <Link
                       href="/cookies"
-                      className="h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-2.5 text-white/80 text-[13px] font-bold active:scale-[0.98] transition-all"
+                      className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
                       <HelpCircle className="w-4 h-4 text-brand-green" />
@@ -1074,8 +1079,8 @@ export default function DynamicProfilePage({
                 )}
               </div>
 
-              <div className="pt-4 text-center border-t border-white/5 mt-2">
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+              <div className="pt-4 text-center border-t border-foreground/5 mt-2">
+                <p className="text-[10px] font-black text-foreground/30 uppercase tracking-widest">
                   MindFuel by Lumyn
                 </p>
               </div>

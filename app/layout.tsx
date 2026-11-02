@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/providers/ClientProviders";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/react";
 import UpdateBanner from "@/components/pwa/UpdateBanner";
 import KeyboardInset from "@/components/pwa/KeyboardInset";
@@ -190,7 +191,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         {process.env.NODE_ENV === "development" && (
@@ -227,6 +228,7 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
         <ClientProviders>
           {/* Top accent line */}
           <LayoutContent>{children}</LayoutContent>
@@ -237,6 +239,7 @@ export default function RootLayout({
           <OfflineNotice />
           <Analytics />
         </ClientProviders>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -25,6 +25,10 @@ const SETTINGS = {
 };
 
 async function signIn(page: Page) {
+  // THEME=light captures review screenshots in the light theme.
+  if (process.env.THEME) {
+    await page.addInitScript((name) => localStorage.setItem("theme", name), process.env.THEME);
+  }
   await page.addInitScript(() => {
     (window as Window & { __mindfuelE2E?: { signIn: string } }).__mindfuelE2E = { signIn: "ok" };
   });
@@ -65,7 +69,7 @@ test("settings show categories, save a change and list devices", async ({ page }
   await expect(page.getByText("Chrome on Android")).toBeVisible();
   await expectNoSeriousA11yIssues(page);
   if (process.env.PHASE) {
-    await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/settings-${test.info().project.name}.png`, fullPage: true });
+    await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/settings-${test.info().project.name}${process.env.THEME ? `-${process.env.THEME}` : ""}.png`, fullPage: true });
   }
 });
 
@@ -99,7 +103,7 @@ test("the notification centre groups by day and marks one read on tap", async ({
   await expect(page.getByRole("button", { name: /mark all read/i })).toBeVisible();
   await expectNoSeriousA11yIssues(page);
   if (process.env.PHASE) {
-    await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/notifications-${test.info().project.name}.png`, fullPage: true });
+    await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/notifications-${test.info().project.name}${process.env.THEME ? `-${process.env.THEME}` : ""}.png`, fullPage: true });
   }
   await page.getByRole("link", { name: /Ada Okafor replied to your reflection/ }).click();
   await expect.poll(() => patches).toContainEqual({ id: "n1" });

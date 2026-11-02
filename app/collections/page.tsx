@@ -31,7 +31,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
       <m.div
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.97 }}
-        className="rounded-2xl overflow-hidden shadow-soft border border-black/5 dark:border-white/5 cursor-pointer"
+        className="rounded-2xl overflow-hidden shadow-soft border border-black/5 dark:border-foreground/5 cursor-pointer"
         style={{ ...bgStyle, color: textColor }}
       >
         <div className="p-3.5">

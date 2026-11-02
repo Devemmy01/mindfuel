@@ -105,7 +105,7 @@ export default function ProfilePictureEditor({
                 backgroundColor: "#0b100d",
               }}
             >
-              <span className="text-5xl font-bold text-white selection:bg-transparent">
+              <span className="text-5xl font-bold text-foreground selection:bg-transparent">
                 {userName[0]?.toUpperCase()}
               </span>
             </div>

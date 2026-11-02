@@ -142,10 +142,10 @@ export default function DailyReflectionPrompt({
                 role="tooltip"
                 className="pointer-events-none absolute left-0 top-[calc(100%+12px)] z-[80] w-[292px] translate-y-1 rounded-2xl border border-line-strong bg-surface-raised p-4 opacity-0 transition-all duration-150 group-hover/reflectors:translate-y-0 group-hover/reflectors:opacity-100 group-focus/reflectors:translate-y-0 group-focus/reflectors:opacity-100"
               >
-                <strong className="block text-[13px] font-bold text-white">
+                <strong className="block text-[13px] font-bold text-foreground">
                   Consistent reflectors
                 </strong>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/55">
+                <p className="mt-1 text-[11px] leading-relaxed text-foreground/55">
                   Five people actively making reflection a habit.
                 </p>
                 <div className="mt-3 space-y-2.5">
@@ -155,7 +155,7 @@ export default function DailyReflectionPrompt({
                       className="flex items-center gap-2.5"
                     >
                       <ReflectorAvatar reflector={item} size={30} />
-                      <span className="min-w-0 truncate text-[11px] font-semibold text-white/85">
+                      <span className="min-w-0 truncate text-[11px] font-semibold text-foreground/85">
                         {item.name}
                       </span>
                     </div>

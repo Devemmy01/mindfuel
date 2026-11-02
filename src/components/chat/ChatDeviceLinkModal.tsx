@@ -175,21 +175,21 @@ export default function ChatDeviceLinkModal({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold">{mode === "source" ? "Link another device" : "Link this device"}</h2>
-            <p className="mt-1 text-sm leading-5 text-white/55">
+            <p className="mt-1 text-sm leading-5 text-foreground/55">
               {mode === "source"
                 ? "Keep this window open, then enter the code on your other device."
                 : "Enter the code shown on a device that can already read your encrypted chats."}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full p-2 text-white/50 hover:bg-white/[0.07] hover:text-white" aria-label="Close device linking">
+          <button type="button" onClick={onClose} className="rounded-full p-2 text-foreground/50 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Close device linking">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {mode === "target" && !waitingForTransfer && (
-          <ol className="mt-5 space-y-2 rounded-2xl border border-line-subtle bg-white/[0.035] p-4 text-sm text-white/70">
-            <li className="flex gap-3"><span className="font-bold text-brand-green">1.</span><span>On the trusted device, open <strong className="text-white/90">Messages</strong> and tap the link icon beside the new-message icon.</span></li>
-            <li className="flex gap-3"><span className="font-bold text-brand-green">2.</span><span>Choose <strong className="text-white/90">Link another device</strong> and enter its one-time code below.</span></li>
+          <ol className="mt-5 space-y-2 rounded-2xl border border-line-subtle bg-foreground/[0.035] p-4 text-sm text-foreground/70">
+            <li className="flex gap-3"><span className="font-bold text-brand-green">1.</span><span>On the trusted device, open <strong className="text-foreground/90">Messages</strong> and tap the link icon beside the new-message icon.</span></li>
+            <li className="flex gap-3"><span className="font-bold text-brand-green">2.</span><span>Choose <strong className="text-foreground/90">Link another device</strong> and enter its one-time code below.</span></li>
             <li className="flex gap-3"><span className="font-bold text-brand-green">3.</span><span>Compare the six-digit number on both devices, then approve on the trusted device.</span></li>
           </ol>
         )}
@@ -198,21 +198,21 @@ export default function ChatDeviceLinkModal({
 
         {mode === "source" && !requested && !transferReady && !complete && (
           <div className="mt-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/40">One-time code</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/40">One-time code</p>
             <button type="button" onClick={copyCode} disabled={!linkCode} className="mt-2 flex w-full items-center justify-center gap-3 rounded-2xl border border-brand-green/35 bg-brand-green/10 px-4 py-4 text-2xl font-black tracking-[0.18em] text-brand-green disabled:opacity-50">
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : linkCode || "Creating…"}
               {!busy && (copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />)}
             </button>
-            <p className="mt-3 text-center text-xs text-white/45">Expires in 10 minutes. Do not share it with anyone else.</p>
+            <p className="mt-3 text-center text-xs text-foreground/45">Expires in 10 minutes. Do not share it with anyone else.</p>
           </div>
         )}
 
         {requested && (
-          <div className="mt-5 rounded-2xl border border-line bg-white/[0.035] p-4">
+          <div className="mt-5 rounded-2xl border border-line bg-foreground/[0.035] p-4">
             <p className="text-sm font-semibold">Approve {session.targetDeviceName || "new device"}?</p>
-            <p className="mt-2 text-xs text-white/50">Confirm this number is also displayed on the new device:</p>
+            <p className="mt-2 text-xs text-foreground/50">Confirm this number is also displayed on the new device:</p>
             <div className="my-4 text-center text-3xl font-black tracking-[0.25em] text-brand-green">{session.verification}</div>
-            <button type="button" onClick={approve} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white disabled:opacity-50">
+            <button type="button" onClick={approve} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-50">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               Approve device
             </button>
@@ -224,7 +224,7 @@ export default function ChatDeviceLinkModal({
 
         {mode === "target" && !waitingForTransfer && (
           <div className="mt-5">
-            <label htmlFor="device-link-code" className="text-xs font-semibold uppercase tracking-wide text-white/40">One-time code</label>
+            <label htmlFor="device-link-code" className="text-xs font-semibold uppercase tracking-wide text-foreground/40">One-time code</label>
             <input
               id="device-link-code"
               value={linkCode}
@@ -233,7 +233,7 @@ export default function ChatDeviceLinkModal({
               autoCapitalize="characters"
               className="mt-2 h-12 w-full rounded-2xl border border-line bg-surface-elevated px-4 py-3 text-center text-xl font-bold tracking-[0.16em] outline-none focus:border-brand-green/60"
             />
-            <button type="button" onClick={join} disabled={busy || linkCode.replace(/-/g, "").length !== 8} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white disabled:opacity-40">
+            <button type="button" onClick={join} disabled={busy || linkCode.replace(/-/g, "").length !== 8} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-40">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Continue
             </button>
@@ -241,10 +241,10 @@ export default function ChatDeviceLinkModal({
         )}
 
         {mode === "target" && waitingForTransfer && (
-          <div className="mt-5 rounded-2xl border border-line bg-white/[0.035] p-4 text-center">
-            <p className="text-xs text-white/50">Compare this number with your trusted device, then approve there:</p>
+          <div className="mt-5 rounded-2xl border border-line bg-foreground/[0.035] p-4 text-center">
+            <p className="text-xs text-foreground/50">Compare this number with your trusted device, then approve there:</p>
             <div className="my-4 text-3xl font-black tracking-[0.25em] text-brand-green">{verification}</div>
-            <div className="flex items-center justify-center gap-2 text-sm text-white/65">
+            <div className="flex items-center justify-center gap-2 text-sm text-foreground/65">
               <Loader2 className="h-4 w-4 animate-spin" /> Waiting for approval…
             </div>
           </div>
@@ -258,7 +258,7 @@ function Status({ icon, title, detail }: { icon: React.ReactNode; title: string;
   return (
     <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-green/25 bg-brand-green/10 p-4 text-brand-green">
       <div className="shrink-0">{icon}</div>
-      <div><p className="text-sm font-bold">{title}</p><p className="mt-0.5 text-xs text-white/55">{detail}</p></div>
+      <div><p className="text-sm font-bold">{title}</p><p className="mt-0.5 text-xs text-foreground/55">{detail}</p></div>
     </div>
   );
 }

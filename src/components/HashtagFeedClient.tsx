@@ -171,7 +171,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
             </div>
             <Link
               href="/create"
-              className="px-6 py-3 rounded-full bg-brand-green text-white font-bold shadow-brand-sm"
+              className="px-6 py-3 rounded-full bg-brand-green text-foreground font-bold shadow-brand-sm"
             >
               Create a post
             </Link>

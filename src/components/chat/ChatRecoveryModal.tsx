@@ -142,13 +142,13 @@ export default function ChatRecoveryModal({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold">{mode === "setup" ? "Set a recovery PIN" : "Restore with your PIN"}</h2>
-            <p className="mt-1 text-sm leading-5 text-white/55">
+            <p className="mt-1 text-sm leading-5 text-foreground/55">
               {mode === "setup"
                 ? "If you ever lose access to every linked device, this PIN is the only way back into your encrypted chats."
                 : "Enter the PIN you chose when encryption was first set up on this account."}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full p-2 text-white/50 hover:bg-white/[0.07] hover:text-white" aria-label="Close chat recovery">
+          <button type="button" onClick={onClose} className="rounded-full p-2 text-foreground/50 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Close chat recovery">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -158,7 +158,7 @@ export default function ChatRecoveryModal({
         {mode === "setup" && !saved && (
           <div className="mt-5 space-y-3">
             <div>
-              <label htmlFor="chat-recovery-pin" className="text-xs font-semibold uppercase tracking-wide text-white/40">Choose a PIN</label>
+              <label htmlFor="chat-recovery-pin" className="text-xs font-semibold uppercase tracking-wide text-foreground/40">Choose a PIN</label>
               <input
                 id="chat-recovery-pin"
                 value={pin}
@@ -170,7 +170,7 @@ export default function ChatRecoveryModal({
               />
             </div>
             <div>
-              <label htmlFor="chat-recovery-pin-confirm" className="text-xs font-semibold uppercase tracking-wide text-white/40">Confirm PIN</label>
+              <label htmlFor="chat-recovery-pin-confirm" className="text-xs font-semibold uppercase tracking-wide text-foreground/40">Confirm PIN</label>
               <input
                 id="chat-recovery-pin-confirm"
                 value={confirmPin}
@@ -189,7 +189,7 @@ export default function ChatRecoveryModal({
               type="button"
               onClick={setupPin}
               disabled={busy || pin.length < RECOVERY_PIN_MIN_LENGTH || confirmPin.length < RECOVERY_PIN_MIN_LENGTH}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-40"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Save PIN
@@ -202,7 +202,7 @@ export default function ChatRecoveryModal({
             <Check className="h-5 w-5 shrink-0" />
             <div>
               <p className="text-sm font-bold">Recovery PIN saved</p>
-              <p className="mt-0.5 text-xs text-white/55">Remember it — MindFuel can&apos;t look it up or reset it for you.</p>
+              <p className="mt-0.5 text-xs text-foreground/55">Remember it — MindFuel can&apos;t look it up or reset it for you.</p>
             </div>
           </div>
         )}
@@ -214,7 +214,7 @@ export default function ChatRecoveryModal({
         )}
 
         {mode === "restore" && !restored && !checkingStatus && restoreUnavailable && (
-          <div className="mt-5 rounded-2xl border border-line-strong bg-surface-elevated p-3 text-sm text-white/70">
+          <div className="mt-5 rounded-2xl border border-line-strong bg-surface-elevated p-3 text-sm text-foreground/70">
             No recovery PIN has been set up for this account. Link a trusted device instead, or start fresh below.
           </div>
         )}
@@ -228,7 +228,7 @@ export default function ChatRecoveryModal({
 
         {mode === "restore" && !restored && !checkingStatus && !restoreUnavailable && !restoreLocked && (
           <div className="mt-5">
-            <label htmlFor="chat-recovery-input" className="text-xs font-semibold uppercase tracking-wide text-white/40">Recovery PIN</label>
+            <label htmlFor="chat-recovery-input" className="text-xs font-semibold uppercase tracking-wide text-foreground/40">Recovery PIN</label>
             <input
               id="chat-recovery-input"
               value={input}
@@ -242,7 +242,7 @@ export default function ChatRecoveryModal({
               type="button"
               onClick={restore}
               disabled={busy || pinDigits.length < RECOVERY_PIN_MIN_LENGTH}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-white disabled:opacity-40"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-40"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Restore access
@@ -253,7 +253,7 @@ export default function ChatRecoveryModal({
         {mode === "restore" && !restored && !checkingStatus && (
           <div className="mt-5 border-t border-line-subtle pt-4">
             {!confirmingReset ? (
-              <button type="button" onClick={startFresh} className="w-full text-center text-xs text-white/45 underline underline-offset-2 hover:text-white/70">
+              <button type="button" onClick={startFresh} className="w-full text-center text-xs text-foreground/45 underline underline-offset-2 hover:text-foreground/70">
                 I don&apos;t have my PIN or another device
               </button>
             ) : (
@@ -262,7 +262,7 @@ export default function ChatRecoveryModal({
                   Starting fresh permanently gives up this device&apos;s access to every previous encrypted conversation on this account. New messages will work again immediately.
                 </p>
                 <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={() => setConfirmingReset(false)} className="flex-1 rounded-full border border-line-strong px-3 py-2 text-xs font-semibold text-white/70">
+                  <button type="button" onClick={() => setConfirmingReset(false)} className="flex-1 rounded-full border border-line-strong px-3 py-2 text-xs font-semibold text-foreground/70">
                     Cancel
                   </button>
                   <button type="button" onClick={startFresh} disabled={busy} className="flex-1 rounded-full bg-red-500/90 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
@@ -279,7 +279,7 @@ export default function ChatRecoveryModal({
             <Check className="h-5 w-5 shrink-0" />
             <div>
               <p className="text-sm font-bold">Access restored</p>
-              <p className="mt-0.5 text-xs text-white/55">This device can now read and send encrypted messages.</p>
+              <p className="mt-0.5 text-xs text-foreground/55">This device can now read and send encrypted messages.</p>
             </div>
           </div>
         )}

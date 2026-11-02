@@ -1,11 +1,14 @@
 "use client";
 
+import BrandLogo from "@/components/BrandLogo";
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Bell, Download, Info, LogIn, LogOut, MoreHorizontal, PenLine, Sparkles } from "lucide-react";
+import { Bell, Check, Download, Info, LogIn, LogOut, MoreHorizontal, PenLine, Sparkles } from "lucide-react";
+import { useTheme } from "next-themes";
+import { THEME_OPTIONS } from "@/components/ThemeChoice";
 import { UnseenDot, useWhatsNew, WhatsNewDialog } from "./WhatsNew";
 import { useAuth } from "@/providers/AuthProvider";
 import { copy } from "@/lib/copy";
@@ -25,6 +28,9 @@ export default function AppRail() {
   const items = getNavItems(user?.uid).filter((item) => user || item.public);
   const [standalone, setStandalone] = React.useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = React.useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
   const { unseen } = useWhatsNew();
   React.useEffect(() => {
     setStandalone(window.matchMedia("(display-mode: standalone)").matches);
@@ -46,7 +52,7 @@ export default function AppRail() {
         className="mx-auto mb-3 flex h-12 items-center rounded-card px-2 hover:bg-accent lg:mx-0"
       >
         <Image src="/maskable-icon.png" alt="" width={36} height={36} priority className="size-9 rounded-full lg:hidden" />
-        <Image src="/logoDarkbg.png" alt="MindFuel" width={132} height={40} priority className="hidden h-9 w-auto lg:block" />
+        <BrandLogo priority className="hidden h-9 lg:inline-flex" />
       </Link>
 
       <nav aria-label="Main" className="flex flex-col items-center gap-0.5 lg:items-stretch">
@@ -156,6 +162,26 @@ export default function AppRail() {
                     Notification settings
                   </Link>
                 </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-1 h-px bg-line" />
+                <DropdownMenu.Label className="px-3 pb-1 pt-1.5 text-micro font-semibold uppercase tracking-wider text-subtle-foreground">
+                  Appearance
+                </DropdownMenu.Label>
+                <DropdownMenu.RadioGroup value={mounted ? theme || "dark" : undefined} onValueChange={setTheme}>
+                  {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                    <DropdownMenu.RadioItem
+                      key={value}
+                      value={value}
+                      className="flex h-10 cursor-pointer items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent"
+                    >
+                      <Icon className="size-4 text-muted-foreground" aria-hidden />
+                      {label}
+                      <DropdownMenu.ItemIndicator className="ml-auto">
+                        <Check className="size-4 text-primary-text" aria-hidden />
+                      </DropdownMenu.ItemIndicator>
+                    </DropdownMenu.RadioItem>
+                  ))}
+                </DropdownMenu.RadioGroup>
+                <DropdownMenu.Separator className="my-1 h-px bg-line" />
                 <DropdownMenu.Item asChild>
                   <Link href="/about" className="flex h-10 items-center gap-3 rounded-control px-3 text-body-sm outline-none data-[highlighted]:bg-accent">
                     <Info className="size-4 text-muted-foreground" aria-hidden />

@@ -49,6 +49,14 @@ for (const viewport of viewports) {
               }
             });
           }
+          // next-themes reads its choice from localStorage before first paint.
+          await page.addInitScript((name) => {
+            try {
+              localStorage.setItem("theme", name);
+            } catch {
+              // Falls back to the class swap below.
+            }
+          }, theme);
           const url = route.startsWith("/dev/design") ? `${route}?theme=${theme}` : route;
           // The dev server compiles on first hit; warm the route, then wait for
           // client data (feed, rail cards) to settle before capturing.

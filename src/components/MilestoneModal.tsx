@@ -66,7 +66,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ type: "spring", damping: 18, stiffness: 260 }}
-          className="relative w-full max-w-sm bg-[#0a0f0b] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl"
+          className="relative w-full max-w-sm bg-[#0a0f0b] border border-foreground/10 rounded-[2rem] overflow-hidden shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Ambient particles */}
@@ -102,7 +102,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="text-[26px] font-black text-white tracking-tight leading-tight"
+                className="text-[26px] font-black text-foreground tracking-tight leading-tight"
               >
                 {current.label}
               </m.h2>
@@ -110,7 +110,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
-                className="text-[14px] text-white/60 leading-relaxed"
+                className="text-[14px] text-foreground/60 leading-relaxed"
               >
                 {current.description}
               </m.p>
@@ -123,7 +123,7 @@ export default function MilestoneModal({ milestones, onClose }: MilestoneModalPr
                   <div
                     key={i}
                     className={`h-1.5 rounded-full transition-all ${
-                      i === currentIndex ? `w-4 ${colors.bg.replace("/10", "")}/80` : "w-1.5 bg-white/20"
+                      i === currentIndex ? `w-4 ${colors.bg.replace("/10", "")}/80` : "w-1.5 bg-foreground/20"
                     }`}
                   />
                 ))}

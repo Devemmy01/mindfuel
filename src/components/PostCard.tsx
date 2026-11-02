@@ -221,7 +221,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
         <div className="relative z-10 flex flex-col flex-1">
         {post.isRepost && post.repostedBy && (
-          <div className="flex gap-1.5 text-white/50 text-[13px] font-semibold px-4 pt-2.5 pb-0 ml-10">
+          <div className="flex gap-1.5 text-foreground/50 text-[13px] font-semibold px-4 pt-2.5 pb-0 ml-10">
             <Repeat2 className="w-4 h-4" strokeWidth={2.5} />
             <Link
               href={`/profile/${post.repostedBy.firebaseId}`}

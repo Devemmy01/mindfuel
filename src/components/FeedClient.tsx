@@ -1,5 +1,6 @@
 "use client";
 
+import BrandLogo from "@/components/BrandLogo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
@@ -14,7 +15,6 @@ import { Tabs, tabPanelProps, type TabItem } from "@/components/ui/Tabs";
 import MessagesShortcut from "@/components/shell/MessagesShortcut";
 import { copy } from "@/lib/copy";
 import Link from "next/link";
-import Image from "next/image";
 import { PostType } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
@@ -444,13 +444,7 @@ export default function FeedClient({
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-sticky border-b border-line bg-background/90 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
-          <Image
-            src="/logoDarkbg.png"
-            alt="MindFuel"
-            width={120}
-            height={36}
-            className="h-8 w-auto object-contain md:hidden"
-          />
+<BrandLogo className="h-8 md:hidden" />
           <h1 className="hidden text-h3 md:block">{copy.nav.home}</h1>
           <div className="-mr-2 flex items-center">
             <MessagesShortcut />

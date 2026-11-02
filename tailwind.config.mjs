@@ -76,6 +76,12 @@ const config = {
           raised: "hsl(var(--surface-raised))",
           elevated: "hsl(var(--surface-elevated))",
         },
+        // Chat bubbles: dark teal / near-black in dark, light green / white in light.
+        bubble: {
+          own: "hsl(var(--bubble-own))",
+          "own-line": "hsl(var(--bubble-own-line))",
+          other: "hsl(var(--bubble-other))",
+        },
         // Hairlines. `line` resolves to the themed border tokens.
         line: {
           subtle: "hsl(var(--border) / 0.7)",
