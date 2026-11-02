@@ -4,6 +4,7 @@ import { connectToDB } from "@/utils/database";
 import Notification from "@/models/notification";
 import User from "@/models/user";
 import Follow from "@/models/follow";
+import { isValidObjectId } from "mongoose";
 
 export async function GET(req: NextRequest) {
   try {
@@ -71,8 +72,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
+    // `{ id }` marks one notification read (tapping it); no body marks all.
+    const { id } = await req.json().catch(() => ({} as { id?: string }));
+    if (id && !isValidObjectId(id)) {
+      return NextResponse.json({ error: "Invalid notification" }, { status: 400 });
+    }
     await Notification.updateMany(
-      { recipient: user._id, isRead: false },
+      id ? { _id: id, recipient: user._id } : { recipient: user._id, isRead: false },
       { $set: { isRead: true } }
     );
 
