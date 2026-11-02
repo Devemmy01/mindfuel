@@ -28,10 +28,13 @@ export function getSocket(userId: string) {
       },
       addTrailingSlash: false,
       transports: ["websocket", "polling"],
+      // Keep trying with exponential backoff and jitter. Messages never depend
+      // on the socket: REST is the durable path and polling covers gaps.
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 750,
-      reconnectionDelayMax: 5_000,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 30_000,
+      randomizationFactor: 0.5,
       timeout: 12_000,
     });
   } else if (!socket.connected && auth.currentUser?.uid === userId) {

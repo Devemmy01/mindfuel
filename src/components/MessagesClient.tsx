@@ -38,6 +38,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
+import { addToOutbox, readOutbox, removeFromOutbox, type OutboxEntry } from "@/lib/chat-outbox";
 import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import IconButton from "@/components/ui/IconButton";
@@ -69,6 +70,7 @@ type ChatMessage = {
   } | null;
   readBy?: string[];
   deliveryState?: "sending" | "failed";
+  clientMessageId?: string;
   ciphertext?: string;
   iv?: string;
   encryptionVersion?: number;
@@ -344,7 +346,7 @@ export default function MessagesClient() {
     if (!response.ok) throw new Error("Unable to load messages");
     return (await response.json()).messages || [];
   }, [user]);
-  const { data: messageData, mutate: mutateMessages } = useSWR<ChatMessage[]>(
+  const { data: messageData, mutate: mutateMessages, error: messagesError } = useSWR<ChatMessage[]>(
     messagesUrl,
     messagesFetcher,
     {
@@ -357,7 +359,50 @@ export default function MessagesClient() {
       refreshWhenHidden: false,
     },
   );
-  const messages = useMemo(() => messageData || [], [messageData]);
+  const serverMessages = useMemo(() => messageData || [], [messageData]);
+  // Shown only when syncing really fails (offline, or the server unreachable);
+  // a down socket alone is not a problem because polling still delivers.
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    const update = () => setIsOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  // Unsent messages live in a local outbox so they survive polls, reloads and
+  // going offline. They render after the server's messages until it confirms
+  // them (matched by clientMessageId).
+  const [outboxVersion, setOutboxVersion] = useState(0);
+  const [outboxStatus, setOutboxStatus] = useState<Record<string, "sending" | "failed">>({});
+  const messages = useMemo<ChatMessage[]>(() => {
+    if (!user || !active) return serverMessages;
+    const confirmed = new Set(serverMessages.map((message) => message.clientMessageId).filter(Boolean));
+    const pending = readOutbox(user.uid)
+      .filter((entry) => entry.conversationId === active._id && !confirmed.has(entry.clientMessageId))
+      .map((entry): ChatMessage => ({
+        _id: `pending-${entry.clientMessageId}`,
+        clientMessageId: entry.clientMessageId,
+        text: entry.text,
+        createdAt: entry.createdAt,
+        sender: {
+          _id: user.uid,
+          firebaseId: user.uid,
+          name: profile?.name || user.displayName || "You",
+          username: profile?.username,
+          image: profile?.image || user.photoURL || undefined,
+        },
+        readBy: [],
+        replyTo: null,
+        deliveryState: outboxStatus[entry.clientMessageId] || "failed",
+      }));
+    return pending.length ? [...serverMessages, ...pending] : serverMessages;
+    // outboxVersion re-reads storage after outbox changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, outboxStatus, outboxVersion, profile, serverMessages, user]);
   const setMessages = useCallback(
     (next: React.SetStateAction<ChatMessage[]>) => {
       void mutateMessages(
@@ -993,6 +1038,90 @@ export default function MessagesClient() {
     }
   };
 
+  /** POSTs one outbox entry. Retries reuse its clientMessageId, so the server never duplicates. */
+  const deliver = useCallback(async (entry: OutboxEntry): Promise<boolean> => {
+    if (!user) return false;
+    setOutboxStatus((status) => ({ ...status, [entry.clientMessageId]: "sending" }));
+    try {
+      const response = await chatFetch(user, "/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: entry.conversationId,
+          ...entry.payload,
+          replyTo: entry.replyTo,
+          clientMessageId: entry.clientMessageId,
+        }),
+      });
+      if (!response.ok) throw new Error(`Message failed with ${response.status}`);
+      const data = await response.json();
+      removeFromOutbox(user.uid, entry.clientMessageId);
+      setOutboxStatus((status) => {
+        const next = { ...status };
+        delete next[entry.clientMessageId];
+        return next;
+      });
+      setOutboxVersion((version) => version + 1);
+      if (activeIdRef.current === entry.conversationId) {
+        setMessages((rows) =>
+          rows.some((row) => row._id === data.message._id) ? rows : [...rows, { ...data.message, text: entry.text, decrypted: true }],
+        );
+      }
+      setConversations((rows) => {
+        const current = rows.find((row) => row._id === entry.conversationId);
+        if (!current) return rows;
+        const updated = { ...current, lastMessage: { ...data.message, text: entry.text }, lastMessageAt: data.message.createdAt };
+        return [updated, ...rows.filter((row) => row._id !== entry.conversationId)];
+      });
+      if (!data.duplicate) {
+        getSocket(user.uid).emit("message:published", { conversationId: entry.conversationId, message: data.message });
+      }
+      return true;
+    } catch {
+      setOutboxStatus((status) => ({ ...status, [entry.clientMessageId]: "failed" }));
+      return false;
+    }
+  }, [setConversations, setMessages, user]);
+
+  // Send anything left in the outbox, oldest first, stopping at the first
+  // failure so order is preserved.
+  const flushingRef = useRef(false);
+  const flushOutbox = useCallback(async () => {
+    if (!user || flushingRef.current || !navigator.onLine) return;
+    flushingRef.current = true;
+    try {
+      for (const entry of readOutbox(user.uid)) {
+        if (!(await deliver(entry))) break;
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [deliver, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void flushOutbox();
+    const socket = getSocket(user.uid);
+    const onBack = () => void flushOutbox();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void flushOutbox();
+    };
+    window.addEventListener("online", onBack);
+    document.addEventListener("visibilitychange", onVisible);
+    socket.on("connect", onBack);
+    return () => {
+      window.removeEventListener("online", onBack);
+      document.removeEventListener("visibilitychange", onVisible);
+      socket.off("connect", onBack);
+    };
+  }, [flushOutbox, user]);
+
+  const retryMessage = (message: ChatMessage) => {
+    if (!user || !message.clientMessageId) return;
+    const entry = readOutbox(user.uid).find((item) => item.clientMessageId === message.clientMessageId);
+    if (entry) void deliver(entry);
+  };
+
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user || !active || !draft.trim()) return;
@@ -1014,28 +1143,7 @@ export default function MessagesClient() {
       }
       return;
     }
-    const optimisticMessage: ChatMessage = {
-      _id: temporaryId,
-      text,
-      createdAt: new Date().toISOString(),
-      sender: {
-        _id: user.uid,
-        firebaseId: user.uid,
-        name: profile?.name || user.displayName || "You",
-        username: profile?.username,
-        image: profile?.image || user.photoURL || undefined,
-      },
-      readBy: [],
-      replyTo: replyingTo
-        ? {
-            _id: replyingTo._id,
-            text: replyingTo.text,
-            createdAt: replyingTo.createdAt,
-            sender: replyingTo.sender,
-          }
-        : null,
-      deliveryState: "sending",
-    };
+    const clientMessageId = temporaryId.replace(/^pending-/, "");
     if (typingTimer.current) clearTimeout(typingTimer.current);
     isTypingRef.current = false;
     socket.emit("typing:stop", {
@@ -1050,54 +1158,22 @@ export default function MessagesClient() {
     });
     const replyToId = replyingTo?._id;
     setReplyingTo(null);
-    setMessages((rows) => [...rows, optimisticMessage]);
-    setConversations((rows) => {
-      const current = rows.find((row) => row._id === conversationId);
-      if (!current) return rows;
-      const updated = {
-        ...current,
-        lastMessage: optimisticMessage,
-        lastMessageAt: optimisticMessage.createdAt,
-      };
-      return [updated, ...rows.filter((row) => row._id !== conversationId)];
-    });
-
-    try {
-      const response = await chatFetch(user, "/api/chat/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, ...encryptedPayload, replyTo: replyToId }),
-      });
-      if (!response.ok) throw new Error("Message failed to send");
-      const data = await response.json();
-      setMessages((rows) =>
-        rows.map((message) =>
-          message._id === temporaryId ? data.message : message,
-        ),
+    const entry: OutboxEntry = {
+      clientMessageId,
+      conversationId,
+      payload: encryptedPayload,
+      replyTo: replyToId,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    addToOutbox(user.uid, entry);
+    setOutboxVersion((version) => version + 1);
+    const delivered = await deliver(entry);
+    if (!delivered) {
+      showToast(
+        navigator.onLine ? "Message not sent. Tap Retry to try again." : "You're offline. This message will send when you're back.",
+        navigator.onLine ? "error" : "info",
       );
-      setConversations((rows) => {
-        const current = rows.find((row) => row._id === conversationId);
-        if (!current) return rows;
-        const updated = {
-          ...current,
-          lastMessage: data.message,
-          lastMessageAt: data.message.createdAt,
-        };
-        return [updated, ...rows.filter((row) => row._id !== conversationId)];
-      });
-      socket.emit("message:published", {
-        conversationId,
-        message: data.message,
-      });
-    } catch {
-      setMessages((rows) =>
-        rows.map((message) =>
-          message._id === temporaryId
-            ? { ...message, deliveryState: "failed" }
-            : message,
-        ),
-      );
-      showToast("Message could not be sent", "error");
     }
   };
 
@@ -1647,9 +1723,15 @@ export default function MessagesClient() {
                 <strong className="block truncate text-[15px] ">
                   {person.name}
                 </strong>
-                <small className={`text-xs ${isOnline(person.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}`}>
-                  {isOnline(person.firebaseId) ? "Online" : "Offline"} · @{getUserHandle(person)}
-                </small>
+                {isOffline || messagesError ? (
+                  <small role="status" className="text-xs text-amber-300">
+                    {isOffline ? "You're offline. Messages will send when you're back." : "Reconnecting…"}
+                  </small>
+                ) : (
+                  <small className={`text-xs ${isOnline(person.firebaseId) ? "text-[#35d07f]" : "text-muted-foreground"}`}>
+                    {isOnline(person.firebaseId) ? "Online" : "Offline"} · @{getUserHandle(person)}
+                  </small>
+                )}
               </span>
               <div className="ml-auto flex items-center justify-start">
                 <div className="relative">
@@ -1867,7 +1949,19 @@ export default function MessagesClient() {
                           <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-white/65" : "text-white/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
                             {own && message.deliveryState === "sending" && <Check className="h-3.5 w-3.5" aria-label="Sending" />}
-                            {own && message.deliveryState === "failed" && <CircleAlert className="h-3.5 w-3.5 text-red-300" aria-label="Not sent" />}
+                            {own && message.deliveryState === "failed" && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  retryMessage(message);
+                                }}
+                                className="inline-flex items-center gap-1 rounded px-1 text-[11px] font-semibold text-red-200 underline-offset-2 hover:underline"
+                              >
+                                <CircleAlert className="h-3.5 w-3.5" aria-hidden />
+                                Not sent · Retry
+                              </button>
+                            )}
                             {own && !message.deliveryState && <CheckCheck className={`h-3.5 w-3.5 ${hasBeenRead ? "text-[#35d07f]" : "text-white/60"}`} aria-label={hasBeenRead ? "Read" : "Delivered"} />}
                           </span>
                           {!!message.reactions?.length && (
