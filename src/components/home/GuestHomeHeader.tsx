@@ -8,6 +8,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { copy } from "@/lib/copy";
 import { cn } from "@/lib/utils";
+import { loadDraft } from "@/lib/draft";
 
 /**
  * Guest top bar: Browse the feed without a wall, read how it works, or sign in.
@@ -25,6 +26,8 @@ export default function GuestHomeHeader() {
     decided.current = true;
     if (!user) return;
     if (new URLSearchParams(window.location.search).get("view") === "landing") return;
+    // Someone mid-write (or who signed in to save) stays on this page.
+    if (loadDraft()) return;
     router.replace("/feed");
   }, [loading, router, user]);
 

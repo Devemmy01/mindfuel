@@ -43,11 +43,18 @@ export default function QuickComposer({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const helperId = React.useId();
 
+  // Text typed before hydration finished lives only in the DOM. Adopt it
+  // before anything re-renders the controlled textarea, so it is never lost.
+  React.useLayoutEffect(() => {
+    const typed = textareaRef.current?.value;
+    if (typed) setText(typed.slice(0, MAX_CHARS));
+  }, []);
+
   React.useEffect(() => {
     // The server picked the prompt by its own date; match the viewer's day.
     const today = getTodayPrompt();
     const draft = loadDraft();
-    if (draft?.text && draft.promptId) {
+    if (draft?.text && draft.promptId && !textareaRef.current?.value) {
       setPrompt({ id: draft.promptId, question: draft.prompt || today.question });
       setText(draft.text);
       if (draft.visibility) setVisibility(draft.visibility);
