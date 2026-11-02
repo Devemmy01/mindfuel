@@ -221,7 +221,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                       ? "text-rose-500/70"
                       : editText.length > 900
                       ? "text-yellow-500/70"
-                      : "text-muted-foreground/60"
+                      : "text-subtle-foreground"
                   }`}
                 >
                   {editText.length}/1000

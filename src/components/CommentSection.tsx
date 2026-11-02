@@ -322,10 +322,10 @@ function CommentNode({
                 <>
                   <button onClick={() => onToggleEdit(comment._id)}
                     disabled={isSubmittingEdit}
-                    className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-blue-500 transition-colors disabled:opacity-50">
+                    className="text-[12px] md:text-[13px] font-medium text-subtle-foreground hover:text-blue-500 transition-colors disabled:opacity-50">
                     {isEditingThis ? "Cancel Edit" : "Edit"}
                   </button>
-                  <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-muted-foreground/60 hover:text-rose-500 transition-colors">Delete</button>
+                  <button onClick={() => onDelete(comment._id)} className="text-[12px] md:text-[13px] font-medium text-subtle-foreground hover:text-rose-500 transition-colors">Delete</button>
                 </>
               )}
             </div>
@@ -333,7 +333,7 @@ function CommentNode({
             <div className="flex-1" />
             
             <button onClick={() => onLike(comment._id)}
-              className={`flex items-center gap-1 transition-colors ${comment.isLiked ? "text-rose-500" : "text-muted-foreground/60 hover:text-rose-500"}`}>
+              className={`flex items-center gap-1 transition-colors ${comment.isLiked ? "text-rose-500" : "text-subtle-foreground hover:text-rose-500"}`}>
               <Heart className={`w-4 h-4 ${comment.isLiked ? "fill-current" : ""}`} />
               <span className="text-[12px] md:text-[13px] font-bold">{comment.likesCount}</span>
             </button>
@@ -355,7 +355,7 @@ function CommentNode({
           <div className="bg-secondary/10 rounded-xl p-2 border border-border/20">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] md:text-[12px] text-muted-foreground">Replying to <span className="text-brand-green font-bold">@{username(comment.userId)}</span></span>
-              <button onClick={() => onReply(comment)} className="text-[10px] font-bold text-muted-foreground/60 hover:text-foreground">Cancel</button>
+              <button onClick={() => onReply(comment)} className="text-[10px] font-bold text-subtle-foreground hover:text-foreground">Cancel</button>
             </div>
             <Composer onSubmit={onSubmitReply} placeholder="Post your reply" compact autoFocus />
           </div>

@@ -1,4 +1,11 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+
+async function expectNoSeriousA11yIssues(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  const blocking = results.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical");
+  expect(blocking.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
+}
 
 /**
  * Phase 8: notification settings and the notification centre, signed in via
@@ -56,6 +63,7 @@ test("settings show categories, save a change and list devices", async ({ page }
   await expect(likesPush).toHaveAttribute("aria-checked", "true");
   await expect.poll(() => puts).toContainEqual({ push: { likes: true } });
   await expect(page.getByText("Chrome on Android")).toBeVisible();
+  await expectNoSeriousA11yIssues(page);
   if (process.env.PHASE) {
     await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/settings-${test.info().project.name}.png`, fullPage: true });
   }
@@ -89,6 +97,7 @@ test("the notification centre groups by day and marks one read on tap", async ({
   await expect(page.getByRole("region", { name: "Yesterday" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Earlier" })).toBeVisible();
   await expect(page.getByRole("button", { name: /mark all read/i })).toBeVisible();
+  await expectNoSeriousA11yIssues(page);
   if (process.env.PHASE) {
     await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/notifications-${test.info().project.name}.png`, fullPage: true });
   }

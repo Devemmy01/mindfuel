@@ -497,7 +497,7 @@ export default function DynamicProfilePage({
                       className="frosted-input w-full pl-8 pr-4 h-12 text-[14px] outline-none border-none focus:ring-2 focus:ring-brand-green/30 rounded-2xl"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground/60 ml-1">
+                  <p className="text-[11px] text-subtle-foreground ml-1">
                     At least 3 characters. Letters, numbers, underscores, and dots only.
                   </p>
                 </div>

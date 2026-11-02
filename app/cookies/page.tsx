@@ -8,7 +8,7 @@ export default function CookiesPage() {
   return (
     <div className="w-full flex-col flex min-h-screen">
       <header className="sticky top-0 z-40 glass-strong border-b border-border/60 px-4 py-4 flex items-center gap-3">
-        <Link href="/" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/60 transition-colors">
+        <Link href="/" aria-label="Back to MindFuel" className="flex size-11 items-center justify-center rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </Link>
         <span className="font-bold text-[17px] tracking-tight">Cookie Policy</span>
