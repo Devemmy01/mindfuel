@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import { connectToDB } from "@/utils/database";
 import Post, { IPost } from "@/models/post";
 
@@ -18,7 +19,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   try {
     await connectToDB();
-    const post = await Post.findById(id).populate("userId", "name").lean() as IPost | null;
+    // Private reflections fall back to the generic card.
+    const post = await Post.findOne({ _id: id, ...PUBLIC_POSTS }).populate("userId", "name").lean() as IPost | null;
 
     if (post) {
       postText = post.text || postText;

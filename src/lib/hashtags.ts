@@ -1,4 +1,5 @@
 import Hashtag from "@/models/hashtag";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import PostHashtag from "@/models/postHashtag";
 import Post from "@/models/post";
 import { extractHashtags, levenshteinDistance, normalizeHashtag } from "@/lib/hashtags-core";
@@ -29,6 +30,7 @@ export async function getTrendingHashtags(limit = 10) {
       },
     },
     { $unwind: "$post" },
+    { $match: { "post.visibility": { $ne: "private" } } },
     {
       $addFields: {
         ageHours: {
@@ -108,6 +110,7 @@ export async function searchHashtags(query: string, limit = 10) {
     : await Hashtag.find({}).sort({ postCount: -1, lastUsedAt: -1 }).limit(50).lean();
 
   const postCandidates = await Post.find({
+    ...PUBLIC_POSTS,
     $or: [
       { hashtags: normalizedQuery },
       { hashtags: { $in: [normalizedQuery] } },

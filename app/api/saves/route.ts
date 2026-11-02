@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound, viewablePost } from "@/lib/post-access";
+import { canViewPost, redactHiddenQuote } from "@/lib/post-visibility";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Save from "@/models/save";
@@ -82,7 +84,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const enrichedSaves = (saves as Array<{ postId?: PostType }>).map((save) => {
+    // A saved reflection its author later made private disappears for others.
+    const enrichedSaves = (saves as Array<{ postId?: PostType }>)
+      .filter((save) => !save.postId || canViewPost(save.postId as unknown as { visibility?: string; userId?: unknown }, user._id))
+      .map((save) => save.postId ? { ...save, postId: redactHiddenQuote(save.postId, user._id) } : save)
+      .map((save) => {
       if (!save.postId) return save;
       
       const p = save.postId as unknown as PostType & { quotedPostId: unknown };
@@ -145,6 +151,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    if (!(await viewablePost(postId, user._id))) return postNotFound();
 
     const existingSave = await Save.findOne({ userId: user._id, postId });
 

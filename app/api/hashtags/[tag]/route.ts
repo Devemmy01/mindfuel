@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Hashtag from "@/models/hashtag";
@@ -30,6 +31,7 @@ export async function GET(
     const hashtagPattern = new RegExp(`(?:^|[^\\w])#${normalizedTag.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "i");
 
     const fallbackPostFilter = {
+      ...PUBLIC_POSTS,
       $or: [
         { hashtags: normalizedTag },
         { hashtags: { $in: [normalizedTag] } },
@@ -85,7 +87,7 @@ export async function GET(
 
       if (relationCount > 0) {
         const postIds = relations.map((relation) => relation.postId);
-        const postsRaw = (await Post.find({ _id: { $in: postIds } })
+        const postsRaw = (await Post.find({ _id: { $in: postIds }, ...PUBLIC_POSTS })
           .populate("userId", "name username image firebaseId earnedMilestones")
           .populate({
             path: "quotedPostId",

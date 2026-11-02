@@ -1,5 +1,7 @@
 import React from "react";
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound } from "@/lib/post-access";
+import { canViewPost, isPrivatePost } from "@/lib/post-visibility";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
@@ -33,6 +35,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     if (!user || !originalPost) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    // Private reflections cannot be reposted: others cannot see them, and a
+    // repost by the author would publish them indirectly.
+    if (isPrivatePost(originalPost)) {
+      return canViewPost(originalPost, user._id)
+        ? NextResponse.json({ error: "Share this reflection with the community before reposting it." }, { status: 400 })
+        : postNotFound();
     }
 
     // Check if already reposted

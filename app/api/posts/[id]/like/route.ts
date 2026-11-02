@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound, viewablePost } from "@/lib/post-access";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    if (!(await viewablePost(postId, user._id))) return postNotFound();
 
     // Check if like exists
     const existingLike = await Like.findOne({ userId: user._id, postId });

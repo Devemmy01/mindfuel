@@ -9,6 +9,7 @@ vi.mock("@/lib/firebase-admin", () => ({
   ),
   verifyFirebaseToken: vi.fn(async () => null),
 }));
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/resend", () => ({ resend: { emails: { send: vi.fn() } } }));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn(), unstable_cache: (fn: unknown) => fn }));
 vi.mock("@/utils/database", () => ({ connectToDB: vi.fn(async () => undefined) }));

@@ -1,4 +1,5 @@
 import "server-only";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
@@ -39,6 +40,7 @@ const getPublicPostCached = unstable_cache(async (id: string): Promise<PublicPos
     await connectToDB();
     const post = await Post.findOne({
       _id: id,
+      ...PUBLIC_POSTS,
       $or: [
         { scheduledAt: null },
         { scheduledAt: { $exists: false } },
@@ -89,6 +91,7 @@ const getPublicProfileCached = unstable_cache(async (firebaseId: string): Promis
 
     const visiblePostFilter = {
       userId: user._id,
+      ...PUBLIC_POSTS,
       $or: [
         { scheduledAt: null },
         { scheduledAt: { $exists: false } },
@@ -150,7 +153,7 @@ const getPublicHashtagPageCached = unstable_cache(async (tag: string): Promise<P
         .lean();
       total = await PostHashtag.countDocuments({ hashtagId: hashtag._id });
       const ids = relations.map((relation) => relation.postId);
-      const found = await Post.find({ _id: { $in: ids } })
+      const found = await Post.find({ _id: { $in: ids }, ...PUBLIC_POSTS })
         .populate("userId", "name username image firebaseId earnedMilestones")
         .populate({ path: "quotedPostId", populate: { path: "userId", select: "name username image firebaseId" } })
         .lean();
@@ -160,13 +163,13 @@ const getPublicHashtagPageCached = unstable_cache(async (tag: string): Promise<P
     }
 
     if (posts.length === 0) {
-      const fallback = await Post.find({ hashtags: normalizedTag })
+      const fallback = await Post.find({ hashtags: normalizedTag, ...PUBLIC_POSTS })
         .populate("userId", "name username image firebaseId earnedMilestones")
         .sort({ createdAt: -1 })
         .limit(12)
         .lean();
       posts = serialize<PostType[]>(fallback);
-      total = await Post.countDocuments({ hashtags: normalizedTag });
+      total = await Post.countDocuments({ hashtags: normalizedTag, ...PUBLIC_POSTS });
     }
 
     return {
@@ -187,3 +190,18 @@ const getPublicHashtagPageCached = unstable_cache(async (tag: string): Promise<P
 }, ["public-hashtag-v1"], { revalidate: 300, tags: ["public-hashtag"] });
 
 export const getPublicHashtagPage = cache(getPublicHashtagPageCached);
+
+/**
+ * Whether a post id exists at all (any visibility). Lets the post page return
+ * a real 404 for missing posts while private ones are resolved for their author
+ * on the client. Never exposes content.
+ */
+export async function postExists(id: string): Promise<boolean> {
+  if (!Types.ObjectId.isValid(id)) return false;
+  try {
+    await connectToDB();
+    return Boolean(await Post.exists({ _id: id }));
+  } catch {
+    return false;
+  }
+}

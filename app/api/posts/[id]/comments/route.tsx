@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { postNotFound, viewablePost } from "@/lib/post-access";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Comment from "@/models/comment";
@@ -30,6 +31,7 @@ export async function GET(
     if (firebaseId) {
       user = await User.findOne({ firebaseId });
     }
+    if (!(await viewablePost(postIdStr, user?._id))) return postNotFound();
 
     // Fetch ALL comments for the post (top-level + replies), oldest first
     // Use $or to find both string and ObjectId formats for maximum compatibility
@@ -134,6 +136,7 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    if (!(await viewablePost(postIdStr, user._id))) return postNotFound();
 
     // Validate parentId and enforce 1-level nesting
     let parentComment = null;

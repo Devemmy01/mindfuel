@@ -14,7 +14,8 @@ import { QuoteEmail } from "@/emails/QuoteEmail";
 import { createNotification } from "@/lib/notifications";
 import { IUser } from "@/models/user";
 import { PipelineStage } from "mongoose";
-import { syncPostHashtags } from "@/lib/hashtags";
+import { extractHashtags, syncPostHashtags } from "@/lib/hashtags";
+import { canViewPost, normalizeVisibility, postsVisibleTo, PUBLIC_POSTS, redactHiddenQuote } from "@/lib/post-visibility";
 import { checkNewMilestones, getMilestoneById } from "@/lib/milestones";
 import { revalidateTag } from "next/cache";
 
@@ -35,6 +36,9 @@ export async function GET(req: NextRequest) {
     const quotedPostId = req.nextUrl.searchParams.get("quotedPostId");
     let query: Record<string, unknown> = {};
     let queryUser: IUser | null = null;
+    const viewer = currentUserId
+      ? await User.findOne({ firebaseId: currentUserId }).select("_id").lean() as { _id: unknown } | null
+      : null;
     
     if (quotedPostId) {
       query = { quotedPostId };
@@ -64,7 +68,7 @@ export async function GET(req: NextRequest) {
     if (!firebaseId) {
       // Global Mindfeed: Aggregation pipeline to merge posts and reposts
       const aggregationPipeline = [
-        { $match: query },
+        { $match: { ...query, ...PUBLIC_POSTS } },
         { 
           $project: { 
             _id: 1, 
@@ -104,7 +108,7 @@ export async function GET(req: NextRequest) {
       // Fetch the actual post data and populate
       const postIds = feedItems.map((item: { _id: string }) => item._id);
       
-      const postsRaw = (await Post.find({ _id: { $in: postIds } })
+      const postsRaw = (await Post.find({ _id: { $in: postIds }, ...PUBLIC_POSTS })
         .populate("userId", "name username image firebaseId earnedMilestones")
         .populate({
           path: "quotedPostId",
@@ -160,7 +164,7 @@ export async function GET(req: NextRequest) {
       const likedPostIds = likedDocs.map((l) => l.postId);
 
       if (likedPostIds.length > 0) {
-        const rawPosts = await Post.find({ _id: { $in: likedPostIds } })
+        const rawPosts = await Post.find({ _id: { $in: likedPostIds }, ...postsVisibleTo(viewer?._id) })
           .populate("userId", "name username image firebaseId earnedMilestones")
           .populate({
             path: "quotedPostId",
@@ -183,8 +187,10 @@ export async function GET(req: NextRequest) {
       // Profile feed: union only the requested page of posts and reposts.
       // The previous implementation loaded every post into memory and sliced
       // afterward, which made established profiles increasingly slow.
+      // Owners see their private reflections; everyone else sees public ones.
+      const isOwnProfile = Boolean(viewer && queryUser && String(viewer._id) === String(queryUser._id));
       const profileItems = await Post.aggregate([
-        { $match: { userId: queryUser?._id } },
+        { $match: { userId: queryUser?._id, ...(isOwnProfile ? {} : PUBLIC_POSTS) } },
         { $project: { postId: "$_id", isRepost: { $literal: false }, sortDate: "$createdAt" } },
         {
           $unionWith: {
@@ -202,7 +208,7 @@ export async function GET(req: NextRequest) {
       const items = profileItems[0]?.data || [];
       total = profileItems[0]?.metadata[0]?.total || 0;
       const postIds = items.map((item: { postId: string }) => item.postId);
-      const rawPosts = await Post.find({ _id: { $in: postIds } })
+      const rawPosts = await Post.find({ _id: { $in: postIds }, ...postsVisibleTo(viewer?._id) })
           .populate("userId", "name username image firebaseId earnedMilestones")
           .populate({
             path: "quotedPostId",
@@ -231,6 +237,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    validPosts = validPosts.map((post) => redactHiddenQuote(post, viewer?._id));
     const hasMore = total > skip + validPosts.length;
 
     // Fetch user-specific data if currentUserId is provided
@@ -307,7 +314,8 @@ export async function POST(req: NextRequest) {
     await connectToDB();
     const firebaseId = await getViewerUid(req);
     if (!firebaseId) return unauthorized();
-    const { text, backgroundStyle, fontFamily, promptId, imageUrl, poll, quotedPostId, scheduledAt } = await req.json();
+    const { text, backgroundStyle, fontFamily, promptId, imageUrl, poll, quotedPostId, scheduledAt, visibility: requestedVisibility } = await req.json();
+    const visibility = normalizeVisibility(requestedVisibility);
 
     if (!text || !firebaseId) {
       return NextResponse.json(
@@ -321,7 +329,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Quoting reveals the quoted text, so only quotes of posts the author may
+    // see are allowed (someone else's private reflection reads as missing).
+    if (quotedPostId) {
+      const quoted = await Post.findById(quotedPostId).select("visibility userId").lean();
+      if (!canViewPost(quoted as { visibility?: string; userId?: unknown } | null, user._id)) {
+        return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      }
+    }
+
     const newPost = await Post.create({
+      visibility,
       text,
       userId: user._id,
       backgroundStyle: backgroundStyle || { id: "obsidian", type: "color", value: "#0a0a0a", text: "#ffffff" },
@@ -338,12 +356,11 @@ export async function POST(req: NextRequest) {
       repostCount: 0,
     });
 
-    const hashtags = await syncPostHashtags({
-      postId: newPost._id.toString(),
-      nextText: text,
-    });
-
-    newPost.hashtags = hashtags;
+    // Private reflections keep their tags on the post (for when they are
+    // shared later) but never join the public hashtag index.
+    newPost.hashtags = visibility === "public"
+      ? await syncPostHashtags({ postId: newPost._id.toString(), nextText: text })
+      : extractHashtags(text);
     await newPost.save();
 
     // Update user's reflection streak
@@ -360,7 +377,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Handle Quote Repost Notifications & Counts
-    if (quotedPostId) {
+    if (quotedPostId && visibility === "public") {
       try {
         // Increment repostCount and fetch post + author in parallel
         const [originalPost] = await Promise.all([
@@ -407,11 +424,13 @@ export async function POST(req: NextRequest) {
 
     // Check & award new milestones
     let newMilestones: Array<{ id: string; label: string; emoji: string; description: string; tier: string }> = [];
+    let firstReflection = false;
     try {
       const totalPostCount = await Post.countDocuments({ userId: user._id });
       const existingMilestoneIds = (user.earnedMilestones || []).map((m: { id: string }) => m.id);
       const postHour = new Date().getHours();
       const isFirstPost = totalPostCount === 1;
+      firstReflection = isFirstPost;
 
       const newlyUnlocked = checkNewMilestones({
         existingMilestoneIds,
@@ -446,6 +465,7 @@ export async function POST(req: NextRequest) {
           longestStreak: updatedUser?.longestStreak || 0,
         },
         newMilestones,
+        firstReflection,
       },
       { status: 201 }
     );

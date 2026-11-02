@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import { getViewerUid } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // 3. Single atomic update: only writes if viewerId not already in viewedBy array
     const updated = await Post.findOneAndUpdate(
-      { _id: id, viewedBy: { $ne: viewerId } },
+      // Private reflections are only seen by their author and are not counted.
+      { _id: id, viewedBy: { $ne: viewerId }, ...PUBLIC_POSTS },
       { $inc: { views: 1 }, $addToSet: { viewedBy: viewerId } },
       { new: true, select: "views" }
     );

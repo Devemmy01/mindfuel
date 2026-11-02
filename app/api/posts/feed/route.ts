@@ -7,6 +7,7 @@ import Like, { ILike } from "@/models/like";
 import Save, { ISave } from "@/models/save";
 import Repost from "@/models/repost";
 import Follow from "@/models/follow";
+import { PUBLIC_POSTS, redactHiddenQuote } from "@/lib/post-visibility";
 import { PostType } from "@/types";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 import type { PipelineStage } from "mongoose";
@@ -63,10 +64,12 @@ export async function GET(req: NextRequest) {
       // ── Build match filter for the reflections tab ────────────────────────
       // Reflections contains prompt responses only. Feed keeps the filter empty
       // so every original post can participate in ranking.
+      // Private reflections never appear in the community feed, including as
+      // the original behind someone's repost (the filter is remapped below).
       const matchFilter: Record<string, unknown> =
         type === "reflections"
-          ? { promptId: { $exists: true, $ne: null, $nin: ["", null] } }
-          : {};
+          ? { promptId: { $exists: true, $ne: null, $nin: ["", null] }, ...PUBLIC_POSTS }
+          : { ...PUBLIC_POSTS };
 
       // Remap each top-level key to `originalPost.<key>` for use after the
       // $lookup/$unwind in the aggregation (step 4).
@@ -246,12 +249,12 @@ export async function GET(req: NextRequest) {
       const populatedWithQuotes = await Post.populate(pagePosts, [
         {
           path: "quotedPostId",
-          select: `text backgroundStyle fontFamily imageUrl createdAt ${AUTHOR_PROJECTION}`,
+          select: `text backgroundStyle fontFamily imageUrl createdAt visibility userId ${AUTHOR_PROJECTION}`,
           populate: [
             { path: "userId", select: AUTHOR_PROJECTION },
             {
               path: "quotedPostId",
-              select: `text backgroundStyle fontFamily imageUrl createdAt`,
+              select: `text backgroundStyle fontFamily imageUrl createdAt visibility userId`,
               populate: { path: "userId", select: AUTHOR_PROJECTION },
             },
           ],
@@ -316,12 +319,12 @@ export async function GET(req: NextRequest) {
           .populate("userId", AUTHOR_PROJECTION)
           .populate({
             path: "quotedPostId",
-            select: `text backgroundStyle fontFamily imageUrl createdAt`,
+            select: `text backgroundStyle fontFamily imageUrl createdAt visibility userId`,
             populate: [
               { path: "userId", select: AUTHOR_PROJECTION },
               {
                 path: "quotedPostId",
-                select: `text backgroundStyle fontFamily imageUrl createdAt`,
+                select: `text backgroundStyle fontFamily imageUrl createdAt visibility userId`,
                 populate: { path: "userId", select: AUTHOR_PROJECTION },
               },
             ],
@@ -330,6 +333,7 @@ export async function GET(req: NextRequest) {
         validPosts = fallbackPosts as unknown as PostType[];
       }
 
+      validPosts = validPosts.map((post) => redactHiddenQuote(post));
       globalFeedCache[cacheKey] = { timestamp: now, validPosts, total, hasMore };
     }
 

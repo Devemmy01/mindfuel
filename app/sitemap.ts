@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import { connectToDB } from "@/utils/database";
 import Post from "@/models/post";
 import Hashtag from "@/models/hashtag";
@@ -71,6 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     await connectToDB();
     const [posts, hashtags] = await Promise.all([
       Post.find({
+        ...PUBLIC_POSTS,
         text: { $regex: /[\s\S]{80}/ },
         $or: [
           { scheduledAt: null },
