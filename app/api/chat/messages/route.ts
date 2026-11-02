@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
     await connectToDB();
     const { conversationId, ciphertext, iv, encryptionVersion, replyTo, clientMessageId } = await req.json();
     const access = await participant(auth.uid, conversationId);
-    const encrypted = encryptionVersion === 1 && typeof ciphertext === "string" && typeof iv === "string";
+    // 1: text. 2: an encrypted envelope (e.g. a photo); indistinguishable to the server otherwise.
+    const encrypted = (encryptionVersion === 1 || encryptionVersion === 2) && typeof ciphertext === "string" && typeof iv === "string";
     if (!access || !encrypted || !access.conversation.encryptionVersion) return NextResponse.json({ error: "Invalid encrypted message" }, { status: 400 });
     const others = access.conversation.participants.filter((id: { toString(): string }) => id.toString() !== access.user._id.toString());
     for (const other of others) {
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
         sender: access.user._id,
         ciphertext,
         iv,
-        encryptionVersion: 1,
+        encryptionVersion,
         readBy: [access.user._id],
         replyTo: replyMessage?._id,
         ...(idempotencyKey ? { clientMessageId: idempotencyKey } : {}),
