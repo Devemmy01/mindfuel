@@ -7,6 +7,8 @@ vi.mock("@/lib/firebase-admin", () => ({
 }));
 vi.mock("@/utils/database", () => ({ connectToDB: vi.fn(async () => undefined) }));
 vi.mock("@/lib/notify", () => ({ sendCategoryPush: vi.fn(async () => ({ sent: 0 })) }));
+const blocks = vi.hoisted(() => ({ blocked: false }));
+vi.mock("@/lib/blocks", () => ({ isBlockedBetween: vi.fn(async () => blocks.blocked) }));
 
 const state = vi.hoisted(() => ({
   existing: null as null | Record<string, unknown>,
@@ -15,7 +17,7 @@ const state = vi.hoisted(() => ({
   created: 0,
 }));
 
-const conversation = { _id: "c1", participants: ["u-alice", "u-bob"], encryptionVersion: 1, save: vi.fn() };
+const conversation = { _id: "c1", participants: ["u-alice", "u-bob"], mutedBy: [] as string[], encryptionVersion: 1, save: vi.fn() };
 vi.mock("@/models/user", () => ({
   default: { findOne: vi.fn(() => ({ select: async () => ({ _id: "u-alice", name: "Alice", image: "", firebaseId: "alice" }) })) },
 }));
@@ -38,6 +40,7 @@ vi.mock("@/models/message", () => ({
 }));
 
 import { POST } from "../../app/api/chat/messages/route";
+import { sendCategoryPush } from "@/lib/notify";
 
 function send(body: Record<string, unknown>) {
   return POST(new NextRequest("https://mind-fuel.test/api/chat/messages", {
@@ -53,6 +56,9 @@ describe("POST /api/chat/messages", () => {
     state.recent = 0;
     state.createError = null;
     state.created = 0;
+    blocks.blocked = false;
+    conversation.mutedBy = [];
+    vi.mocked(sendCategoryPush).mockClear();
   });
 
   it("returns the original for a retried clientMessageId instead of duplicating", async () => {
@@ -80,5 +86,25 @@ describe("POST /api/chat/messages", () => {
     const response = await send({ clientMessageId: "fresh-1234567" });
     expect(response.status).toBe(201);
     expect(state.created).toBe(1);
+  });
+
+  it("refuses to send when either person has blocked the other", async () => {
+    blocks.blocked = true;
+    const response = await send({ clientMessageId: "blocked-123456" });
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe("blocked");
+    expect(state.created).toBe(0);
+  });
+
+  it("delivers to a muted recipient without a push", async () => {
+    conversation.mutedBy = ["u-bob"];
+    const response = await send({ clientMessageId: "muted-1234567" });
+    expect(response.status).toBe(201);
+    expect(sendCategoryPush).not.toHaveBeenCalled();
+  });
+
+  it("pushes to an unmuted recipient", async () => {
+    await send({ clientMessageId: "pushed-123456" });
+    expect(sendCategoryPush).toHaveBeenCalledWith(expect.objectContaining({ userId: "u-bob", category: "messages" }));
   });
 });

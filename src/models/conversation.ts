@@ -8,6 +8,8 @@ export interface IConversation extends Document {
   lastMessageAt: Date;
   encryptionVersion: number;
   encryptedKeys: Array<{ user: Types.ObjectId; wrappedKey: string }>;
+  /** Participants who muted message notifications for this conversation. */
+  mutedBy: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,7 @@ const ConversationSchema = new Schema(
     lastMessage: { type: Schema.Types.ObjectId, ref: "Message" },
     lastMessageAt: { type: Date, default: Date.now, index: true },
     encryptionVersion: { type: Number, default: 0 },
+    mutedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     encryptedKeys: [{
       user: { type: Schema.Types.ObjectId, ref: "User", required: true },
       wrappedKey: { type: String, required: true },

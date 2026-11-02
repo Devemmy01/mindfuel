@@ -17,6 +17,9 @@ import {
   CheckCheck,
   ChevronsDown,
   CircleAlert,
+  Ban,
+  BellOff,
+  BellRing,
   Copy,
   Info,
   KeyRound,
@@ -159,6 +162,10 @@ type Conversation = {
   lastMessage?: ChatMessage;
   lastMessageAt: string;
   unreadCount: number;
+  /** The viewer muted message notifications for this conversation. */
+  muted?: boolean;
+  /** Either person has blocked the other. */
+  blocked?: boolean;
   encryptionVersion?: number;
   encryptedKeys?: Array<{ user: Person; wrappedKey: string }>;
 };
@@ -1026,6 +1033,68 @@ export default function MessagesClient() {
     }
   };
 
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const activePersonId = active?.participants.find((participant) => participant.firebaseId !== user?.uid)?.firebaseId;
+  useEffect(() => {
+    setBlockedByMe(false);
+    if (!user || !activePersonId || !active?.blocked) return;
+    void chatFetch(user, `/api/users/block?userId=${encodeURIComponent(activePersonId)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status) => setBlockedByMe(Boolean(status?.blockedByMe)))
+      .catch(() => undefined);
+  }, [user, activePersonId, active?.blocked]);
+
+  const updateActive = (changes: Partial<Conversation>) => {
+    if (!active) return;
+    setActive({ ...active, ...changes });
+    setConversations((rows) => rows.map((row) => (row._id === active._id ? { ...row, ...changes } : row)));
+  };
+
+  const toggleMute = async () => {
+    if (!user || !active) return;
+    const muted = !active.muted;
+    setShowConversationMenu(false);
+    const response = await chatFetch(user, "/api/chat/conversations/mute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: active._id, muted }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast("Couldn't change notifications for this conversation.", "error");
+      return;
+    }
+    updateActive({ muted });
+    showToast(muted ? "Muted. You won't get notifications for this conversation." : "Notifications are back on.", "success");
+  };
+
+  const toggleBlock = async () => {
+    if (!user || !active || !activePersonId) return;
+    const name = active.participants.find((participant) => participant.firebaseId === activePersonId)?.name || "this person";
+    const blocking = !blockedByMe;
+    setShowConversationMenu(false);
+    if (blocking && !window.confirm(`Block ${name}? They won't be able to message or follow you, and you'll unfollow each other. They aren't told.`)) return;
+    const response = await chatFetch(user, "/api/users/block", {
+      method: blocking ? "POST" : "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: activePersonId }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast(blocking ? "Couldn't block right now." : "Couldn't unblock right now.", "error");
+      return;
+    }
+    setBlockedByMe(blocking);
+    if (blocking) {
+      updateActive({ blocked: true });
+    } else {
+      // They may still have blocked you; ask the server.
+      const status = await chatFetch(user, `/api/users/block?userId=${encodeURIComponent(activePersonId)}`)
+        .then((result) => (result.ok ? result.json() : null))
+        .catch(() => null);
+      updateActive({ blocked: Boolean(status?.blockedMe) });
+    }
+    showToast(blocking ? `${name} is blocked.` : `${name} is unblocked.`, "success");
+  };
+
   const copyProfileLink = async (person: Person) => {
     try {
       await navigator.clipboard.writeText(
@@ -1783,6 +1852,22 @@ export default function MessagesClient() {
                             ? "Profile link copied"
                             : "Copy profile link"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleMute()}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium hover:bg-foreground/[0.07]"
+                        >
+                          {active.muted ? <BellRing className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                          {active.muted ? "Unmute notifications" : "Mute notifications"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleBlock()}
+                          className="flex w-full items-center gap-3 border-t border-line-subtle px-4 py-3 text-left text-[13px] font-medium text-destructive hover:bg-destructive/10"
+                        >
+                          <Ban className="h-4 w-4" />
+                          {blockedByMe ? `Unblock ${person.name?.split(" ")[0] || ""}`.trim() : `Block ${person.name?.split(" ")[0] || ""}`.trim()}
+                        </button>
                       </div>
                     </>
                   )}
@@ -2022,6 +2107,16 @@ export default function MessagesClient() {
                 </button>
               )}
             </div>
+            {active.blocked ? (
+              <div className="keyboard-safe-bottom sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface px-4 py-4 text-center">
+                <p className="text-body-sm text-muted-foreground">You can&apos;t send messages in this conversation.</p>
+                {blockedByMe ? (
+                  <button type="button" onClick={() => void toggleBlock()} className="mt-2 text-body-sm font-semibold text-primary-text underline-offset-4 hover:underline">
+                    Unblock {person.name?.split(" ")[0] || "them"}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
             <form
               onSubmit={send}
               className="keyboard-safe-bottom sticky bottom-0 z-20 shrink-0 border-t border-line bg-surface/95 px-2.5 pt-2 backdrop-blur-xl"
@@ -2100,6 +2195,7 @@ export default function MessagesClient() {
                 </button>
               </div>
             </form>
+            )}
           </>
         ) : (
           <div className="m-auto max-w-sm px-8 text-center">

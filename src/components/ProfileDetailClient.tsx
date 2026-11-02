@@ -14,7 +14,7 @@ import ReflectionCalendar from "@/components/ReflectionCalendar";
 import WeekStrip from "@/components/reflect/WeekStrip";
 import { formatDistanceToNowStrict } from "date-fns";
 import MilestonesGrid from "@/components/MilestonesGrid";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine, Sparkles } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, Ban, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine, Sparkles } from "lucide-react";
 import { UnseenDot, useWhatsNew, WhatsNewDialog } from "@/components/shell/WhatsNew";
 import { m, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
@@ -138,6 +138,33 @@ export default function DynamicProfilePage({
   const [followListReload, setFollowListReload] = useState(0);
 
   const isOwnProfile = currentUser?.uid === profileId;
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  useEffect(() => {
+    if (!currentUser || isOwnProfile || !profileId) return;
+    void fetch(`/api/users/block?userId=${encodeURIComponent(profileId)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status) => setBlockedByMe(Boolean(status?.blockedByMe)))
+      .catch(() => undefined);
+  }, [currentUser, isOwnProfile, profileId]);
+
+  const toggleBlock = async () => {
+    const name = profileUser?.name || "this person";
+    const blocking = !blockedByMe;
+    if (blocking && !window.confirm(`Block ${name}? They won't be able to message or follow you, and you'll unfollow each other. They aren't told.`)) return;
+    setIsMobileSettingsOpen(false);
+    const response = await fetch("/api/users/block", {
+      method: blocking ? "POST" : "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: profileId }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      showToast(blocking ? "Couldn't block right now." : "Couldn't unblock right now.", "error");
+      return;
+    }
+    setBlockedByMe(blocking);
+    if (blocking) void mutateFollowState();
+    showToast(blocking ? `${name} is blocked.` : `${name} is unblocked.`, "success");
+  };
   const whatsNew = useWhatsNew();
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const followStateKey = profileId
@@ -617,8 +644,9 @@ export default function DynamicProfilePage({
           </button>
           <button
             onClick={() => setIsMobileSettingsOpen(true)}
-            className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 transition-colors press-scale"
+            className={`${isOwnProfile ? "lg:hidden " : ""}p-2 rounded-xl text-muted-foreground hover:bg-secondary/60 transition-colors press-scale`}
             title="Options"
+            aria-label="Options"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
           </button>
@@ -1065,6 +1093,15 @@ export default function DynamicProfilePage({
                   <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-brand-green transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
                 </div>
 
+                {!isOwnProfile && currentUser && (
+                  <button
+                    onClick={() => void toggleBlock()}
+                    className="w-full h-12 px-4 mt-2 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 flex items-center gap-3 text-rose-500 text-[14px] font-bold active:scale-[0.98] transition-all"
+                  >
+                    <Ban className="w-4 h-4" />
+                    {blockedByMe ? `Unblock ${profileUser?.name?.split(" ")[0] || ""}`.trim() : `Block ${profileUser?.name?.split(" ")[0] || ""}`.trim()}
+                  </button>
+                )}
                 {isOwnProfile && (
                   <button
                     onClick={() => {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBlockedBetween } from "@/lib/blocks";
 import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
@@ -81,6 +82,10 @@ export async function POST(req: NextRequest) {
     const access = await participant(auth.uid, conversationId);
     const encrypted = encryptionVersion === 1 && typeof ciphertext === "string" && typeof iv === "string";
     if (!access || !encrypted || !access.conversation.encryptionVersion) return NextResponse.json({ error: "Invalid encrypted message" }, { status: 400 });
+    const others = access.conversation.participants.filter((id: { toString(): string }) => id.toString() !== access.user._id.toString());
+    for (const other of others) {
+      if (await isBlockedBetween(access.user._id, other)) return NextResponse.json({ error: "You can't message this person.", code: "blocked" }, { status: 403 });
+    }
     if (ciphertext.length > 12000 || iv.length > 64) return NextResponse.json({ error: "Message is too large" }, { status: 400 });
     if (replyTo && !isValidObjectId(replyTo)) {
       return NextResponse.json({ error: "Invalid reply message" }, { status: 400 });
@@ -150,8 +155,10 @@ export async function POST(req: NextRequest) {
     const senderName = String(access.user.name || "Someone");
     const firstName = senderName.trim().split(/\s+/)[0] || "Someone";
     const senderImage = String(access.user.image || "");
+    // Muted conversations still deliver in-app; they just don't push.
+    const muted = new Set((access.conversation.mutedBy || []).map((id: { toString(): string }) => id.toString()));
     const recipientIds = access.conversation.participants.filter(
-      (id: { toString(): string }) => id.toString() !== access.user._id.toString(),
+      (id: { toString(): string }) => id.toString() !== access.user._id.toString() && !muted.has(id.toString()),
     );
     await Promise.allSettled(
       recipientIds.map((recipientId: unknown) =>

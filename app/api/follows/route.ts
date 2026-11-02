@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBlockedBetween } from "@/lib/blocks";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import Follow from "@/models/follow";
@@ -76,6 +77,9 @@ export async function POST(req: NextRequest) {
       ),
     ]);
     if (!follower || !following) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (await isBlockedBetween(follower._id, following._id)) {
+      return NextResponse.json({ error: "You can't follow this person.", code: "blocked" }, { status: 403 });
+    }
 
     const existing = await Follow.findOne({ follower: follower._id, following: following._id });
     if (existing) {

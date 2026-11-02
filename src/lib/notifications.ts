@@ -1,4 +1,5 @@
 import Notification from "@/models/notification";
+import { isBlockedBetween } from "@/lib/blocks";
 import User from "@/models/user";
 import { sendCategoryPush } from "@/lib/notify";
 import type { NotificationCategory } from "@/lib/notification-policy";
@@ -55,6 +56,7 @@ export async function createNotification({
 }: NotificationParams) {
   try {
     if (recipientId.toString() === senderId.toString()) return;
+    if (await isBlockedBetween(recipientId, senderId)) return;
 
     // One row per person, action and post: like/unlike/like refreshes the
     // existing notification instead of stacking duplicates. Comments and

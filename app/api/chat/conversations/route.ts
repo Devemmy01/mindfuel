@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { blockedUserIds, isBlockedBetween } from "@/lib/blocks";
 import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
@@ -38,9 +39,13 @@ export async function GET(req: NextRequest) {
       { $group: { _id: "$conversation", count: { $sum: 1 } } },
     ]) : [];
     const unreadByConversation = new Map(unreadRows.map((row) => [String(row._id), row.count]));
+    const blocked = await blockedUserIds(user._id);
     const withUnread = conversations.map((conversation) => ({
       ...conversation,
       unreadCount: unreadByConversation.get(String(conversation._id)) || 0,
+      muted: (conversation.mutedBy || []).some((id: unknown) => String(id) === String(user._id)),
+      blocked: conversation.participants.some((participant: { _id: unknown }) => blocked.has(String(participant._id))),
+      mutedBy: undefined,
     }));
     return NextResponse.json(
       { conversations: withUnread },
@@ -64,6 +69,10 @@ export async function POST(req: NextRequest) {
     const participantIds = users.map((user) => String(user._id)).sort();
     const currentUser = users.find((user) => user.firebaseId === auth.uid);
     if (!currentUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const recipient = users.find((user) => user.firebaseId === recipientId);
+    if (recipient && await isBlockedBetween(currentUser._id, recipient._id)) {
+      return NextResponse.json({ error: "You can't message this person.", code: "blocked" }, { status: 403 });
+    }
     const conversation = await Conversation.findOneAndUpdate(
       { participantKey: participantIds.join(":") },
       {
