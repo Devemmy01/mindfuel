@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import EmptyState from "@/components/ui/EmptyState";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,7 +11,7 @@ import ProfilePictureEditor from "@/components/ProfilePictureEditor";
 import StreakDisplay from "@/components/StreakDisplay";
 import ReflectionCalendar from "@/components/ReflectionCalendar";
 import MilestonesGrid from "@/components/MilestonesGrid";
-import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle } from "lucide-react";
+import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -927,11 +929,20 @@ export default function DynamicProfilePage({
             )}
           </div>
         ) : (
-          <div className="py-24 text-center px-6">
-            <div className="w-16 h-16 bg-secondary/40 rounded-full flex items-center justify-center mx-auto mb-4"><UserIcon className="w-7 h-7 text-muted-foreground" /></div>
-            <p className="font-bold text-lg">Nothing to show yet</p>
-            <p className="text-muted-foreground text-[14px]">This user hasn&apos;t shared any thoughts.</p>
-          </div>
+          isOwnProfile ? (
+            <EmptyState
+              icon={PenLine}
+              title="Your reflections will live here"
+              description="Private ones only you can see; shared ones everyone can read. A sentence or two is enough to start."
+              action={<Link href="/create" className={buttonVariants()}>Write your first reflection</Link>}
+            />
+          ) : (
+            <EmptyState
+              icon={UserIcon}
+              title="No shared reflections yet"
+              description="When they share a reflection with the community, it will show up here."
+            />
+          )
         )}
       </div>
 

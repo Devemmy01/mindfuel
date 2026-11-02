@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Info, Flame, X } from "lucide-react";
 import { getStreakMilestoneMessage } from "@/lib/streakUtils";
 
+const STREAK_EXPLAINED_KEY = "mindfuel:streak-explained";
+
 interface StreakDisplayProps {
   streakDays: number;
   showMilestone?: boolean;
@@ -37,6 +39,18 @@ export default function StreakDisplay({
     lg: 20,
   };
 
+  // Explain streaks the first time someone sees one, then only on request.
+  useEffect(() => {
+    if (streakDays <= 0) return;
+    try {
+      if (localStorage.getItem(STREAK_EXPLAINED_KEY)) return;
+      localStorage.setItem(STREAK_EXPLAINED_KEY, "1");
+      setShowInfo(true);
+    } catch {
+      // Without storage the explainer stays available on tap.
+    }
+  }, [streakDays]);
+
   const milestone = getStreakMilestoneMessage(streakDays);
   const isMilestone = milestone !== null;
 
@@ -58,7 +72,10 @@ export default function StreakDisplay({
     <div className={`relative inline-block ${className}`} ref={infoRef}>
       <div className="flex flex-col gap-2">
         <motion.button
+          type="button"
           onClick={() => setShowInfo(!showInfo)}
+          aria-expanded={showInfo}
+          aria-label={`${streakDays}-day reflection streak. What is a streak?`}
           className={`
             group relative overflow-hidden inline-flex items-center rounded-full font-bold transition-all
             ${streakDays > 0 

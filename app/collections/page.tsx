@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import EmptyState from "@/components/ui/EmptyState";
 import { useAuth } from "@/providers/AuthProvider";
 import PostCard from "@/components/PostCard";
 import { Bookmark, Loader2, LayoutGrid, List, RefreshCw } from "lucide-react";
@@ -201,23 +203,12 @@ export default function CollectionsPage() {
           )}
         </div>
       ) : (
-        <div className="py-20 flex flex-col items-center justify-center text-center space-y-5 px-6">
-          <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-            <Bookmark className="w-9 h-9 text-brand-green/60" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold">Nothing saved yet</h3>
-            <p className="text-muted-foreground text-[14px] max-w-[260px]">
-              Tap the bookmark icon on any thought to save it here.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="px-8 py-3 bg-brand-green text-white rounded-full font-bold text-[15px] hover:bg-[#00a855] transition-colors shadow-brand-sm press-scale"
-          >
-            Browse Feed
-          </Link>
-        </div>
+        <EmptyState
+          icon={Bookmark}
+          title="Nothing saved yet"
+          description="Tap the bookmark on any reflection to keep it here."
+          action={<Link href="/feed" className={buttonVariants({ variant: "secondary" })}>Browse reflections</Link>}
+        />
       )}
 
       <div className="mobile-content-offset" />

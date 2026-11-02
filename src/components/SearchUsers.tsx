@@ -183,7 +183,11 @@ export default function SearchUsers() {
               <p className="text-[13px] text-muted-foreground">
                 {query.trim().startsWith("#")
                   ? `No hashtags found for "${query}"`
-                  : `No users found for "${query}"`}
+                  : `No people found for "${query}"`}
+              </p>
+              <p className="mt-1 text-[12px] text-subtle-foreground">
+                Check the spelling, try a hashtag like #growth, or{" "}
+                <Link href="/feed" className="font-semibold text-foreground underline-offset-4 hover:underline">browse reflections</Link>.
               </p>
             </div>
           )}

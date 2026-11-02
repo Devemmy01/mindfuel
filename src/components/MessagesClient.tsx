@@ -1623,7 +1623,7 @@ export default function MessagesClient() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {query.trim()
                   ? "Try a name, username, or recent message."
-                  : "Visit someone’s profile and say hello."}
+                  : "Start a conversation from anyone's profile, or with the new message button above."}
               </p>
             </div>
           )}
