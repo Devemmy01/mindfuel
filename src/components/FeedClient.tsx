@@ -423,7 +423,7 @@ export default function FeedClient({
 
       <AnimatePresence>
         {showScrollTop && (
-          <div className="sticky top-24 z-50 flex justify-center pointer-events-none md:top-20">
+          <div className="sticky top-[10.75rem] z-50 flex justify-center pointer-events-none md:top-[9.75rem]">
             <m.button
               type="button"
               initial={{ opacity: 0, y: 16, scale: 0.96 }}

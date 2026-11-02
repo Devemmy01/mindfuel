@@ -109,7 +109,8 @@ const config = {
         micro: ["0.75rem", { lineHeight: "1rem" }],
       },
       zIndex: {
-        sticky: "10",
+        // Above in-card layers (post content uses up to z-20), below menus and dialogs.
+        sticky: "35",
         rail: "20",
         tabbar: "30",
         dropdown: "40",

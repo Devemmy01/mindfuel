@@ -66,17 +66,23 @@ export default function DailyReflectionPrompt({
 
   const categoryColors: Record<
     string,
-    { dot: string; bg: string; text: string }
+    { dot: string; bg: string; text: string; label?: string }
   > = {
-    fun: { dot: "#f97316", bg: "bg-orange-500/10", text: "text-orange-400" },
-    life: { dot: "#10b981", bg: "bg-emerald-500/10", text: "text-emerald-400" },
-    social: { dot: "#ec4899", bg: "bg-pink-500/10", text: "text-pink-400" },
-    hypothetical: { dot: "#06b6d4", bg: "bg-cyan-500/10", text: "text-cyan-400" },
-    confession: { dot: "#8b5cf6", bg: "bg-purple-500/10", text: "text-purple-400" },
+    fun: { dot: "#f97316", bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-400" },
+    life: { dot: "#10b981", bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400" },
+    social: { dot: "#ec4899", bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-400" },
+    hypothetical: { dot: "#06b6d4", bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-400", label: "What if" },
+    confession: { dot: "#8b5cf6", bg: "bg-purple-500/10", text: "text-purple-700 dark:text-purple-400" },
+    heart: { dot: "#f43f5e", bg: "bg-rose-500/10", text: "text-rose-700 dark:text-rose-400" },
+    growth: { dot: "#00bf63", bg: "bg-brand-green/10", text: "text-primary-text" },
+    habits: { dot: "#f59e0b", bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-400" },
+    humor: { dot: "#eab308", bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-400" },
+    pop: { dot: "#a855f7", bg: "bg-fuchsia-500/10", text: "text-fuchsia-700 dark:text-fuchsia-400", label: "Pop culture" },
+    talk: { dot: "#3b82f6", bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", label: "Let's talk" },
     default: {
       dot: "#6366f1",
       bg: "bg-indigo-500/10",
-      text: "text-indigo-400",
+      text: "text-indigo-700 dark:text-indigo-400",
     },
   };
 
@@ -118,7 +124,7 @@ export default function DailyReflectionPrompt({
             <span
               className={`text-[12px] font-semibold capitalize ${catColors.text}`}
             >
-              {prompt.category}
+              {catColors.label ?? prompt.category}
             </span>
           </div>
           {reflectors.length > 0 && (

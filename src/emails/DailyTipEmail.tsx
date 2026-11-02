@@ -2,110 +2,100 @@ import {
   Body,
   Container,
   Head,
-  Heading,
   Html,
   Img,
   Link,
   Preview,
   Section,
   Text,
-} from '@react-email/components';
-import * as React from 'react';
+} from "@react-email/components";
+import * as React from "react";
 
 interface DailyTipEmailProps {
   name: string;
-  tip: string;
-  baseUrl?: string;
+  /** Day theme, e.g. "Try-This Tuesday", and its one-line kicker. */
+  themeLabel: string;
+  kicker: string;
+  title: string;
+  body: string;
+  /** Word for Wednesday: where the word comes from, and a question about it. */
+  extra?: string;
+  /** Show the title large, as a word (Word for Wednesday). */
+  wordStyle?: boolean;
+  promptQuestion: string;
+  ctaLabel: string;
   /** Composer link with today's prompt (see src/lib/links.ts). */
-  writeUrl?: string;
+  writeUrl: string;
+  streakLine?: string | null;
+  communityLine?: string | null;
+  downloadUrl?: string;
   unsubscribeUrl?: string;
+  baseUrl?: string;
 }
 
 export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   name,
-  tip,
-  baseUrl,
+  themeLabel,
+  kicker,
+  title,
+  body,
+  extra,
+  wordStyle,
+  promptQuestion,
+  ctaLabel,
   writeUrl,
+  streakLine,
+  communityLine,
+  downloadUrl,
   unsubscribeUrl,
+  baseUrl,
 }) => {
-  const currentBaseUrl =
-    baseUrl || process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
-
+  const site = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
   return (
     <Html>
       <Head>
         <style>{`
-          body, table, td, div, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-          table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-          
           @media (prefers-color-scheme: dark) {
             .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
-            .tipCard { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
-            .h1 { color: #ffffff !important; }
-            .subtext { color: #a1a1aa !important; }
-            .spacer { color: #52525b !important; }
-            .footer { color: #52525b !important; }
-          }
-
-          @media only screen and (max-width: 600px) {
-            .container { width: 100% !important; max-width: 100% !important; padding: 0 16px !important; }
-            .tipCard { padding: 24px 16px !important; margin-bottom: 24px !important; border-radius: 24px !important; }
-            .h1 { font-size: 18px !important; line-height: 1.4 !important; }
-            .quoteMark { font-size: 32px !important; margin-bottom: 12px !important; }
-            .quoteMarkRight { font-size: 32px !important; margin-top: 12px !important; }
-            .subtext { font-size: 14px !important; margin-bottom: 24px !important; }
-            .button, .secondaryButton { padding: 12px 24px !important; font-size: 13px !important; }
-            .logoContainer { padding: 8px 4px !important; width: 140px !important; margin: 0 auto 24px !important; }
-            .greeting { margin-bottom: 16px !important; }
+            .card { background-color: #0a0a0a !important; border-color: #27272a !important; }
+            .title, .greeting, .prompt { color: #fafafa !important; }
+            .body, .kicker, .meta, .footer { color: #a1a1aa !important; }
+            .promptCard { background-color: #052e1c !important; border-color: #065f46 !important; }
           }
         `}</style>
       </Head>
-      <Preview>Your Daily Mindful Tip, {name}</Preview>
+      <Preview>{`${themeLabel}: ${title}. ${body}`.slice(0, 140)}</Preview>
       <Body style={main} className="main">
-        <Container style={container} className="container">
-          <Section style={logoContainer} className="logoContainer">
-            <Img
-              src={`${currentBaseUrl}/logoDarkbg.png`}
-              width="160"
-              height="auto"
-              alt="MindFuel"
-              style={logo}
-            />
-          </Section>
-          
-          <Text style={greeting} className="greeting">
-            Good Morning, {name}
-          </Text>
+        <Container style={container}>
+          <Img src={`${site}/maskable-icon.png`} width="40" height="40" alt="MindFuel" style={logo} />
+          <Text style={badge}>{themeLabel.toUpperCase()}</Text>
+          <Text style={greeting} className="greeting">Good morning, {name}</Text>
+          <Text style={kickerStyle} className="kicker">{kicker}</Text>
 
-          <Section style={tipCard} className="tipCard">
-            <Text style={quoteMark} className="quoteMark">&ldquo;</Text>
-            <Heading style={h1} className="h1">
-              {tip}
-            </Heading>
-            <Text style={quoteMarkRight} className="quoteMarkRight">&rdquo;</Text>
+          <Section style={card} className="card">
+            <Text style={wordStyle ? wordTitle : titleStyle} className="title">{title}</Text>
+            <Text style={bodyStyle} className="body">{body}</Text>
+            {extra ? <Text style={extraStyle} className="meta">{extra}</Text> : null}
+            {downloadUrl ? (
+              <Link href={downloadUrl} style={smallLink}>Save as an image</Link>
+            ) : null}
           </Section>
-          
-          <Text style={subtext} className="subtext">
-            Stay intentional today. Take a breath, fuel your mind, and share what inspires you.
-          </Text>
 
-          <Section style={center}>
-            <Link href={writeUrl || `${currentBaseUrl}/create`} style={button} className="button">
-              Write today&apos;s reflection
-            </Link>
-            <Text style={spacer} className="spacer">or</Text>
-            <Link 
-              href={`${currentBaseUrl}/tip/download?text=${encodeURIComponent(tip)}`} 
-              style={secondaryButton}
-              className="secondaryButton"
-            >
-              Download as Image
-            </Link>
+          <Section style={promptCard} className="promptCard">
+            <Text style={promptLabel}>TODAY&apos;S QUESTION</Text>
+            <Text style={promptText} className="prompt">{promptQuestion}</Text>
+            <Link href={writeUrl} style={button}>{ctaLabel}</Link>
           </Section>
-          
+
+          {streakLine ? <Text style={meta} className="meta">🔥 {streakLine}</Text> : null}
+          {communityLine ? <Text style={meta} className="meta">💚 {communityLine}</Text> : null}
+
           <Text style={footer} className="footer">
-            You received this daily mindful tip from MindFuel.<br />
-            Don&apos;t want these? <Link href={unsubscribeUrl || `${currentBaseUrl}/settings/notifications`} style={footerLink}>Unsubscribe</Link>.
+            Daily Fuel from MindFuel, a new format every day of the week.
+            <br />
+            <Link href={unsubscribeUrl || `${site}/settings/notifications`} style={footerLink}>Turn off these emails</Link>
+            {" · "}
+            <Link href={`${site}/settings/notifications`} style={footerLink}>Manage notifications</Link>
           </Text>
         </Container>
       </Body>
@@ -115,126 +105,54 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
 
 export default DailyTipEmail;
 
-const main = {
-  backgroundColor: '#f9fafb',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
-  padding: '40px 0',
+const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
+const main = { backgroundColor: "#ffffff", fontFamily: font };
+const container = { margin: "0 auto", padding: "28px 18px 40px", maxWidth: "560px" };
+const logo = { borderRadius: "10px", margin: "0 0 18px" };
+const badge = {
+  display: "inline-block",
+  backgroundColor: "#00bf63",
+  color: "#03140b",
+  fontSize: "11px",
+  fontWeight: "800",
+  letterSpacing: "0.12em",
+  borderRadius: "999px",
+  padding: "5px 12px",
+  margin: "0 0 14px",
 };
-
-const container = {
-  margin: '0 auto',
-  maxWidth: '500px',
-  padding: '0 16px',
-  textAlign: 'center' as const,
+const greeting = { fontSize: "22px", fontWeight: "800", color: "#18181b", margin: "0 0 4px", lineHeight: "1.3" };
+const kickerStyle = { fontSize: "15px", color: "#52525b", margin: "0 0 20px" };
+const card = {
+  border: "1px solid #e4e4e7",
+  borderRadius: "20px",
+  padding: "22px 22px 14px",
+  margin: "0 0 16px",
+  backgroundColor: "#ffffff",
 };
-
-const logoContainer = {
-  backgroundColor: '#171717',
-  padding: '10px 6px',
-  borderRadius: '12px',
-  width: '172px',
-  margin: '0 auto 40px',
-  textAlign: 'center' as const,
+const titleStyle = { fontSize: "20px", fontWeight: "800", lineHeight: "1.35", color: "#18181b", margin: "0 0 8px" };
+const wordTitle = { fontSize: "34px", fontWeight: "900", letterSpacing: "-0.02em", color: "#18181b", margin: "0 0 6px" };
+const bodyStyle = { fontSize: "16px", lineHeight: "1.6", color: "#3f3f46", margin: "0 0 10px" };
+const extraStyle = { fontSize: "14px", lineHeight: "1.55", color: "#52525b", fontStyle: "italic" as const, margin: "0 0 10px" };
+const smallLink = { fontSize: "13px", color: "#007a3d", fontWeight: "600", textDecoration: "none" };
+const promptCard = {
+  backgroundColor: "#ecfdf3",
+  border: "1px solid #bbf7d0",
+  borderRadius: "20px",
+  padding: "20px 22px 22px",
+  margin: "0 0 18px",
 };
-
-const logo = {
-  margin: '0 auto',
-  borderRadius: '12px',
-};
-
-const greeting = {
-  fontSize: '14px',
-  fontWeight: 'bold',
-  textTransform: 'uppercase' as const,
-  letterSpacing: '0.2em',
-  color: '#00bf63',
-  marginBottom: '24px',
-};
-
-const tipCard = {
-  backgroundColor: '#ffffff',
-  borderRadius: '32px',
-  padding: '48px 40px',
-  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
-  marginBottom: '40px',
-  border: '1px solid #f1f5f9',
-};
-
-const quoteMark = {
-  fontSize: '48px',
-  color: '#00bf63',
-  marginBottom: '16px',
-  lineHeight: '1',
-  textAlign: 'left' as const,
-  margin: '0 0 8px 0',
-};
-
-const quoteMarkRight = {
-  fontSize: '48px',
-  color: '#00bf63',
-  marginTop: '16px',
-  lineHeight: '1',
-  textAlign: 'right' as const,
-  margin: '8px 0 0 0',
-};
-
-const h1 = {
-  fontSize: '28px',
-  fontWeight: '700',
-  lineHeight: '1.4',
-  margin: '0',
-  color: '#171717',
-  letterSpacing: '-0.02em',
-};
-
-const subtext = {
-  fontSize: '16px',
-  color: '#64748b',
-  marginBottom: '32px',
-  lineHeight: '1.6',
-  margin: '0 0 32px 0',
-};
-
-const center = {
-  textAlign: 'center' as const,
-};
-
+const promptLabel = { fontSize: "11px", fontWeight: "800", letterSpacing: "0.12em", color: "#007a3d", margin: "0 0 6px" };
+const promptText = { fontSize: "18px", fontWeight: "700", lineHeight: "1.4", color: "#18181b", margin: "0 0 16px" };
 const button = {
-  backgroundColor: '#171717',
-  color: '#ffffff',
-  padding: '14px 32px',
-  borderRadius: '100px',
-  fontSize: '14px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  display: 'inline-block',
-  marginBottom: '10px',
+  backgroundColor: "#00bf63",
+  color: "#03140b",
+  padding: "12px 22px",
+  borderRadius: "999px",
+  fontSize: "15px",
+  fontWeight: "800",
+  textDecoration: "none",
+  display: "inline-block",
 };
-
-const secondaryButton = {
-  backgroundColor: 'transparent',
-  color: '#00bf63',
-  padding: '12px 32px',
-  borderRadius: '100px',
-  fontSize: '14px',
-  fontWeight: 'bold',
-  textDecoration: 'underline',
-  display: 'inline-block',
-  marginBottom: '40px',
-};
-
-const spacer = {
-  fontSize: '12px',
-  color: '#94a3b8',
-  margin: '8px 0',
-};
-
-const footer = {
-  fontSize: '12px',
-  color: '#94a3b8',
-};
-
-const footerLink = {
-  color: '#00bf63',
-  textDecoration: 'none',
-};
+const meta = { fontSize: "14px", color: "#3f3f46", margin: "0 0 8px" };
+const footer = { fontSize: "12px", lineHeight: "1.6", color: "#71717a", margin: "24px 0 0" };
+const footerLink = { color: "#71717a", textDecoration: "underline" };
