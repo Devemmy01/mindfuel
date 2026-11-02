@@ -1,0 +1,43 @@
+name: E2E
+
+# Browser tests on Chromium (desktop, Pixel 7) and WebKit (iPhone 14, iPad).
+# Every API a test touches is mocked; the build uses the E2E sign-in seam
+# (NEXT_PUBLIC_E2E_AUTH=1), which is stripped from normal builds.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Placeholders so the build and server start without real services.
+      # Server-rendered data fails soft; tests mock the APIs they use.
+      MONGODB_URI: mongodb://127.0.0.1:1/e2e
+      RESEND_API_KEY: re_e2e_placeholder
+      NEXT_PUBLIC_E2E_AUTH: "1"
+      E2E_AUTH_BUILD: "1"
+      PW_PROD: "1"
+      PW_PORT: "3300"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Build (E2E seam on)
+        run: npm run build
+      - name: Run E2E
+        run: npx playwright test e2e/guest-home.spec.ts e2e/first-run.spec.ts e2e/notifications.spec.ts e2e/messages.spec.ts e2e/a11y.spec.ts --reporter=line
+      - name: Keep the report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: test-results
+          if-no-files-found: ignore
