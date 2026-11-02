@@ -123,3 +123,29 @@ test("a failed save keeps the text and can be retried", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Saved. Day 1 started." })).toBeVisible();
   expect(posts).toHaveLength(1);
 });
+
+test("a returning member lands on today's reflection, ready to write", async ({ page, isMobile }) => {
+  const { posts } = await setup(page, "ok");
+  await page.route("**/api/posts?*", (route) =>
+    route.request().method() === "GET" ? route.fulfill({ json: { posts: [], total: 0, hasMore: false } }) : route.continue(),
+  );
+  // Sign in through the home composer, then open Home as a member would.
+  await write(page);
+  await page.getByRole("button", { name: /save reflection/i }).click();
+  await expect(page.getByRole("heading", { name: "Saved. Day 1 started." })).toBeVisible();
+  await page.getByRole("link", { name: /read what others wrote today/i }).click();
+  await page.keyboard.press("Escape");
+
+  // A fresh day: no reflection yet, so Home opens on the composer.
+  await page.evaluate(() => localStorage.removeItem("mindfuel:draft:v1"));
+  const today = page.locator("#write");
+  await expect(today.getByText("Today's reflection")).toBeVisible();
+  if (!isMobile) await expect(today.getByRole("textbox")).toBeFocused();
+  await today.getByRole("textbox").fill("Small steps still count.");
+  await today.getByRole("button", { name: /save reflection/i }).click();
+  await expect(page.getByRole("heading", { name: "Saved. See you tomorrow." })).toBeVisible();
+  expect(posts).toHaveLength(2);
+  if (process.env.PHASE) {
+    await page.screenshot({ path: `docs/ux-review/phase-${process.env.PHASE}/today-done-${test.info().project.name}.png` });
+  }
+});
