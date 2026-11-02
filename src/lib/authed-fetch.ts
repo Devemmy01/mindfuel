@@ -1,4 +1,4 @@
-import { auth } from "@/lib/firebase";
+import { loadFirebase } from "@/lib/firebase";
 
 let installed = false;
 
@@ -29,6 +29,7 @@ export function installAuthedFetch() {
       try {
         // Wait for Firebase to restore a persisted session so the first
         // requests after a reload are not sent as a guest.
+        const { auth } = await loadFirebase();
         await auth.authStateReady();
         const token = await auth.currentUser?.getIdToken();
         if (token) headers.set("Authorization", `Bearer ${token}`);

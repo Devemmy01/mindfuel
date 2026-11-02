@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/firebase", () => ({
-  auth: {
-    authStateReady: async () => undefined,
-    currentUser: { getIdToken: async () => "token-123" },
-  },
+  loadFirebase: async () => ({
+    auth: {
+      authStateReady: async () => undefined,
+      currentUser: { getIdToken: async () => "token-123" },
+    },
+  }),
 }));
 
 describe("installAuthedFetch", () => {

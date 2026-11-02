@@ -1,4 +1,4 @@
-import { auth } from "@/lib/firebase";
+import { loadFirebase, loadedFirebase } from "@/lib/firebase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Listener = (...args: any[]) => void;
@@ -50,6 +50,7 @@ class RealtimeSocket {
     const ws = new WebSocket(getSocketUrl());
     this.ws = ws;
     ws.onopen = async () => {
+      const { auth } = await loadFirebase();
       const token = await auth.currentUser?.getIdToken().catch(() => undefined);
       if (this.ws === ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ e: "auth", d: { token } }));
     };
@@ -173,7 +174,7 @@ export function getSocket(userId: string) {
     socket = new RealtimeSocket();
     socketUser = userId;
     socket.connect();
-  } else if (!socket.connected && auth.currentUser?.uid === userId) {
+  } else if (!socket.connected && loadedFirebase()?.auth.currentUser?.uid === userId) {
     socket.connect();
   }
   return socket;

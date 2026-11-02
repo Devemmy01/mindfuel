@@ -1,13 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  User as FirebaseUser,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import type { User as FirebaseUser } from "firebase/auth";
+import { loadFirebase, loadedFirebase } from "@/lib/firebase";
 import { chatFetch } from "@/lib/chat-api";
 import { ensureChatIdentity } from "@/lib/chat-crypto";
 
@@ -98,94 +93,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (E2E_AUTH && !firebaseUser && sessionStorage.getItem("mindfuel:e2e-user")) {
-        setUser(e2eUser());
-        setProfile({ name: "E2E Tester", image: "", streakDays: 1, onboardedAt: null });
+    let unsubscribe = () => {};
+    let cancelled = false;
+    void loadFirebase().then(({ auth, onAuthStateChanged }) => {
+      if (cancelled) return;
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (E2E_AUTH && !firebaseUser && sessionStorage.getItem("mindfuel:e2e-user")) {
+          setUser(e2eUser());
+          setProfile({ name: "E2E Tester", image: "", streakDays: 1, onboardedAt: null });
+          setLoading(false);
+          return;
+        }
+        // This is only a routing hint, not an authentication credential. It lets
+        // middleware skip the landing page before Firebase restores on the client.
+        document.cookie = firebaseUser
+          ? `mindfuel_signed_in=1; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`
+          : "mindfuel_signed_in=; Path=/; Max-Age=0; SameSite=Lax";
+        setUser(firebaseUser);
         setLoading(false);
-        return;
-      }
-      // This is only a routing hint, not an authentication credential. It lets
-      // middleware skip the landing page before Firebase restores on the client.
-      document.cookie = firebaseUser
-        ? `mindfuel_signed_in=1; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`
-        : "mindfuel_signed_in=; Path=/; Max-Age=0; SameSite=Lax";
-      setUser(firebaseUser);
-      setLoading(false);
 
-      if (firebaseUser) {
-        // Sync user with MongoDB asynchronously
-        let markAccountReady: () => void = () => undefined;
-        accountReady.current = {
-          uid: firebaseUser.uid,
-          promise: new Promise<void>((resolve) => {
-            markAccountReady = resolve;
-          }),
-        };
-        const syncUser = async () => {
-          try {
-            const hasSyncedThisSession = sessionStorage.getItem(`synced_${firebaseUser.uid}`);
+        if (firebaseUser) {
+          // Sync user with MongoDB asynchronously
+          let markAccountReady: () => void = () => undefined;
+          accountReady.current = {
+            uid: firebaseUser.uid,
+            promise: new Promise<void>((resolve) => {
+              markAccountReady = resolve;
+            }),
+          };
+          const syncUser = async () => {
+            try {
+              const hasSyncedThisSession = sessionStorage.getItem(`synced_${firebaseUser.uid}`);
             
-            if (!hasSyncedThisSession) {
-              const res = await fetch("/api/auth/sync", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  firebaseId: firebaseUser.uid,
-                  email: firebaseUser.email,
-                  name: firebaseUser.displayName,
-                  image: firebaseUser.photoURL,
-                }),
-              });
+              if (!hasSyncedThisSession) {
+                const res = await fetch("/api/auth/sync", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    firebaseId: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    name: firebaseUser.displayName,
+                    image: firebaseUser.photoURL,
+                  }),
+                });
               
-              if (res.ok) {
-                const data = await res.json();
-                if (data.user) {
-                  setProfile({
-                    name: data.user.name,
-                    username: data.user.username,
-                    image: data.user.image || "",
-                    bio: data.user.bio,
-                    streakDays: data.user.streakDays,
-                    onboardedAt: data.user.onboardedAt ?? null,
-                    lastReflectionDate: data.user.lastReflectionDate ?? null,
-                  });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.user) {
+                    setProfile({
+                      name: data.user.name,
+                      username: data.user.username,
+                      image: data.user.image || "",
+                      bio: data.user.bio,
+                      streakDays: data.user.streakDays,
+                      onboardedAt: data.user.onboardedAt ?? null,
+                      lastReflectionDate: data.user.lastReflectionDate ?? null,
+                    });
+                  }
+                  sessionStorage.setItem(`synced_${firebaseUser.uid}`, "true");
                 }
-                sessionStorage.setItem(`synced_${firebaseUser.uid}`, "true");
+              } else {
+                // Only fetch the profile if already synced this session
+                await fetchUserProfile(firebaseUser.uid);
               }
-            } else {
-              // Only fetch the profile if already synced this session
-              await fetchUserProfile(firebaseUser.uid);
+
+              // The database record exists now; writes may proceed while the
+              // slower chat-key work below continues.
+              markAccountReady();
+
+              // Publish this device's public chat key during the normal app
+              // session. Recipients can then start an encrypted conversation
+              // without requiring this user to visit Messages first.
+              const identity = await ensureChatIdentity(firebaseUser.uid);
+              const keyResponse = await chatFetch(firebaseUser, "/api/chat/keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ publicKey: identity.publicKey }),
+              });
+              if (!keyResponse.ok && keyResponse.status !== 409) {
+                console.error("Failed to register secure chat key:", keyResponse.status);
+              }
+            } catch (error) {
+              console.error("Failed to sync user:", error);
             }
+          };
 
-            // The database record exists now; writes may proceed while the
-            // slower chat-key work below continues.
-            markAccountReady();
-
-            // Publish this device's public chat key during the normal app
-            // session. Recipients can then start an encrypted conversation
-            // without requiring this user to visit Messages first.
-            const identity = await ensureChatIdentity(firebaseUser.uid);
-            const keyResponse = await chatFetch(firebaseUser, "/api/chat/keys", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ publicKey: identity.publicKey }),
-            });
-            if (!keyResponse.ok && keyResponse.status !== 409) {
-              console.error("Failed to register secure chat key:", keyResponse.status);
-            }
-          } catch (error) {
-            console.error("Failed to sync user:", error);
-          }
-        };
-
-        void syncUser().finally(() => markAccountReady());
-      }
+          void syncUser().finally(() => markAccountReady());
+        }
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // Listen for profile updates
@@ -203,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async () => {
     try {
+      const { auth, googleProvider, signInWithPopup } = loadedFirebase() ?? await loadFirebase();
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Login failed:", error);
@@ -220,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return { ok: true, user: fake };
     }
     try {
+      const { auth, googleProvider, signInWithPopup } = loadedFirebase() ?? await loadFirebase();
       const credential = await signInWithPopup(auth, googleProvider);
       // onAuthStateChanged starts the account sync; wait for it (bounded) so
       // the caller can write immediately.
@@ -259,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch {
         // Signing out must never fail because of push cleanup.
       }
+      const { auth, signOut } = await loadFirebase();
       await signOut(auth);
       setProfile(null);
     } catch (error) {
