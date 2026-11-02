@@ -18,6 +18,7 @@ interface DailyTipEmailProps {
   baseUrl?: string;
   /** Composer link with today's prompt (see src/lib/links.ts). */
   writeUrl?: string;
+  unsubscribeUrl?: string;
 }
 
 export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
@@ -25,6 +26,7 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   tip,
   baseUrl,
   writeUrl,
+  unsubscribeUrl,
 }) => {
   const currentBaseUrl =
     baseUrl || process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
@@ -103,7 +105,7 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           
           <Text style={footer} className="footer">
             You received this daily mindful tip from MindFuel.<br />
-            Don&apos;t want these? <Link href={`${currentBaseUrl}/settings`} style={footerLink}>Unsubscribe</Link>.
+            Don&apos;t want these? <Link href={unsubscribeUrl || `${currentBaseUrl}/settings/notifications`} style={footerLink}>Unsubscribe</Link>.
           </Text>
         </Container>
       </Body>

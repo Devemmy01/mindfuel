@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed, sendCategoryPush } from "@/lib/notify";
 import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
@@ -8,7 +10,6 @@ import { DailyTipEmail } from "@/emails/DailyTipEmail";
 import { absoluteComposeUrl } from "@/lib/links";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
-import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import React from "react";
 
 export const dynamic = "force-dynamic";
@@ -41,15 +42,15 @@ export async function GET(req: NextRequest) {
     const dateKey = startOfToday.toISOString().slice(0, 10);
 
     // 2. Fetch users (Unlocked for all users)
+    // Preferences are checked per user below (email and push separately).
     const users = await User.find({
-      "preferences.dailyEmail": { $ne: false },
       email: { $exists: true, $ne: "" },
       $or: [
         { lastDailyTipEmailAt: { $lt: startOfToday } },
         { lastDailyTipEmailAt: null },
         { lastDailyTipEmailAt: { $exists: false } },
       ],
-    }).select("name email preferences pushSubscriptions dailyTipHistory lastDailyTipEmailAt");
+    }).select("name email preferences notificationSettings pushSubscriptions dailyTipHistory lastDailyTipEmailAt");
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -69,14 +70,16 @@ export async function GET(req: NextRequest) {
 
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const sendDailyTipEmail = async (userEmail: string, userName: string, tip: string) => {
+    const sendDailyTipEmail = async (userId: string, userEmail: string, userName: string, tip: string) => {
+      const unsubscribe = unsubscribeFor(userId, "product");
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
           const response = (await resend.emails.send({
             from: "MindFuel <daily@mind-fuel.app>",
             to: userEmail,
             subject: "Your Daily Fuel is here",
-            react: <DailyTipEmail name={userName || "Friend"} tip={tip} writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-tip")} /> as React.ReactElement,
+            headers: unsubscribe.headers,
+            react: <DailyTipEmail name={userName || "Friend"} tip={tip} writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-tip")} unsubscribeUrl={unsubscribe.url} /> as React.ReactElement,
           })) as unknown;
 
           // Resend's response typing can be ambiguous; guard access safely.
@@ -114,9 +117,11 @@ export async function GET(req: NextRequest) {
       if (exhaustedPool) availableTips = tipPool;
       const tip = availableTips[stableTipIndex(`${user.email}:${dateKey}`, availableTips.length)];
 
-      // EMAIL
+      // EMAIL (the "Product updates and tips" category)
       try {
-        const sent = await sendDailyTipEmail(user.email, user.name || "Friend", tip);
+        const sent = emailAllowed(user, "product")
+          ? await sendDailyTipEmail(String(user._id), user.email, user.name || "Friend", tip)
+          : false;
         if (sent) {
           results.emailsSent++;
           await User.updateOne(
@@ -137,21 +142,16 @@ export async function GET(req: NextRequest) {
       await sleep(SEND_DELAY_MS);
 
       // WEB PUSH
-      if (user.preferences?.notifications && user.pushSubscriptions?.length > 0) {
-        const payload = JSON.stringify({
-          title: "Daily Fuel",
-          body: tip,
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: "daily-fuel",
-          url: absoluteComposeUrl(getTodayPrompt(), "push-tip"),
-          data: { url: absoluteComposeUrl(getTodayPrompt(), "push-tip") }
-        });
-
-        const delivery = await sendPushNotifications({
-          recipientId: user._id,
-          subscriptions: user.pushSubscriptions as unknown as StoredPushSubscription[],
-          payload,
+      if (user.pushSubscriptions?.length > 0) {
+        const delivery = await sendCategoryPush({
+          userId: user._id,
+          category: "product",
+          payload: {
+            title: "Daily Fuel",
+            body: tip,
+            tag: "daily-fuel",
+            url: absoluteComposeUrl(getTodayPrompt(), "push-tip"),
+          },
         });
         results.pushSent += delivery.sent;
       }

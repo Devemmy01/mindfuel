@@ -19,6 +19,7 @@ interface ReminderEmailProps {
   /** Composer link with today's prompt (see src/lib/links.ts). */
   writeUrl?: string;
   feedUrl?: string;
+  unsubscribeUrl?: string;
 }
 
 export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
@@ -27,6 +28,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
   hasNeverPosted = false,
   writeUrl = "https://mind-fuel.app/create",
   feedUrl = "https://mind-fuel.app/feed",
+  unsubscribeUrl = "https://mind-fuel.app/settings/notifications",
 }) => (
   <Html>
     <Head>
@@ -102,7 +104,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         
         <Text style={footer} className="footer">
           You&apos;re receiving this because you&apos;re part of the MindFuel community.<br />
-          Prefer not to get reminders? <Link href="https://mind-fuel.app/settings" style={footerLink}>Adjust your preferences</Link>.
+          Prefer not to get reminders? <Link href={unsubscribeUrl} style={footerLink}>Unsubscribe in one tap</Link>.
         </Text>
       </Container>
     </Body>

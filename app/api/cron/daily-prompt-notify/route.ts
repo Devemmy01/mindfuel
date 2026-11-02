@@ -3,11 +3,17 @@ import { isCronAuthorized } from "@/lib/api-auth";
 import { absoluteComposeUrl } from "@/lib/links";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
-import { getTodayPrompt } from "@/lib/dailyPrompts";
-import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
+import { getPromptByDate } from "@/lib/dailyPrompts";
+import { localParts, reminderDue, resolveSettings } from "@/lib/notification-policy";
+import { sendCategoryPush } from "@/lib/notify";
 
-export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
+/**
+ * Hourly: sends the daily reflection reminder to people whose chosen local
+ * hour is now, who have not reflected today, at most once per local day.
+ * Triggered by .github/workflows/hourly-reminders.yml (works on any Vercel plan).
+ */
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,89 +21,48 @@ export async function GET(req: NextRequest) {
 
   try {
     await connectToDB();
+    const now = new Date();
 
-    // Get today's prompt
-    const todayPrompt = getTodayPrompt();
-
-    // Get all users with push notifications enabled
-    const users = await User.find({
-      "preferences.notifications": { $ne: false },
-      pushSubscriptions: { $exists: true, $ne: [] },
-    })
-      .select("name pushSubscriptions")
+    // Everyone with a device; the policy decides who is due this hour.
+    const users = await User.find({ pushSubscriptions: { $exists: true, $ne: [] } })
+      .select("preferences notificationSettings lastReflectionDate lastReminderSentOn")
       .lean();
 
-    if (users.length === 0) {
-      return NextResponse.json(
-        { message: "No users with push subscriptions" },
-        { status: 200 }
-      );
-    }
-
-    // Send push notifications
-    const results = {
-      sent: 0,
-      failed: 0,
-      errors: [] as string[],
-    };
+    const results = { due: 0, sent: 0, skipped: 0 };
 
     for (const user of users) {
-      if (user.pushSubscriptions && Array.isArray(user.pushSubscriptions)) {
-        const payload = JSON.stringify({
-          title: "✨ Daily Reflection",
-          body: todayPrompt.question,
-          icon: "/splash-logo.png",
-          badge: "/splash-logo.png",
-          tag: "daily-prompt",
-          requireInteraction: false,
-          actions: [
-            {
-              action: "open",
-              title: "Share your reflection",
-            },
-          ],
-          data: {
-            url: absoluteComposeUrl(todayPrompt, "push-reminder"),
-            promptId: todayPrompt.id,
-          },
-        });
+      if (!reminderDue(user as Parameters<typeof reminderDue>[0], now)) continue;
+      results.due += 1;
 
-        try {
-          const delivery = await sendPushNotifications({
-            recipientId: user._id,
-            subscriptions: user.pushSubscriptions as unknown as StoredPushSubscription[],
-            payload,
-          });
-          results.sent += delivery.sent;
-          results.failed += delivery.removed;
-        } catch (error) {
-          results.failed++;
-          results.errors.push(error instanceof Error ? error.message : "Unknown error");
-        }
+      const settings = resolveSettings(user as Parameters<typeof resolveSettings>[0]);
+      const local = localParts(now, settings.timezone);
+      // The prompt for the person's own calendar day.
+      const prompt = getPromptByDate(new Date(`${local.date}T12:00:00Z`));
+
+      const delivery = await sendCategoryPush({
+        userId: String(user._id),
+        category: "daily",
+        now,
+        payload: {
+          title: "Today's reflection",
+          body: prompt.question,
+          url: absoluteComposeUrl(prompt, "push-reminder"),
+          tag: "daily-prompt",
+          actions: [{ action: "open", title: "Write" }],
+        },
+      });
+
+      if (delivery.sent > 0) {
+        results.sent += 1;
+        await User.updateOne({ _id: user._id }, { $set: { lastReminderSentOn: local.date } });
+      } else {
+        results.skipped += 1;
       }
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        prompt: todayPrompt,
-        sent: results.sent,
-        failed: results.failed,
-        message: `Sent ${results.sent} notifications, ${results.failed} failed`,
-        errors: results.errors.length > 0 ? results.errors : undefined,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, checked: users.length, ...results });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Daily prompt notification error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to send notifications",
-        message: errorMessage,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Failed to send reminders" }, { status: 500 });
   }
 }

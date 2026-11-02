@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MAX_WINBACKS } from "@/lib/notification-policy";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed } from "@/lib/notify";
 import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
@@ -26,10 +29,12 @@ export async function GET(req: NextRequest) {
     // an inactivity reminder during the last week.
     // This uses the denormalized lastReflectionDate maintained on User instead
     // of querying Post once per user.
+    // A gentle, capped win-back: weekly at most, and never more than
+    // MAX_WINBACKS times until the person reflects again.
     const inactiveUsers = await User.find({
-      "preferences.dailyEmail": { $ne: false },
       email: { $exists: true, $ne: "" },
       $and: [
+        { $or: [{ winbackCount: { $lt: MAX_WINBACKS } }, { winbackCount: { $exists: false } }] },
         {
           $or: [
             { lastReflectionDate: { $lte: sevenDaysAgo } },
@@ -45,7 +50,7 @@ export async function GET(req: NextRequest) {
           ],
         },
       ],
-    }).select("_id name email createdAt lastReflectionDate lastInactivityReminderAt");
+    }).select("_id name email createdAt lastReflectionDate lastInactivityReminderAt preferences notificationSettings winbackCount");
 
     const usersMissingReflectionDate = inactiveUsers.filter((user) => !user.lastReflectionDate);
     const lastPostByUserId = new Map<string, Date>();
@@ -82,16 +87,19 @@ export async function GET(req: NextRequest) {
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const sendReminderEmail = async (
+      userId: string,
       userEmail: string,
       userName: string,
       daysSincePost?: number,
       hasNeverPosted?: boolean
     ) => {
+      const unsubscribe = unsubscribeFor(userId, "daily");
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
           const response = (await resend.emails.send({
             from: "MindFuel <hello@mind-fuel.app>",
             to: userEmail,
+            headers: unsubscribe.headers,
             subject: hasNeverPosted
               ? "Share your first reflection"
               : "We miss your reflections",
@@ -102,6 +110,7 @@ export async function GET(req: NextRequest) {
                 hasNeverPosted={hasNeverPosted}
                 writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-reminder")}
                 feedUrl={absoluteUrl("/feed?source=email-reminder")}
+                unsubscribeUrl={unsubscribe.url}
               />
             ) as React.ReactElement,
           })) as unknown;
@@ -146,11 +155,13 @@ export async function GET(req: NextRequest) {
     // 2. Process each user
     for (const user of inactiveUsers) {
       try {
+        if (!emailAllowed(user, "daily")) continue;
         const lastReflectionDate =
           user.lastReflectionDate || lastPostByUserId.get(String(user._id));
 
         if (!lastReflectionDate) {
           const sent = await sendReminderEmail(
+            String(user._id),
             user.email,
             user.name || "Friend",
             undefined,
@@ -158,7 +169,7 @@ export async function GET(req: NextRequest) {
           );
           if (sent) {
             results.neverPostedEmails++;
-            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() } });
+            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() }, $inc: { winbackCount: 1 } });
           }
         } else {
           const lastPostDate = new Date(lastReflectionDate);
@@ -166,6 +177,7 @@ export async function GET(req: NextRequest) {
             (Date.now() - lastPostDate.getTime()) / (24 * 60 * 60 * 1000)
           );
           const sent = await sendReminderEmail(
+            String(user._id),
             user.email,
             user.name || "Friend",
             daysSincePost,
@@ -173,7 +185,7 @@ export async function GET(req: NextRequest) {
           );
           if (sent) {
             results.inactiveEmails++;
-            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() } });
+            await User.updateOne({ _id: user._id }, { $set: { lastInactivityReminderAt: new Date() }, $inc: { winbackCount: 1 } });
           }
         }
       } catch (error: unknown) {
