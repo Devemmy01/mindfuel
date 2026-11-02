@@ -16,12 +16,17 @@ interface ReminderEmailProps {
   name: string;
   daysSincePost?: number;
   hasNeverPosted?: boolean;
+  /** Composer link with today's prompt (see src/lib/links.ts). */
+  writeUrl?: string;
+  feedUrl?: string;
 }
 
 export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
   name,
   daysSincePost,
   hasNeverPosted = false,
+  writeUrl = "https://mind-fuel.app/create",
+  feedUrl = "https://mind-fuel.app/feed",
 }) => (
   <Html>
     <Head>
@@ -80,8 +85,8 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Text>
 
         <Section style={center}>
-          <Link href="https://mind-fuel.app/create" style={button} className="button">
-            Share Your Thoughts
+          <Link href={writeUrl} style={button} className="button">
+            Write today&apos;s reflection
           </Link>
         </Section>
 
@@ -90,8 +95,8 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         </Text>
         
         <Section style={center}>
-          <Link href="https://mind-fuel.app" style={secondaryButton} className="secondaryButton">
-            Browse Feed
+          <Link href={feedUrl} style={secondaryButton} className="secondaryButton">
+            Read others&apos; reflections
           </Link>
         </Section>
         

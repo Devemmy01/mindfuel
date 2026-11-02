@@ -5,6 +5,8 @@ import User from "@/models/user";
 import Post from "@/models/post";
 import { resend } from "@/lib/resend";
 import { ReminderEmail } from "@/emails/ReminderEmail";
+import { absoluteComposeUrl, absoluteUrl } from "@/lib/links";
+import { getTodayPrompt } from "@/lib/dailyPrompts";
 import React from "react";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +100,8 @@ export async function GET(req: NextRequest) {
                 name={userName || "Friend"}
                 daysSincePost={daysSincePost}
                 hasNeverPosted={hasNeverPosted}
+                writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-reminder")}
+                feedUrl={absoluteUrl("/feed?source=email-reminder")}
               />
             ) as React.ReactElement,
           })) as unknown;

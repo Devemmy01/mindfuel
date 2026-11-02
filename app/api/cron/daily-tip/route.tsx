@@ -5,6 +5,8 @@ import User from "@/models/user";
 import Tip from "@/models/tip";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
+import { absoluteComposeUrl } from "@/lib/links";
+import { getTodayPrompt } from "@/lib/dailyPrompts";
 import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
 import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
 import React from "react";
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
             from: "MindFuel <daily@mind-fuel.app>",
             to: userEmail,
             subject: "Your Daily Fuel is here",
-            react: <DailyTipEmail name={userName || "Friend"} tip={tip} /> as React.ReactElement,
+            react: <DailyTipEmail name={userName || "Friend"} tip={tip} writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-tip")} /> as React.ReactElement,
           })) as unknown;
 
           // Resend's response typing can be ambiguous; guard access safely.
@@ -142,7 +144,8 @@ export async function GET(req: NextRequest) {
           icon: "/icon-192.png",
           badge: "/icon-192.png",
           tag: "daily-fuel",
-          data: { url: "https://mind-fuel.app" }
+          url: absoluteComposeUrl(getTodayPrompt(), "push-tip"),
+          data: { url: absoluteComposeUrl(getTodayPrompt(), "push-tip") }
         });
 
         const delivery = await sendPushNotifications({

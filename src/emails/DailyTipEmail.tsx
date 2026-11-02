@@ -16,12 +16,15 @@ interface DailyTipEmailProps {
   name: string;
   tip: string;
   baseUrl?: string;
+  /** Composer link with today's prompt (see src/lib/links.ts). */
+  writeUrl?: string;
 }
 
 export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
   name,
   tip,
   baseUrl,
+  writeUrl,
 }) => {
   const currentBaseUrl =
     baseUrl || process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
@@ -85,8 +88,8 @@ export const DailyTipEmail: React.FC<Readonly<DailyTipEmailProps>> = ({
           </Text>
 
           <Section style={center}>
-            <Link href={`${currentBaseUrl}`} style={button} className="button">
-              Go to Feed
+            <Link href={writeUrl || `${currentBaseUrl}/create`} style={button} className="button">
+              Write today&apos;s reflection
             </Link>
             <Text style={spacer} className="spacer">or</Text>
             <Link 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/api-auth";
+import { absoluteComposeUrl } from "@/lib/links";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
             },
           ],
           data: {
-            url: `/create?prompt=${encodeURIComponent(todayPrompt.question)}&promptId=${todayPrompt.id}`,
+            url: absoluteComposeUrl(todayPrompt, "push-reminder"),
             promptId: todayPrompt.id,
           },
         });
