@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBlockedBetween } from "@/lib/blocks";
+import Follow from "@/models/follow";
+import ChatAttachment from "@/models/chatAttachment";
+import { destroyAttachments } from "@/lib/chat-attachment-store";
 import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
@@ -31,19 +34,26 @@ export async function GET(req: NextRequest) {
     // newer messages, for cheap resync after a reconnect.
     const afterParam = req.nextUrl.searchParams.get("after");
     const after = afterParam ? new Date(afterParam) : null;
+    const hidden = { hiddenFor: { $ne: access.user._id } };
     const filter = after && !Number.isNaN(after.getTime())
-      ? { conversation: conversationId, createdAt: { $gt: after } }
-      : { conversation: conversationId };
+      ? { conversation: conversationId, ...hidden, $or: [{ createdAt: { $gt: after } }, { deletedAt: { $gt: after } }] }
+      : { conversation: conversationId, ...hidden };
     const messages = await Message.find(filter).sort({ createdAt: -1 }).limit(200)
       .populate("sender", "name username image firebaseId")
       .populate("reactions.users", "firebaseId")
       .populate({
         path: "replyTo",
-        select: "text ciphertext iv encryptionVersion sender createdAt",
+        select: "text ciphertext iv encryptionVersion sender createdAt deletedAt",
         populate: { path: "sender", select: "name username image firebaseId" },
       })
       .lean();
     messages.reverse();
+    for (const message of messages as Array<Record<string, unknown>>) {
+      delete message.hiddenFor;
+      if (message.deletedAt) Object.assign(message, { ciphertext: "", iv: "", text: "", reactions: [], replyTo: null });
+      const replyTo = message.replyTo as Record<string, unknown> | null;
+      if (replyTo?.deletedAt) Object.assign(replyTo, { ciphertext: "", iv: "", text: "" });
+    }
     return NextResponse.json(
       { messages },
       { headers: { "Cache-Control": "private, no-store" } }
@@ -62,6 +72,10 @@ export async function PATCH(req: NextRequest) {
     const { conversationId } = await req.json();
     const access = await participant(auth.uid, String(conversationId || ""));
     if (!access) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    // Reading a pending request isn't announced to the sender.
+    if ((access.conversation.requestFor || []).some((id: { toString(): string }) => id.toString() === access.user._id.toString())) {
+      return NextResponse.json({ success: true, updatedCount: 0, pendingRequest: true });
+    }
     const result = await Message.updateMany(
       { conversation: conversationId, sender: { $ne: access.user._id }, readBy: { $ne: access.user._id } },
       { $addToSet: { readBy: access.user._id } }
@@ -78,7 +92,7 @@ export async function POST(req: NextRequest) {
     const auth = await requireFirebaseUser(req);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const { conversationId, ciphertext, iv, encryptionVersion, replyTo, clientMessageId } = await req.json();
+    const { conversationId, ciphertext, iv, encryptionVersion, replyTo, clientMessageId, attachmentId } = await req.json();
     const access = await participant(auth.uid, conversationId);
     // 1: text. 2: an encrypted envelope (e.g. a photo); indistinguishable to the server otherwise.
     const encrypted = (encryptionVersion === 1 || encryptionVersion === 2) && typeof ciphertext === "string" && typeof iv === "string";
@@ -143,6 +157,31 @@ export async function POST(req: NextRequest) {
       }
       throw error;
     }
+    // The server learns only that a message has a photo (it already saw the upload), never what it shows.
+    if (attachmentId && isValidObjectId(attachmentId)) {
+      await ChatAttachment.updateOne(
+        { _id: attachmentId, uploader: access.user._id, conversation: conversationId, message: null },
+        { $set: { message: message._id } },
+      );
+    }
+    // Message requests: a first message to someone who doesn't follow the
+    // sender waits in their Requests until they accept. Replying accepts.
+    const firstMessage = !access.conversation.lastMessage;
+    const senderKey = access.user._id.toString();
+    const requestFor = new Set((access.conversation.requestFor || []).map((id: { toString(): string }) => id.toString()));
+    if (requestFor.has(senderKey)) {
+      requestFor.delete(senderKey);
+      access.conversation.requestFor = (access.conversation.requestFor || []).filter((id: { toString(): string }) => id.toString() !== senderKey);
+    }
+    if (firstMessage) {
+      for (const other of others) {
+        const followsSender = await Follow.exists({ follower: other, following: access.user._id });
+        if (!followsSender) {
+          requestFor.add(other.toString());
+          access.conversation.requestFor = [...(access.conversation.requestFor || []), other];
+        }
+      }
+    }
     access.conversation.lastMessage = message._id;
     access.conversation.lastMessageAt = message.createdAt;
     await access.conversation.save();
@@ -157,17 +196,25 @@ export async function POST(req: NextRequest) {
     const firstName = senderName.trim().split(/\s+/)[0] || "Someone";
     const senderImage = String(access.user.image || "");
     // Muted conversations still deliver in-app; they just don't push.
-    const muted = new Set((access.conversation.mutedBy || []).map((id: { toString(): string }) => id.toString()));
-    const recipientIds = access.conversation.participants.filter(
-      (id: { toString(): string }) => id.toString() !== access.user._id.toString() && !muted.has(id.toString()),
-    );
+    // Declined requests never push; pending requests push once, for the first message.
+    const muted = new Set([
+      ...(access.conversation.mutedBy || []),
+      ...(access.conversation.declinedBy || []),
+    ].map((id: { toString(): string }) => id.toString()));
+    const recipientIds = access.conversation.participants.filter((id: { toString(): string }) => {
+      const key = id.toString();
+      if (key === senderKey || muted.has(key)) return false;
+      return !requestFor.has(key) || firstMessage;
+    });
     await Promise.allSettled(
       recipientIds.map((recipientId: unknown) =>
         sendCategoryPush({
           userId: recipientId as string,
           category: "messages",
           payload: {
-            title: `New message from ${firstName}`,
+            title: firstMessage && recipientIds.some((id: { toString(): string }) => requestFor.has(id.toString()))
+              ? `Message request from ${firstName}`
+              : `New message from ${firstName}`,
             body: "Open MindFuel to read it",
             icon: senderImage.startsWith("http") ? senderImage : undefined,
             tag: `conversation-${conversationId}`,
@@ -218,5 +265,43 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     console.error("Message reaction failed", error);
     return NextResponse.json({ error: "Failed to update reaction" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE { messageId, scope }: "me" hides a message for the viewer only;
+ * "everyone" (sender only) erases its content for all, leaving a placeholder,
+ * and deletes any stored photo.
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = await requireFirebaseUser(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await connectToDB();
+    const { messageId, scope } = await req.json().catch(() => ({}));
+    if (!isValidObjectId(messageId) || (scope !== "me" && scope !== "everyone")) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+    const message = await Message.findById(messageId).select("conversation sender deletedAt");
+    if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    const access = await participant(auth.uid, String(message.conversation));
+    if (!access) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
+    if (scope === "me") {
+      await Message.updateOne({ _id: messageId }, { $addToSet: { hiddenFor: access.user._id } });
+      return NextResponse.json({ success: true, scope });
+    }
+    if (String(message.sender) !== String(access.user._id)) {
+      return NextResponse.json({ error: "You can only delete your own messages for everyone." }, { status: 403 });
+    }
+    await Message.updateOne(
+      { _id: messageId },
+      { $set: { deletedAt: new Date(), ciphertext: "", iv: "", text: "", reactions: [] } },
+    );
+    await destroyAttachments({ message: message._id });
+    return NextResponse.json({ success: true, scope });
+  } catch (error) {
+    console.error("Message delete failed", error);
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
   }
 }

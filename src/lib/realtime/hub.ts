@@ -129,6 +129,8 @@ export class RealtimeHub {
         return this.publishRead(client.uid, String(payload.conversationId || ""));
       case "message:reaction":
         return this.publishReaction(client.uid, String(payload.conversationId || ""), String(payload.messageId || ""));
+      case "message:deleted":
+        return this.publishDeletion(client.uid, String(payload.conversationId || ""), String(payload.messageId || ""));
     }
   }
 
@@ -206,6 +208,14 @@ export class RealtimeHub {
     if (message) {
       this.publish({ room: conversationRoom(conversationId), event: "message:reaction", data: { conversationId, messageId, reactions: message.reactions } });
     }
+  }
+
+  /** Relay a "deleted for everyone" only once the server has really erased it. */
+  private async publishDeletion(uid: string, conversationId: string, messageId: string) {
+    if (!conversationId || !/^[a-f0-9]{24}$/.test(messageId) || !await this.isMember(uid, conversationId)) return;
+    await connectToDB();
+    const erased = await Message.exists({ _id: messageId, conversation: conversationId, deletedAt: { $ne: null } });
+    if (erased) await this.toOtherParticipants(uid, conversationId, "message:deleted", { conversationId, messageId });
   }
 
   private join(client: Client, room: string) {

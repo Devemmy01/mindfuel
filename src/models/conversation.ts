@@ -8,6 +8,10 @@ export interface IConversation extends Document {
   lastMessageAt: Date;
   encryptionVersion: number;
   encryptedKeys: Array<{ user: Types.ObjectId; wrappedKey: string }>;
+  /** Recipients who haven't accepted this conversation yet (message requests). */
+  requestFor: Types.ObjectId[];
+  /** Recipients who deleted the request; the sender isn't told. */
+  declinedBy: Types.ObjectId[];
   /** Participants who muted message notifications for this conversation. */
   mutedBy: Types.ObjectId[];
   createdAt: Date;
@@ -25,6 +29,8 @@ const ConversationSchema = new Schema(
     lastMessageAt: { type: Date, default: Date.now, index: true },
     encryptionVersion: { type: Number, default: 0 },
     mutedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    requestFor: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    declinedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     encryptedKeys: [{
       user: { type: Schema.Types.ObjectId, ref: "User", required: true },
       wrappedKey: { type: String, required: true },

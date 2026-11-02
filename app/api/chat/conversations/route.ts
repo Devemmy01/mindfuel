@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ conversations: [] });
     const conversations = await Conversation.find({
       participants: user._id,
+      declinedBy: { $ne: user._id },
       $or: [
         { lastMessage: { $exists: true, $ne: null } },
         { visibleTo: user._id },
@@ -44,6 +45,9 @@ export async function GET(req: NextRequest) {
       ...conversation,
       unreadCount: unreadByConversation.get(String(conversation._id)) || 0,
       muted: (conversation.mutedBy || []).some((id: unknown) => String(id) === String(user._id)),
+      request: (conversation.requestFor || []).some((id: unknown) => String(id) === String(user._id)),
+      requestFor: undefined,
+      declinedBy: undefined,
       blocked: conversation.participants.some((participant: { _id: unknown }) => blocked.has(String(participant._id))),
       mutedBy: undefined,
     }));
@@ -78,6 +82,8 @@ export async function POST(req: NextRequest) {
       {
         $setOnInsert: { participants: participantIds, participantKey: participantIds.join(":"), lastMessageAt: new Date() },
         $addToSet: { visibleTo: currentUser._id },
+        // Starting a conversation yourself undoes an earlier "delete request".
+        $pull: { declinedBy: currentUser._id },
       },
       { upsert: true, new: true }
     )

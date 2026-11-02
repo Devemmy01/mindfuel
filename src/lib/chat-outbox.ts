@@ -9,6 +9,8 @@ export type OutboxEntry = {
   conversationId: string;
   payload: { ciphertext: string; iv: string; encryptionVersion: number };
   replyTo?: string;
+  /** Uploaded encrypted photo this message refers to. */
+  attachmentId?: string;
   text: string;
   createdAt: string;
 };

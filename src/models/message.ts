@@ -12,6 +12,10 @@ export interface IMessage extends Document {
   readBy: Types.ObjectId[];
   /** Sender-generated id that makes retries idempotent. */
   clientMessageId?: string;
+  /** Deleted for everyone: content is gone, a placeholder remains. */
+  deletedAt?: Date | null;
+  /** Participants who deleted this message for themselves only. */
+  hiddenFor: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +36,8 @@ const MessageSchema = new Schema(
     }],
     readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     clientMessageId: { type: String, maxlength: 64 },
+    deletedAt: { type: Date, default: null },
+    hiddenFor: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );
