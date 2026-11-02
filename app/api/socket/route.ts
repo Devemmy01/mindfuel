@@ -8,7 +8,9 @@ export const maxDuration = 300;
 
 export async function GET(request: Request) {
   if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
-    return Response.json({ ok: true, service: "mindfuel-realtime" }, { headers: { "Cache-Control": "no-store" } });
+    // Health check: whether cross-instance delivery (Redis) is working. No secrets.
+    const redis = await getRealtimeHub().redisStatus();
+    return Response.json({ ok: true, service: "mindfuel-realtime", redis }, { headers: { "Cache-Control": "no-store" } });
   }
   try {
     return await upgradeWebSocket((ws) => getRealtimeHub().attach(ws), { maxPayload: 64 * 1024 });

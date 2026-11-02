@@ -41,6 +41,7 @@ export class RealtimeHub {
   private publisher: Redis | null = null;
   private subscriber: Redis | null = null;
   private redisReady = false;
+  private redisState: "not-configured" | "connecting" | "connected" | "unavailable" = "not-configured";
   private heartbeat: ReturnType<typeof setInterval>;
 
   constructor() {
@@ -314,12 +315,14 @@ export class RealtimeHub {
   private connectRedis() {
     const url = process.env.REDIS_URL;
     if (!url || !/^rediss?:\/\//i.test(url)) return;
+    this.redisState = "connecting";
     const options = { connectTimeout: 3_000, maxRetriesPerRequest: 1, enableOfflineQueue: false, lazyConnect: true };
     const publisher = new Redis(url, options);
     const subscriber = new Redis(url, options);
     let warned = false;
     const onError = (error: Error) => {
       this.redisReady = false;
+      this.redisState = "unavailable";
       if (!warned) console.error("Realtime Redis unavailable; delivering per instance:", error.message);
       warned = true;
     };
@@ -338,13 +341,24 @@ export class RealtimeHub {
         this.publisher = publisher;
         this.subscriber = subscriber;
         this.redisReady = true;
-        publisher.on("ready", () => (this.redisReady = true));
+        this.redisState = "connected";
+        publisher.on("ready", () => {
+          this.redisReady = true;
+          this.redisState = "connected";
+        });
       })
       .catch((error) => {
         onError(error);
         publisher.disconnect();
         subscriber.disconnect();
       });
+  }
+
+  /** Redis status for health checks; waits briefly while a connection is in progress. */
+  async redisStatus(waitMs = 3_000) {
+    const until = Date.now() + waitMs;
+    while (this.redisState === "connecting" && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 100));
+    return this.redisState;
   }
 
   async close() {
