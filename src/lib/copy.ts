@@ -43,7 +43,7 @@ export const copy = {
     title: "New reflection",
     submit: "Reflect",
     submitting: "Saving…",
-    placeholder: "What did today teach you?",
+    placeholder: "What's on your mind? 🙂",
     placeholderWithPrompt: "Write your reflection…",
     helper: "A sentence or two is enough.",
   },
