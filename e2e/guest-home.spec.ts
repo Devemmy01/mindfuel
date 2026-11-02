@@ -25,7 +25,7 @@ test.describe("guest home", () => {
     await composer.fill("Rest is part of the work, not a break from it.");
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
-    await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByRole("link", { name: /open the full editor/i }).click();
     await expect(page).toHaveURL(/\/create\?prompt=.+&promptId=.+/);
     await expect(page.locator("textarea").first()).toHaveValue("Rest is part of the work, not a break from it.");
   });
