@@ -18,7 +18,7 @@ import {
   Repeat2,
   Send,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -198,7 +198,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
 
   return (
     <>
-      <motion.article
+      <m.article
         ref={cardRef}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -213,6 +213,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
             on the onClick handler above, which they never invoke. */}
         <Link
           href={`/post/${post._id}`}
+          prefetch={false}
           aria-hidden="true"
           tabIndex={-1}
           className="absolute inset-0 z-0"
@@ -224,6 +225,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
             <Repeat2 className="w-4 h-4" strokeWidth={2.5} />
             <Link
               href={`/profile/${post.repostedBy.firebaseId}`}
+              prefetch={false}
               onClick={(e) => e.stopPropagation()}
               className="hover:underline"
             >
@@ -241,6 +243,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
           <div className="mr-3 flex-shrink-0 pt-0.5">
             <Link
               href={`/profile/${post.userId.firebaseId}`}
+              prefetch={false}
               onClick={(e) => e.stopPropagation()}
               className="block press-scale outline-none"
             >
@@ -285,6 +288,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
               <div className="md:flex md:flex-wrap gap-x-1.5 min-w-0 flex-1 mr-2 mt-0 md:mt-[10px]">
                 <Link
                   href={`/profile/${post.userId.firebaseId}`}
+                  prefetch={false}
                   onClick={(e) => e.stopPropagation()}
                   className="font-bold text-[15px] hover:underline break-words"
                 >
@@ -516,7 +520,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
           </div>
         </div>
         </div>
-      </motion.article>
+      </m.article>
 
       {/* Download Card Modal */}
       <DownloadCardModal
@@ -554,7 +558,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
       {/* Private Note Modal */}
       <AnimatePresence>
         {isNoteModalOpen && (
-          <motion.div
+          <m.div
             key="note-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -562,7 +566,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsNoteModalOpen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -611,8 +615,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, isHighlighted = false }) => {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </>

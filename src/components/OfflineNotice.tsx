@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { WifiOff, RefreshCw } from "lucide-react";
 
 export default function OfflineNotice() {
@@ -25,7 +25,7 @@ export default function OfflineNotice() {
   return (
     <AnimatePresence>
       {isOffline && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
@@ -50,7 +50,7 @@ export default function OfflineNotice() {
             <RefreshCw className="w-3.5 h-3.5" />
             Retry Connection
           </button>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

@@ -6,7 +6,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { Heart, Loader2, Smile, CornerDownRight } from "lucide-react";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import { formatDistanceToNow } from "date-fns";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -152,7 +152,7 @@ function Composer({
     showEmoji && typeof document !== "undefined"
       ? createPortal(
           <AnimatePresence>
-            <motion.div
+            <m.div
               ref={pickerRef}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -167,7 +167,7 @@ function Composer({
               className="popover-solid z-[100000] rounded-2xl overflow-hidden border border-border"
             >
               <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
-            </motion.div>
+            </m.div>
           </AnimatePresence>,
           document.body
         )
@@ -365,7 +365,7 @@ function CommentNode({
       {/* Render children recursively if expanded */}
       <AnimatePresence>
         {isExpanded && hasReplies && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+          <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             {replies.map(reply => (
               <CommentNode
                 key={reply._id}
@@ -385,7 +385,7 @@ function CommentNode({
                 onToggleEdit={onToggleEdit}
               />
             ))}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -600,7 +600,7 @@ const CommentSection: React.FC<{
       {user && (
         <AnimatePresence>
           {isVisible && (
-            <motion.div
+            <m.div
               initial={{ y: 150, x: "-50%", opacity: 0.5 }}
               animate={{ y: 0, x: "-50%", opacity: 1 }}
               exit={{ y: 150, x: "-50%", opacity: 0 }}
@@ -623,7 +623,7 @@ const CommentSection: React.FC<{
                     </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       )}

@@ -8,7 +8,7 @@ import PostCard from "@/components/PostCard";
 import { Bookmark, Loader2, LayoutGrid, List, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { SaveType } from "@/types";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
@@ -28,7 +28,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
 
   return (
     <Link href={`/post/${post._id}`} className="block outline-none">
-      <motion.div
+      <m.div
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.97 }}
         className="rounded-2xl overflow-hidden shadow-soft border border-black/5 dark:border-white/5 cursor-pointer"
@@ -52,7 +52,7 @@ function BookmarkTile({ save }: { save: SaveType }) {
             </span>
           </div>
         </div>
-      </motion.div>
+      </m.div>
     </Link>
   );
 }
@@ -119,7 +119,7 @@ export default function CollectionsPage() {
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -140,7 +140,7 @@ export default function CollectionsPage() {
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -188,14 +188,14 @@ export default function CollectionsPage() {
           {viewMode === "grid" ? (
             <div className="masonry-grid">
               {saves.map((save, i) => (
-                <motion.div
+                <m.div
                   key={save._id}
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.04 }}
                 >
                   <BookmarkTile save={save} />
-                </motion.div>
+                </m.div>
               ))}
             </div>
           ) : (

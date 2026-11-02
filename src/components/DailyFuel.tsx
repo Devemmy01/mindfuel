@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Quote, RefreshCw } from "lucide-react";
 
 const quotes = [
@@ -57,7 +57,7 @@ const DailyFuel: React.FC = () => {
         </button>
       </div>
 
-      <motion.div
+      <m.div
         key={quote.text}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -74,7 +74,7 @@ const DailyFuel: React.FC = () => {
             {quote.author}
           </p>
         </div>
-      </motion.div>
+      </m.div>
     </div>
   );
 };

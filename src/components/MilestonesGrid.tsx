@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { MILESTONES, TIER_COLORS, MilestoneDefinition } from "@/lib/milestones";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Lock, X, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -64,7 +64,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
 
       <AnimatePresence initial={false}>
         {isOpen && (
-          <motion.div
+          <m.div
             id="milestones-panel"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -76,7 +76,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
 
             {/* Zen Master Reward Card */}
             {isZenMaster && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
@@ -110,7 +110,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Tier groups */}
@@ -135,7 +135,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                       const earnedAt = earnedMap.get(milestone.id);
 
                       return (
-                        <motion.button
+                        <m.button
                           key={milestone.id}
                           initial={{ opacity: 0, scale: 0.85 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -168,14 +168,14 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                           {isEarned && (
                             <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-current ${colors.text}`} />
                           )}
-                        </motion.button>
+                        </m.button>
                       );
                     })}
                   </div>
                 </div>
               );
             })}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -186,7 +186,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
           const isEarned = earnedMap.has(milestone.id);
           const colors = TIER_COLORS[milestone.tier];
           return (
-            <motion.div
+            <m.div
               key="badge-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -194,7 +194,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
               className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
               onClick={() => setSelected(null)}
             >
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 40, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -214,14 +214,14 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
 
                 <div className="p-6 flex flex-col items-center text-center gap-4">
                   {/* Badge emoji */}
-                  <motion.div
+                  <m.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.1, type: "spring", stiffness: 400 }}
                     className={`text-6xl select-none ${!isEarned ? "grayscale opacity-30" : ""}`}
                   >
                     {milestone.emoji}
-                  </motion.div>
+                  </m.div>
 
                   {/* Tier pill */}
                   <span className={`inline-block text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${colors.bg} ${colors.border} border ${colors.text}`}>
@@ -255,8 +255,8 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                     </div>
                   )}
                 </div>
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           );
         })()}
       </AnimatePresence>

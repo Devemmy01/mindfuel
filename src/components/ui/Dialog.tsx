@@ -2,7 +2,7 @@
 
 import React from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import IconButton from "@/components/ui/IconButton";
@@ -113,7 +113,7 @@ export default function Dialog({
             sheet ? "items-end" : auto ? "items-end sm:items-center sm:p-4" : "items-center p-4",
           )}
         >
-          <motion.div
+          <m.div
             className="absolute inset-0 bg-black/55"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -122,7 +122,7 @@ export default function Dialog({
             onClick={dismissible ? onClose : undefined}
             aria-hidden
           />
-          <motion.div
+          <m.div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
@@ -165,7 +165,7 @@ export default function Dialog({
             {footer ? (
               <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-3 sm:flex-row sm:justify-end">{footer}</div>
             ) : null}
-          </motion.div>
+          </m.div>
         </div>
       ) : null}
     </AnimatePresence>,

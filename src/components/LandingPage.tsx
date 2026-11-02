@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
+import { m, useMotionValue, useScroll, useSpring, useTransform } from "framer-motion";
 import {
   ArrowRight,
   Bookmark,
@@ -89,7 +89,7 @@ function ScrollProgressBar() {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
   return (
-    <motion.div
+    <m.div
       aria-hidden="true"
       style={{ scaleX }}
       className="fixed inset-x-0 top-0 z-[60] h-[2px] origin-left bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200"
@@ -121,7 +121,7 @@ function TiltCard({ children, className = "" }: { children: React.ReactNode; cla
   };
 
   return (
-    <motion.div
+    <m.div
       ref={ref}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
@@ -129,7 +129,7 @@ function TiltCard({ children, className = "" }: { children: React.ReactNode; cla
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -153,7 +153,7 @@ function AvatarStack() {
 
 function ProductPreview() {
   return (
-    <motion.div
+    <m.div
       initial={false}
       animate={{ opacity: 1, y: 0, rotate: 0 }}
       transition={{ delay: 0.3, duration: 0.9, ease }}
@@ -211,15 +211,15 @@ function ProductPreview() {
         </div>
       </TiltCard>
 
-      <motion.div
+      <m.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         className="absolute -bottom-7 -left-3 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#0b1711]/95 p-3.5 shadow-2xl backdrop-blur-xl sm:flex lg:-left-10"
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-400/15 text-orange-300"><Flame className="h-5 w-5" /></div>
         <div><p className="text-sm font-black text-white">12 day streak</p><p className="text-[10px] text-white/60">Your ideas are compounding</p></div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
@@ -277,30 +277,30 @@ export default function LandingPage() {
       <main className="relative z-10">
         <section className="relative mx-auto grid min-h-screen max-w-7xl items-center gap-16 px-5 pb-20 pt-32 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:px-12 lg:pt-28">
           <div className="relative">
-            <motion.div style={{ y: heroOrbY }} className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
-            {/* <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
+            <m.div style={{ y: heroOrbY }} className="absolute -left-36 -top-40 h-[420px] w-[420px] rounded-full bg-brand-green/15 blur-[120px]" />
+            {/* <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease }} className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/[0.07] px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-brand-green sm:text-[11px]">
               The personal growth network
-            </motion.div> */}
-            <motion.h1 initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
+            </m.div> */}
+            <m.h1 initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.8, ease }} className="relative max-w-3xl text-[3.35rem] font-black leading-[.94] tracking-[-0.055em] sm:text-7xl lg:text-[5.25rem]">
               Less scrolling.<br />
               More <span className="bg-gradient-to-r from-brand-green via-emerald-300 to-lime-200 bg-clip-text text-transparent">becoming.</span>
-            </motion.h1>
-            <motion.p initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.8, ease }} className="relative mt-7 max-w-xl text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
+            </m.h1>
+            <m.p initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16, duration: 0.8, ease }} className="relative mt-7 max-w-xl text-base leading-7 text-white/55 sm:text-lg sm:leading-8">
               MindFuel is a personal growth network where people grow together through reflection—sharing lessons, finding perspective, and turning everyday insight into lasting change.
-            </motion.p>
-            <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.8, ease }} className="relative mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+            </m.p>
+            <m.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.8, ease }} className="relative mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               {primaryAction}
               <a href="#features" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-6 py-3.5 text-sm font-bold text-white/70 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white">See how it feels <ChevronRight className="h-4 w-4" /></a>
-            </motion.div>
+            </m.div>
             {!user && (
-              <motion.p initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/60 sm:text-left">
+              <m.p initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.34, duration: 0.8 }} className="relative mt-3 text-center text-[11px] font-semibold text-white/60 sm:text-left">
                 No account needed to start writing · Free · Sign in with Google to save
-              </motion.p>
+              </m.p>
             )}
-            <motion.div initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
+            <m.div initial={false} animate={{ opacity: 1 }} transition={{ delay: 0.42, duration: 0.8 }} className="relative mt-9 flex items-center gap-4">
               <AvatarStack />
               <p className="text-xs leading-5 text-white/60"><span className="font-bold text-white/75">Built for thoughtful humans</span><br />Free to join. No pressure to perform.</p>
-            </motion.div>
+            </m.div>
           </div>
           <ProductPreview />
         </section>
@@ -308,11 +308,11 @@ export default function LandingPage() {
         <section id="why" className="relative overflow-hidden border-y border-white/[0.06] bg-white/[0.015]">
           <div className="animate-float-3 pointer-events-none absolute -right-40 top-1/3 h-[380px] w-[380px] rounded-full bg-brand-green/[0.06] blur-[110px]" aria-hidden="true" />
           <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-32">
-            <motion.div {...reveal}>
+            <m.div {...reveal}>
               <p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A better kind of social</p>
               <h2 className="max-w-md text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-5xl">The internet is loud.<br /><span className="text-white/60">Your mind doesn&apos;t have to be.</span></h2>
-            </motion.div>
-            <motion.div {...reveal} className="grid gap-4 sm:grid-cols-2">
+            </m.div>
+            <m.div {...reveal} className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-[1.75rem] border border-white/[0.07] bg-black/20 p-6 sm:p-7">
                 <p className="mb-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Most platforms reward</p>
                 <div className="space-y-4 text-lg font-bold text-white/60"><p className="line-through decoration-white/15">Hot takes</p><p className="line-through decoration-white/15">Endless reactions</p><p className="line-through decoration-white/15">Performing a perfect life</p></div>
@@ -321,73 +321,73 @@ export default function LandingPage() {
                 <p className="mb-6 text-[10px] font-black uppercase tracking-[0.2em] text-brand-green">MindFuel makes room for</p>
                 <div className="space-y-4 text-lg font-bold"><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Honest reflection</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Useful perspective</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-brand-green" /> Visible personal growth</p></div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </section>
 
         <section id="features" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
-          <motion.div {...reveal} className="mb-14 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+          <m.div {...reveal} className="mb-14 flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Designed for depth</p><h2 className="max-w-2xl text-4xl font-black leading-[1.03] tracking-[-0.045em] sm:text-6xl">Everything you need to turn moments into meaning.</h2></div>
             <p className="max-w-sm text-sm leading-6 text-white/60 sm:text-base">A calm set of tools that gets richer with every thought you keep.</p>
-          </motion.div>
-          <motion.div {...staggerParent} className="grid gap-4 md:grid-cols-2">
+          </m.div>
+          <m.div {...staggerParent} className="grid gap-4 md:grid-cols-2">
             {features.map(({ icon: Icon, eyebrow, title, copy }, index) => (
-              <motion.article key={title} {...staggerItem} className="reveal-stagger group relative min-h-[300px] overflow-hidden rounded-[2rem] border border-white/[0.07] bg-white/[0.025] p-7 transition duration-500 hover:-translate-y-1 hover:border-brand-green/20 hover:bg-brand-green/[0.035] sm:p-9">
+              <m.article key={title} {...staggerItem} className="reveal-stagger group relative min-h-[300px] overflow-hidden rounded-[2rem] border border-white/[0.07] bg-white/[0.025] p-7 transition duration-500 hover:-translate-y-1 hover:border-brand-green/20 hover:bg-brand-green/[0.035] sm:p-9">
                 <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-green/0 blur-3xl transition duration-500 group-hover:bg-brand-green/10" />
                 <div className="mb-16 flex items-center justify-between"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-brand-green"><Icon className="h-5 w-5" /></span><span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">0{index + 1}</span></div>
                 <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-green">{eyebrow}</p><h3 className="mb-3 text-2xl font-black tracking-tight sm:text-3xl">{title}</h3><p className="max-w-md text-sm leading-6 text-white/60 sm:text-base">{copy}</p>
-              </motion.article>
+              </m.article>
             ))}
-          </motion.div>
+          </m.div>
         </section>
 
         <section className="overflow-hidden border-y border-white/[0.06] bg-[#06100b] py-24 lg:py-32">
           <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-            <motion.div {...reveal} className="mx-auto mb-14 max-w-2xl text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A prompt for every season</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">You already have something worth noticing.</h2><p className="mt-5 text-white/60">A good question simply helps you find it.</p></motion.div>
-            <motion.div {...staggerParent} className="grid gap-4 md:grid-cols-3">
+            <m.div {...reveal} className="mx-auto mb-14 max-w-2xl text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">A prompt for every season</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">You already have something worth noticing.</h2><p className="mt-5 text-white/60">A good question simply helps you find it.</p></m.div>
+            <m.div {...staggerParent} className="grid gap-4 md:grid-cols-3">
               {prompts.map((prompt) => (
-                <motion.button key={prompt.text} {...staggerItem} onClick={() => router.push(user ? `/create?prompt=${encodeURIComponent(prompt.text)}` : "/#write")} className={`reveal-stagger group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
+                <m.button key={prompt.text} {...staggerItem} onClick={() => router.push(user ? `/create?prompt=${encodeURIComponent(prompt.text)}` : "/#write")} className={`reveal-stagger group min-h-[245px] rounded-[2rem] border border-white/[0.08] bg-gradient-to-br ${prompt.accent} p-7 text-left transition hover:-translate-y-1 hover:border-white/15`}>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">{prompt.label}</span><p className="mt-10 text-2xl font-black leading-tight">“{prompt.text}”</p><span className="mt-8 inline-flex items-center gap-2 text-xs font-black text-white/60 transition group-hover:text-white">Write your answer <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
-                </motion.button>
+                </m.button>
               ))}
-            </motion.div>
+            </m.div>
           </div>
         </section>
 
         <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
-          <motion.div {...reveal} className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+          <m.div {...reveal} className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Learn the practice</p><h2 className="max-w-2xl text-4xl font-black tracking-[-0.045em] sm:text-5xl">Reflection gets easier when you know where to begin.</h2></div>
             <Link href="/guides" className="inline-flex items-center gap-2 text-sm font-black text-white/60 hover:text-white">Browse all guides <ArrowRight className="h-4 w-4" /></Link>
-          </motion.div>
+          </m.div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
               ["daily-reflection-questions", "60 daily reflection questions", "Questions for self-awareness, perspective, relationships, and tomorrow."],
               ["how-to-reflect", "How to reflect in five minutes", "A practical method that turns one moment into a lesson and a next step."],
               ["journaling-for-personal-growth", "Journaling for personal growth", "A sustainable beginner’s guide without the pressure to produce perfect pages."],
             ].map(([slug, title, copy]) => (
-              <motion.article key={slug} {...reveal} className="group rounded-[1.75rem] border border-white/[0.07] bg-white/[0.025] p-6 transition hover:border-brand-green/20 hover:bg-brand-green/[0.035]">
+              <m.article key={slug} {...reveal} className="group rounded-[1.75rem] border border-white/[0.07] bg-white/[0.025] p-6 transition hover:border-brand-green/20 hover:bg-brand-green/[0.035]">
                 <h3 className="text-xl font-black">{title}</h3><p className="mt-3 text-sm leading-6 text-white/60">{copy}</p><Link href={`/guides/${slug}`} className="mt-6 inline-flex items-center gap-2 text-xs font-black text-brand-green">Read guide <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></Link>
-              </motion.article>
+              </m.article>
             ))}
           </div>
         </section>
 
         <section id="faq" className="mx-auto max-w-5xl px-5 py-24 sm:px-8 lg:py-32">
-          <motion.div {...reveal} className="mb-12 text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Good questions</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">A little more clarity.</h2></motion.div>
+          <m.div {...reveal} className="mb-12 text-center"><p className="mb-4 text-xs font-black uppercase tracking-[0.22em] text-brand-green">Good questions</p><h2 className="text-4xl font-black tracking-[-0.045em] sm:text-5xl">A little more clarity.</h2></m.div>
           <div className="grid gap-3 md:grid-cols-2">
             {landingFaqs.map((item, index) => (
-              <motion.details key={item.question} {...reveal} transition={{ duration: 0.6, delay: Math.min(index * 0.04, 0.2), ease }} className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 open:border-brand-green/20 open:bg-brand-green/[0.03]">
+              <m.details key={item.question} {...reveal} transition={{ duration: 0.6, delay: Math.min(index * 0.04, 0.2), ease }} className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 open:border-brand-green/20 open:bg-brand-green/[0.03]">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black sm:text-base">{item.question}<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-white/60 transition group-open:rotate-90 group-open:text-brand-green"><ChevronRight className="h-4 w-4" /></span></summary><p className="pt-4 text-sm leading-6 text-white/60">{item.answer}</p>
-              </motion.details>
+              </m.details>
             ))}
           </div>
         </section>
 
         <section className="px-5 pb-20 sm:px-8">
-          <motion.div {...reveal} className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-brand-green/20 bg-brand-green px-6 py-20 text-center text-white shadow-[0_40px_100px_rgba(0,191,99,.15)] sm:px-12">
+          <m.div {...reveal} className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-brand-green/20 bg-brand-green px-6 py-20 text-center text-white shadow-[0_40px_100px_rgba(0,191,99,.15)] sm:px-12">
             <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_32%),radial-gradient(circle_at_80%_80%,#003d20_0,transparent_35%)]" />
             <div className="relative"><p className="mb-5 text-xs font-black uppercase tracking-[0.22em] text-white/65">Your life is already teaching you</p><h2 className="mx-auto max-w-3xl text-4xl font-black leading-[1] tracking-[-0.05em] sm:text-6xl">Keep the lesson.<br />Share the light.</h2><p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/70 sm:text-base">One honest reflection can change your day—and be exactly what someone else needed to read.</p><div className="mt-9">{user ? <Link href="/feed" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Return to your feed <ArrowRight className="h-4 w-4" /></Link> : <Link href="/#write" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-sm font-black text-[#052d1a] transition hover:-translate-y-0.5">Write your first reflection <ArrowRight className="h-4 w-4" /></Link>}</div></div>
-          </motion.div>
+          </m.div>
         </section>
       </main>
 

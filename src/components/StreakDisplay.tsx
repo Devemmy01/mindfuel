@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Info, Flame, X } from "lucide-react";
 import { getStreakMilestoneMessage } from "@/lib/streakUtils";
 
@@ -71,7 +71,7 @@ export default function StreakDisplay({
   return (
     <div className={`relative inline-block ${className}`} ref={infoRef}>
       <div className="flex flex-col gap-2">
-        <motion.button
+        <m.button
           type="button"
           onClick={() => setShowInfo(!showInfo)}
           aria-expanded={showInfo}
@@ -95,7 +95,7 @@ export default function StreakDisplay({
 
           <div className="relative flex items-center gap-1.5">
             {streakDays > 0 ? (
-              <motion.div
+              <m.div
                 animate={isMilestone ? { 
                   scale: [1, 1.2, 1],
                   filter: ["drop-shadow(0 0 0px #00bf63)", "drop-shadow(0 0 8px #00bf63)", "drop-shadow(0 0 0px #00bf63)"]
@@ -103,7 +103,7 @@ export default function StreakDisplay({
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 <Flame size={iconSizes[size]} className="fill-brand-green" strokeWidth={2.5} />
-              </motion.div>
+              </m.div>
             ) : (
               <Flame size={iconSizes[size]} className="text-muted-foreground/50" />
             )}
@@ -114,10 +114,10 @@ export default function StreakDisplay({
             
             <Info size={iconSizes[size] - 2} className="opacity-40 group-hover:opacity-100 transition-opacity ml-0.5" />
           </div>
-        </motion.button>
+        </m.button>
 
         {showMilestone && isMilestone && (
-          <motion.p
+          <m.p
             className="text-[12px] text-[#00a855] dark:text-brand-green font-bold flex items-center gap-1 ml-1"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -125,7 +125,7 @@ export default function StreakDisplay({
           >
             <Flame size={12} />
             {milestone}
-          </motion.p>
+          </m.p>
         )}
       </div>
 
@@ -134,7 +134,7 @@ export default function StreakDisplay({
         {showInfo && (
           <>
             {/* Mobile Backdrop */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -142,7 +142,7 @@ export default function StreakDisplay({
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] md:hidden"
             />
 
-            <motion.div
+            <m.div
               initial={{ 
                 opacity: 0, 
                 y: window.innerWidth < 768 ? 100 : 10, 
@@ -220,7 +220,7 @@ export default function StreakDisplay({
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>

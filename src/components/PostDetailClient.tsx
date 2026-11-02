@@ -21,7 +21,7 @@ import {
   RefreshCw,
   Send,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import CommentSection from "@/components/CommentSection";
@@ -440,7 +440,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -463,7 +463,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                 </span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -724,7 +724,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
       {/* Full-screen Card Viewer */}
       <AnimatePresence>
         {isCardFullScreen && post && (
-          <motion.div
+          <m.div
             key="card-fullscreen"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -732,7 +732,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
             onClick={() => setIsCardFullScreen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
@@ -763,15 +763,15 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                 </p>
                 <CardWatermark color={textColor} />
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {/* Note Modal */}
       <AnimatePresence>
         {isNoteModalOpen && (
-          <motion.div
+          <m.div
             key="note-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -779,7 +779,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsNoteModalOpen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -834,8 +834,8 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

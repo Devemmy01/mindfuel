@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import PostCard from "./PostCard";
 import Skeleton from "@/components/ui/Skeleton";
 import { PostType } from "@/types";
@@ -51,7 +51,7 @@ export default function DailyReflectionFeed({
 
   if (todayResponses.length === 0) {
     return (
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-secondary/20 border border-border/30 rounded-2xl p-6 mb-6 text-center"
@@ -62,12 +62,12 @@ export default function DailyReflectionFeed({
         <p className="text-sm text-muted-foreground">
           Be the first to share your reflection
         </p>
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="mb-2"
@@ -87,7 +87,7 @@ export default function DailyReflectionFeed({
       {/* Posts */}
       <AnimatePresence>
         {todayResponses.map((post, i) => (
-          <motion.div
+          <m.div
             key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -98,7 +98,7 @@ export default function DailyReflectionFeed({
             }}
           >
             <PostCard post={post} isHighlighted={true} />
-          </motion.div>
+          </m.div>
         ))}
       </AnimatePresence>
 
@@ -113,6 +113,6 @@ export default function DailyReflectionFeed({
           </span>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Hash, TrendingUp } from "lucide-react";
 import Skeleton from "@/components/ui/Skeleton";
 
@@ -38,7 +38,7 @@ export default function HashtagSuggestions({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 8, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -117,7 +117,7 @@ export default function HashtagSuggestions({
               <p className="text-[13px] text-muted-foreground">No hashtags found for &quot;#{query}&quot;</p>
             </div>
           )}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

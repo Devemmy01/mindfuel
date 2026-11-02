@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Hash, ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PostCard from "@/components/PostCard";
@@ -155,7 +155,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
 
       <main className="flex-1 min-w-0">
         {posts.length === 0 ? (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="px-4 py-20 flex flex-col items-center justify-center text-center space-y-4"
@@ -175,7 +175,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
             >
               Create a post
             </Link>
-          </motion.div>
+          </m.div>
         ) : (
           <div>
             {posts.map((post, i) => (

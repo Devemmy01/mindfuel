@@ -15,7 +15,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import MilestonesGrid from "@/components/MilestonesGrid";
 import { User as UserIcon, CalendarDays, Loader2, Grid3X3, List, X, ArrowLeft, LogOut, RefreshCw, Share2, Bell, Settings, Shield, HelpCircle, FileText, Info, UserPlus, UserCheck, MessageCircle, PenLine, Sparkles } from "lucide-react";
 import { UnseenDot, useWhatsNew, WhatsNewDialog } from "@/components/shell/WhatsNew";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
@@ -454,7 +454,7 @@ export default function DynamicProfilePage({
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm overflow-hidden">
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -518,21 +518,21 @@ export default function DynamicProfilePage({
                   Save Changes
                 </button>
               </form>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {followListType && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
             onClick={() => setFollowListType(null)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -581,8 +581,8 @@ export default function DynamicProfilePage({
                   </div>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -627,7 +627,7 @@ export default function DynamicProfilePage({
       {/* Pull-to-refresh indicator */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -648,7 +648,7 @@ export default function DynamicProfilePage({
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -750,7 +750,7 @@ export default function DynamicProfilePage({
         
         <AnimatePresence>
           {isProfilePicOpen && profileUser.image && !profileUser.image.startsWith("#") && (
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -764,7 +764,7 @@ export default function DynamicProfilePage({
                 <X className="w-6 h-6" />
               </button>
               
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.92, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 30 }}
@@ -780,8 +780,8 @@ export default function DynamicProfilePage({
                   unoptimized
                   className="aspect-square h-[min(82vw,440px)] w-[min(82vw,440px)] rounded-full border border-white/10 object-cover shadow-2xl"
                 />
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           )}
         </AnimatePresence>
         {isOwnProfile ? (
@@ -892,7 +892,7 @@ export default function DynamicProfilePage({
           <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 p-3" : "flex flex-col"}>
             {posts.map((post, i) => (
               viewMode === "list" ? (
-                <motion.div 
+                <m.div 
                   key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, y: 16 }} 
                   animate={{ opacity: 1, y: 0 }} 
@@ -903,9 +903,9 @@ export default function DynamicProfilePage({
                   }}
                 >
                   <PostCard post={post} />
-                </motion.div>
+                </m.div>
               ) : (
-                <motion.div 
+                <m.div 
                   key={post.isRepost ? `${post._id}-repost-${post.repostedBy?.firebaseId || i}` : post._id} 
                   initial={{ opacity: 0, scale: 0.9 }} 
                   animate={{ opacity: 1, scale: 1 }} 
@@ -925,7 +925,7 @@ export default function DynamicProfilePage({
                       <p className="text-[12px] font-semibold leading-tight line-clamp-4">{post.text}</p>
                     </div>
                   </Link>
-                </motion.div>
+                </m.div>
               )
             ))}
             
@@ -964,7 +964,7 @@ export default function DynamicProfilePage({
       <AnimatePresence>
         {isMobileSettingsOpen && (
           <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileSettingsOpen(false)}>
-            <motion.div
+            <m.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -1079,7 +1079,7 @@ export default function DynamicProfilePage({
                   MindFuel by Lumyn
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </AnimatePresence>

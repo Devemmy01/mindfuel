@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { X, Loader2, Smile } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { PostType } from "@/types";
 import { backgroundOptions, BackgroundStyle } from "@/lib/backgrounds";
 import { FontOption, getFontById } from "@/lib/fonts";
@@ -147,7 +147,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <m.div
           key="edit-modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -155,7 +155,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
           className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/95"
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 60, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.97 }}
@@ -250,14 +250,14 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
 
                 <AnimatePresence>
                   {showEmojiPicker && (
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
                       className="popover-solid absolute top-full left-0 mt-2 z-[9999] rounded-2xl border border-border/50 min-w-[320px]"
                     >
                       <NativeEmojiPicker title="Add emoji" onSelect={(emoji) => onEmojiClick({ emoji })} />
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
               </div>
@@ -282,8 +282,8 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                 </button>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ const ICONS: Record<ToastType, React.ReactNode> = {
 const Toast: React.FC<ToastProps> = ({ message, type, onClose, action }) => {
   const reduceMotion = useReducedMotion();
   return (
-    <motion.div
+    <m.div
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
@@ -55,7 +55,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, action }) => {
       >
         <X className="size-4" aria-hidden />
       </button>
-    </motion.div>
+    </m.div>
   );
 };
 

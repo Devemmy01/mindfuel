@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { BellRing, BookOpen, Check, Flame, Lock, Users } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
 import ReminderPrimer from "@/components/reflect/ReminderPrimer";
@@ -65,7 +65,7 @@ export default function ReflectionSavedPanel({ result }: { result: ReflectionSav
   };
 
   return (
-    <motion.section
+    <m.section
       aria-labelledby="saved-title"
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -128,6 +128,6 @@ export default function ReflectionSavedPanel({ result }: { result: ReflectionSav
           else setCanOfferReminders(false);
         }}
       />
-    </motion.section>
+    </m.section>
   );
 }
