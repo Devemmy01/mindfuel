@@ -1,0 +1,38 @@
+name: Lighthouse (production)
+
+# Mobile Lighthouse against the live site: three runs per page, median scored.
+# Local runs swing too much to judge performance; this gives a steady trend.
+# Reports are attached to each run as an artifact.
+#
+# Uses the repository variable APP_URL (e.g. https://www.mind-fuel.app).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Lighthouse CI
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then echo "APP_URL variable is not configured; skipping."; exit 0; fi
+          npx --yes @lhci/cli@0.14.0 autorun \
+            --collect.url="$APP_URL/" \
+            --collect.url="$APP_URL/feed" \
+            --collect.url="$APP_URL/about"
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: lighthouse-results
+          if-no-files-found: ignore
