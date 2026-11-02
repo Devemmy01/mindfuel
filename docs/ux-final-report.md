@@ -1,6 +1,6 @@
 # MindFuel UX overhaul: final report
 
-Ten stacked pull requests, each based on the one before. Merge them in order, or merge #10 into `dev` once all are reviewed.
+Fifteen stacked pull requests, each based on the one before. Merge them in order, or merge #15 into `dev` once all are reviewed.
 
 | PR | Phase | Branch |
 |---|---|---|
@@ -14,15 +14,29 @@ Ten stacked pull requests, each based on the one before. Merge them in order, or
 | #8 | 9. Chat reliability | `ux/phase-9-chat` |
 | #9 | 7. Content safety and accessibility | `ux/phase-7-safety` |
 | #10 | 10. Mobile and PWA (plus a Phase 6 item) | `ux/phase-10-mobile` |
+| #11 | 11. Realtime on Vercel (WebSocket route) | `ux/phase-11-realtime` |
+| #12 | 12. First-load JavaScript cut by 40–48% | `ux/phase-12-performance` |
+| #13 | 13. "From people you follow" digest email, email dark mode, reload fix | `ux/phase-13-digest` |
+| #14 | 14. Light theme (System / Light / Dark) | `ux/phase-14-light-theme` |
+| #15 | 15. Block and mute; encrypted-images proposal | `ux/phase-15-chat-safety` |
 
-**Final state:** 119 unit tests pass, lint passes, and the build passes. E2E runs in Playwright **emulation** (desktop Chromium and Pixel 7): guest home, first-run flow with mocked auth, notifications, and an axe scan of 8 public screens plus 2 signed-in screens with zero serious or critical violations.
+**Final state:** 136 unit tests pass, lint passes, and the build passes. E2E runs in Playwright **emulation** (desktop Chromium and Pixel 7): guest home, first-run flow with mocked auth, notifications, and an axe scan of 8 public screens plus 2 signed-in screens with zero serious or critical violations.
 
 ## Before you merge
 
-1. **`CRON_SECRET`** must be set in Vercel (Production) and as a GitHub Actions secret, together with the GitHub variable `APP_URL`. Every cron route now fails closed without it, and the hourly reminder workflow skips.
-2. **Run the tip review** against production: `npx tsx --env-file=.env.local scripts/review-tips.ts`, then the same command with `--apply`. I never wrote to the production database.
-3. **Decide the realtime host.** Production Socket.IO returns 500 and the Upstash Redis host no longer resolves. Chat works over HTTP polling; see `docs/chat-architecture.md`.
-4. **Run `docs/mobile-qa-checklist.md`** on real devices, including the timed first-reflection run.
+1. **`CRON_SECRET`:** I tried to set it and was blocked from writing secrets, and the Vercel CLI here isn't logged in. Generate one value and set it in three places:
+   - `openssl rand -hex 32`
+   - Vercel → Settings → Environment Variables → `CRON_SECRET` (Production)
+   - `gh secret set CRON_SECRET` (paste the same value)
+   - `gh variable set APP_URL --body https://www.mind-fuel.app`
+
+   Every cron fails closed without it; the hourly workflow (reminders and the new digest) skips.
+2. **Tip review: no longer blocking.** The `MONGODB_URI` in `.env.local` points to an empty `test` database, not production, so the script found nothing to review. It doesn't need to run: the app already hides joke-advice tips until approved and screens every tip when it's read. To clean up production anyway, run `scripts/review-tips.ts` with the production URI.
+3. **Realtime host: decided, stay on Vercel** (#11). Vercel Functions serve WebSockets on all plans. The old `api/socket.ts` 500'd because a Next.js project never routes a root `api/` server.
+   - Make sure Fluid compute is on (Settings → Functions).
+   - For live typing and presence across instances, add Redis from the Vercel Marketplace and set `REDIS_URL`. The current Upstash host doesn't resolve.
+   - Without Redis, messages still arrive (polling) and live events reach people on the same instance only.
+4. **Run `docs/mobile-qa-checklist.md`** on real devices. Also check Messages, Profile and Collections in the light theme, which automation couldn't reach.
 
 ## What changed (highlights)
 
@@ -49,13 +63,12 @@ Ten stacked pull requests, each based on the one before. Merge them in order, or
 
 | Item | Why |
 |---|---|
-| **Light theme and toggle** | Tokens and primitives support it (`/dev/design?theme=light`), but older screens still hard-code `text-white` and `white/xx` (about 560 uses). Turning it on would ship broken screens. It needs the screen-by-screen restyle below. |
-| **Phase 6 full restyle** (PostCard, PostDetail and comments, Profile, Collections, hashtag pages, Messages visuals, offline page, guides) | Not done, except the sign-in modal feature list, notifications, the tip card, empty states and the shell. Large components (MessagesClient about 2,000 lines, Profile about 1,000, PostCard about 600) should be split before restyling. That's best done as reviewable refactors. |
-| **Lighthouse ≥ 90 mobile** | **Not met.** Same machine, mobile preset, two alternating rounds: `/` baseline 52 and 41 against new 28 and 46; `/feed` baseline 29 against new 30. Local runs vary by ±20 points, so they can't show small changes. The live site measured `/` 56 and `/feed` 30. The main costs are JS on every page (the Firebase SDK, socket.io-client and framer-motion in the root layout). Lazy-loading auth and chat on public pages is the next step; measure with PageSpeed Insights on a preview. |
-| **Chat features:** message requests, block and mute, swipe actions, image send, delete-for-me, receipt and presence privacy, client-side cursor deltas | New models and permission design, or the MessagesClient split first. Listed in `docs/chat-architecture.md`. |
-| **iPhone and iPad WebKit runs** | WebKit couldn't start on Ubuntu 26.04 without `sudo` packages. The projects are configured for CI (`npx playwright install --with-deps`). |
-| **Timed real-account first reflection** | Automation can't complete Google sign-in. Mocked auth measured 8.9s on desktop and 2.0s on Pixel 7 (machine time only). |
-| **A real-time push or install test** | Needs real devices; it's in the checklist. |
+| **Lighthouse ≥ 90 mobile** | **Not met, or not provable here.** First-load JS is down 40–48% (#12), but local scores swing 42–63 on the same build. Remaining costs: React render work on the feed, and Firebase's Google iframe, which is kept on purpose because Safari blocks the sign-in popup without it. Measure with PageSpeed Insights on production. |
+| **Restyle of the large legacy screens** (PostCard, PostDetail, Profile, Messages internals) | They're now themed (#14) but not redesigned. Split the big components first (Messages about 2,100 lines, Profile about 1,100). |
+| **Encrypted image sending** | Needs a crypto change; the proposal is `docs/proposals/chat-image-attachments.md` and needs your sign-off. |
+| **Message requests, swipe actions, delete-for-me, link previews** | Message requests need a product decision on who may message whom. |
+| **iPhone and iPad WebKit runs** | WebKit can't start on Ubuntu 26.04 without `sudo` packages; they're configured for CI. |
+| **Timed real-account first reflection; real push and install** | Needs Google sign-in and real devices; they're in the checklist. |
 
 ## Verified only in emulation; needs your real-device confirmation
 - Keyboard behaviour (the iOS visual viewport, Android `interactive-widget`), safe areas, zoom-on-focus.
