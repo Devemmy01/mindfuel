@@ -19,7 +19,7 @@ export default function Switch({ checked, onChange, label, labelledBy, disabled,
     <button
       type="button"
       role="switch"
-      aria-checked={checked}
+      aria-checked={Boolean(checked)}
       aria-label={label}
       aria-labelledby={labelledBy}
       disabled={disabled}
