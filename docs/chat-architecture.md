@@ -1,21 +1,20 @@
 # Chat architecture
 
-## Realtime topology (as found, 2026-11-02)
+## Realtime topology
 
-| Piece | Where it runs | Status |
+**Decision (2026-11-02): stay on Vercel.** Vercel Functions serve WebSockets on all plans. In a Next.js project that has to happen inside an App Router route via `upgradeWebSocket()` from `@vercel/functions`; a root `api/` server is never routed. That was why the old `api/socket.ts` returned the Next.js 500 page.
+
+| Piece | Where it runs | Notes |
 |---|---|---|
-| `server.ts` (Next.js plus Socket.IO on one Node server) | `npm run dev` / `npm start` only | Works locally. **Never runs on Vercel**, which serves Next.js as serverless functions. |
-| `api/socket.ts` (Socket.IO on a Vercel Function, relying on Vercel's WebSocket support) | Vercel | **Not working in production.** `GET https://www.mind-fuel.app/api/socket?EIO=4&transport=polling` and the WebSocket upgrade both return the Next.js 500 page. |
-| Redis adapter (`@socket.io/redis-adapter`, `ioredis`) | Enabled when `REDIS_URL` is set | The Upstash host in `.env.local` no longer resolves (`ENOTFOUND`). Even when it works, rooms on short-lived serverless instances are unreliable. |
-| Client (`src/lib/socket.ts`) | Browser | Connects to `NEXT_PUBLIC_SOCKET_URL` or the same origin at `/api/socket`, authenticating with the Firebase ID token. |
+| `src/lib/realtime/hub.ts` | Both | Auth, rooms, presence, typing, read receipts, reactions and message relay. JSON frames `{ e, d }`. The first frame must be `auth` with a Firebase ID token, or the socket closes with `4401` after 10s. 15s ping; dead sockets are dropped. |
+| `app/api/socket/route.ts` | Vercel | `upgradeWebSocket()` hands the socket to the hub. `maxDuration` 300s, after which the client reconnects. |
+| `server.ts` | `npm run dev` / `npm start` | Routes `/api/socket` upgrades to the same hub; other upgrades (dev hot reload) go to Next. |
+| Redis (`REDIS_URL`) | Optional | Pub/sub between instances plus presence counters with a 60s TTL. **The current Upstash host no longer resolves**, so delivery is per instance: two people on different instances miss live typing and presence, but messages still arrive through polling. Add Redis from the Vercel Marketplace and set `REDIS_URL` to restore cross-instance delivery. |
+| `src/lib/socket.ts` | Browser | Same `on`/`off`/`emit` API the components already used, on a native WebSocket (no socket.io-client in the bundle). Emits queue while disconnected (up to 50). Unlimited reconnect, 1s to 30s backoff with jitter, immediate retry on `online` and on returning to the foreground. |
 
-**Consequence:** in production, chat runs entirely on HTTP: a 6s message poll on the open thread, a 4s typing poll, SWR revalidation on focus and reconnect, and push notifications. Live presence, typing over the socket and instant read receipts are effectively off.
+Requires Fluid compute (on by default for projects created after April 2025; otherwise **Settings → Functions**). After a deploy, existing connections stay on the old deployment until they close.
 
-**Recommendation.** The owner decides; the code works either way.
-1. **Preferred if you want presence and typing:** run `server.ts` (or a socket-only variant of `configureSocketServer`) on an always-on host (Fly.io, Railway or Render) with a working Redis.
-   - Set `NEXT_PUBLIC_SOCKET_URL` to that host.
-   - The CSP in `middleware.ts` already adds `NEXT_PUBLIC_SOCKET_URL` to `connect-src`.
-2. **Without a socket host:** keep HTTP and replace the full-window poll with the `after` cursor below, plus Server-Sent Events, for cheaper, faster updates.
+Messages never depend on the socket: REST is the durable path, the thread still polls, and the outbox flushes on reconnect. Payloads are already encrypted before they reach the socket.
 
 ## Message send path
 
@@ -59,6 +58,6 @@
 ## Not done in this phase (and why)
 
 - **Message requests, block and mute, swipe actions, image sending, delete-for-me and link previews:** these need new models and permissions; they're product work beyond reliability. Report reuses `app/api/reports` for posts only.
-- **Read-receipt and presence privacy settings:** need a reciprocity design and socket changes. With the socket down in production they'd have no visible effect yet.
+- **Read-receipt and presence privacy settings:** need a reciprocity design and socket changes. 
 - **Restyling the Messages screens:** `MessagesClient.tsx` (about 2,000 lines) should first be split into list, thread and composer components. That's a refactor best reviewed on its own.
 - **No change** to `chat-crypto.ts`, key storage, device linking or recovery.
