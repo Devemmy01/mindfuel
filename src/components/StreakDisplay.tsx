@@ -79,7 +79,7 @@ export default function StreakDisplay({
           className={`
             group relative overflow-hidden inline-flex items-center rounded-full font-bold transition-all
             ${streakDays > 0 
-              ? "bg-gradient-to-r from-brand-green/10 to-emerald-500/10 border border-brand-green/20 text-[#00a855] dark:text-brand-green hover:border-brand-green/40" 
+              ? "bg-gradient-to-r from-brand-green/10 to-emerald-500/10 border border-brand-green/20 text-[#00a855] dark:text-primary-text hover:border-brand-green/40" 
               : "bg-secondary/50 border border-border text-muted-foreground hover:bg-secondary"}
             ${sizeStyles[size]}
             shadow-sm hover:shadow-md active:scale-95
@@ -118,7 +118,7 @@ export default function StreakDisplay({
 
         {showMilestone && isMilestone && (
           <m.p
-            className="text-[12px] text-[#00a855] dark:text-brand-green font-bold flex items-center gap-1 ml-1"
+            className="text-[12px] text-[#00a855] dark:text-primary-text font-bold flex items-center gap-1 ml-1"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -176,7 +176,7 @@ export default function StreakDisplay({
                 <div className="flex items-center justify-between mb-4 md:mb-3">
                   <div className="flex items-center gap-3 md:gap-2">
                     <div className="w-10 h-10 md:w-8 md:h-8 rounded-xl md:rounded-lg bg-brand-green/10 flex items-center justify-center">
-                      <Flame size={window.innerWidth < 768 ? 22 : 18} className="text-brand-green" />
+                      <Flame size={window.innerWidth < 768 ? 22 : 18} className="text-primary-text" />
                     </div>
                     <h4 className="font-bold text-[18px] md:text-[15px]">Reflection Streak</h4>
                   </div>
@@ -191,7 +191,7 @@ export default function StreakDisplay({
                 <div className="space-y-4 md:space-y-3">
                   <p className="text-[15px] md:text-[13px] text-foreground/80 leading-relaxed">
                     Your streak reflects your consistency in daily mindfulness. 
-                    <span className="font-bold text-brand-green"> Share a thought every day</span> to keep the flame alive!
+                    <span className="font-bold text-primary-text"> Share a thought every day</span> to keep the flame alive!
                   </p>
                   
                   <div className="bg-secondary/40 rounded-2xl md:rounded-xl p-4 md:p-3 border border-border/50">

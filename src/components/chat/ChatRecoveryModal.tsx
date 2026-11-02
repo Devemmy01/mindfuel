@@ -137,7 +137,7 @@ export default function ChatRecoveryModal({
     <div className="fixed inset-0 z-[260] flex items-end justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <div className="modal-solid w-full max-w-md rounded-3xl border border-line-strong p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-green/15 text-primary-text">
             <KeyRound className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -189,7 +189,7 @@ export default function ChatRecoveryModal({
               type="button"
               onClick={setupPin}
               disabled={busy || pin.length < RECOVERY_PIN_MIN_LENGTH || confirmPin.length < RECOVERY_PIN_MIN_LENGTH}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-40"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Save PIN
@@ -198,7 +198,7 @@ export default function ChatRecoveryModal({
         )}
 
         {mode === "setup" && saved && (
-          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-green/25 bg-brand-green/10 p-4 text-brand-green">
+          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-green/25 bg-brand-green/10 p-4 text-primary-text">
             <Check className="h-5 w-5 shrink-0" />
             <div>
               <p className="text-sm font-bold">Recovery PIN saved</p>
@@ -209,7 +209,7 @@ export default function ChatRecoveryModal({
 
         {mode === "restore" && !restored && checkingStatus && (
           <div className="mt-5 flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-brand-green" />
+            <Loader2 className="h-5 w-5 animate-spin text-primary-text" />
           </div>
         )}
 
@@ -242,7 +242,7 @@ export default function ChatRecoveryModal({
               type="button"
               onClick={restore}
               disabled={busy || pinDigits.length < RECOVERY_PIN_MIN_LENGTH}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-foreground disabled:opacity-40"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-brand-green px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-40"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
               Restore access
@@ -275,7 +275,7 @@ export default function ChatRecoveryModal({
         )}
 
         {restored && (
-          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-green/25 bg-brand-green/10 p-4 text-brand-green">
+          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-brand-green/25 bg-brand-green/10 p-4 text-primary-text">
             <Check className="h-5 w-5 shrink-0" />
             <div>
               <p className="text-sm font-bold">Access restored</p>

@@ -405,7 +405,7 @@ export default function FeedClient({
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${isPullRefreshing ? "animate-spin" : ""
+                className={`w-3.5 h-3.5 text-primary-text ${isPullRefreshing ? "animate-spin" : ""
                   }`}
                 style={{
                   transform: isPullRefreshing
@@ -558,7 +558,7 @@ export default function FeedClient({
 
       <div ref={loadMoreRef} className="flex min-h-20 items-center justify-center py-6" aria-live="polite">
         {hasMore && (isLoadingMore || activeFeed.isValidating) && (
-          <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary-text" aria-label="Loading more posts" />
         )}
       </div>
 

@@ -200,7 +200,7 @@ function Composer({
               }}
               aria-label="Open emoji picker"
               aria-expanded={showEmoji}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-brand-green hover:bg-brand-green/10 transition-all active:scale-90">
+              className="w-8 h-8 flex items-center justify-center rounded-full text-primary-text hover:bg-brand-green/10 transition-all active:scale-90">
               <Smile className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
             {emojiPicker}
@@ -293,7 +293,7 @@ function CommentNode({
                 <button
                   onClick={handleEditSubmit}
                   disabled={isSubmittingEdit}
-                  className="px-3 py-1 bg-brand-green text-foreground text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
+                  className="px-3 py-1 bg-brand-green text-primary-foreground text-[12px] font-bold rounded hover:bg-brand-green/90 disabled:opacity-50 transition-colors"
                 >
                   {isSubmittingEdit ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Save"}
                 </button>
@@ -313,7 +313,7 @@ function CommentNode({
           <div className="flex items-center gap-4 mt-0.5 md:mt-2">
             <div className="flex items-center gap-3">
               <button onClick={() => onReply(comment)}
-                className="flex items-center gap-1 text-[12px] md:text-[13px] font-bold text-brand-green/80 hover:text-brand-green transition-colors">
+                className="flex items-center gap-1 text-[12px] md:text-[13px] font-bold text-primary-text/80 hover:text-primary-text transition-colors">
                 <CornerDownRight className="w-3 h-3" />
                 Reply
               </button>
@@ -342,7 +342,7 @@ function CommentNode({
           {/* Inline Show/Hide Toggle */}
           {hasReplies && (
             <button onClick={() => toggleExpand(comment._id)}
-              className="-mt-0.5 md:mt-2.5 text-[11px] font-bold text-brand-green/60 hover:text-brand-green flex items-center gap-1 pb-1">
+              className="-mt-0.5 md:mt-2.5 text-[11px] font-bold text-primary-text/60 hover:text-primary-text flex items-center gap-1 pb-1">
               {isExpanded ? "Hide replies" : `Show ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
             </button>
           )}
@@ -354,7 +354,7 @@ function CommentNode({
         <div className="ml-6 md:ml-14 px-3 md:px-4 pb-3">
           <div className="bg-secondary/10 rounded-xl p-2 border border-border/20">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] md:text-[12px] text-muted-foreground">Replying to <span className="text-brand-green font-bold">@{username(comment.userId)}</span></span>
+              <span className="text-[10px] md:text-[12px] text-muted-foreground">Replying to <span className="text-primary-text font-bold">@{username(comment.userId)}</span></span>
               <button onClick={() => onReply(comment)} className="text-[10px] font-bold text-subtle-foreground hover:text-foreground">Cancel</button>
             </div>
             <Composer onSubmit={onSubmitReply} placeholder="Post your reply" compact autoFocus />
@@ -566,7 +566,7 @@ const CommentSection: React.FC<{
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-brand-green" /></div>
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary-text" /></div>
       ) : (
         <div className="flex flex-col">
           {topLevel.map(comment => (
@@ -613,7 +613,7 @@ const CommentSection: React.FC<{
                       {currentUserImage ? (
                         <Image src={currentUserImage} width={36} height={36} alt="You" className="object-cover w-full h-full" />
                       ) : (
-                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-foreground text-[12px]">
+                        <div className="w-full h-full bg-brand-green flex items-center justify-center font-bold text-primary-foreground text-[12px]">
                           {currentUserInitial.toUpperCase()}
                         </div>
                       )}

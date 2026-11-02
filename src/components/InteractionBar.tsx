@@ -162,7 +162,7 @@ export default function InteractionBar({
               strokeWidth={1.75}
             />
           </div>
-          {reposts > 0 && <span className={`text-[12px] font-semibold ${isReposted ? "text-brand-green" : ""}`}>{fmt(reposts)}</span>}
+          {reposts > 0 && <span className={`text-[12px] font-semibold ${isReposted ? "text-primary-text" : ""}`}>{fmt(reposts)}</span>}
         </button>
 
         {showRepostMenu && (
@@ -218,7 +218,7 @@ export default function InteractionBar({
         <button
           onClick={handleSave}
           aria-label="Save"
-          className={`flex items-center group/btn transition-colors outline-none ${isSaved ? "text-brand-green" : "hover:text-brand-green"}`}
+          className={`flex items-center group/btn transition-colors outline-none ${isSaved ? "text-primary-text" : "hover:text-primary-text"}`}
         >
           <div className={`p-1.5 sm:p-2 rounded-full transition-colors ${isSaved ? "" : "group-hover/btn:bg-brand-green/10"}`}>
             <Bookmark

@@ -77,7 +77,7 @@ function FollowListRow({ user, onNavigate }: { user: FollowListUser; onNavigate:
             className="h-11 w-11 rounded-full object-cover ring-1 ring-border"
           />
         ) : (
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-brand-green ring-1 ring-brand-green/20">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-sm font-bold text-primary-text ring-1 ring-brand-green/20">
             {user.name?.[0]?.toUpperCase() || "U"}
           </span>
         )}
@@ -462,7 +462,7 @@ export default function DynamicProfilePage({
   if (loading && !profileUser)
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
       </div>
     );
 
@@ -471,7 +471,7 @@ export default function DynamicProfilePage({
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
         <h1 className="text-2xl font-bold mb-2">User not found</h1>
         <p className="text-muted-foreground mb-6">The profile you&apos;re looking for doesn&apos;t exist.</p>
-        <button onClick={() => router.back()} className="text-brand-green font-bold">Go Back</button>
+        <button onClick={() => router.back()} className="text-primary-text font-bold">Go Back</button>
       </div>
     );
 
@@ -593,11 +593,11 @@ export default function DynamicProfilePage({
               </div>
               <div className="min-h-52 overflow-y-auto scrollbar-hide">
                 {followListLoading ? (
-                  <div className="flex h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-green" /></div>
+                  <div className="flex h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary-text" /></div>
                 ) : followListError ? (
                   <div className="flex h-52 flex-col items-center justify-center gap-3 px-6 text-center">
                     <p className="text-sm text-muted-foreground">Couldn&apos;t load this list.</p>
-                    <button type="button" onClick={() => setFollowListReload((value) => value + 1)} className="text-sm font-bold text-brand-green">Try again</button>
+                    <button type="button" onClick={() => setFollowListReload((value) => value + 1)} className="text-sm font-bold text-primary-text">Try again</button>
                   </div>
                 ) : followListUsers.length === 0 ? (
                   <div className="flex h-52 items-center justify-center px-6 text-center text-sm text-muted-foreground">
@@ -664,7 +664,7 @@ export default function DynamicProfilePage({
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
+                className={`w-3.5 h-3.5 text-primary-text ${
                   isPullRefreshing ? "animate-spin" : ""
                 }`}
                 style={{
@@ -693,7 +693,7 @@ export default function DynamicProfilePage({
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Share your reflections daily</p>
             </div>
           </div>
-          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-foreground text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
+          <button onClick={() => openSignInModal()} className="px-4 py-1.5 bg-brand-green text-primary-foreground text-[12px] font-bold rounded-full hover:bg-brand-green/90 transition-colors shadow-sm">
             Join Now
           </button>
         </div>
@@ -825,7 +825,7 @@ export default function DynamicProfilePage({
               <MessageCircle className="h-4 w-4" />
               <span>Message</span>
             </Link>
-            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-foreground hover:bg-brand-green-active"}`}>
+            <button onClick={toggleFollow} disabled={followLoading} aria-label={followState.isFollowing ? `Unfollow ${profileUser.name}` : followState.followsViewer ? `Follow back ${profileUser.name}` : `Follow ${profileUser.name}`} className={`flex h-10 min-w-[112px] items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${followState.isFollowing ? "border-line-strong bg-surface-raised text-foreground hover:border-red-400/30 hover:text-red-400" : "border-brand-green bg-brand-green text-primary-foreground hover:bg-brand-green-active"}`}>
               {followLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : followState.isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
               {followState.isFollowing ? "Unfollow" : followState.followsViewer ? "Follow back" : "Follow"}
             </button>
@@ -844,7 +844,7 @@ export default function DynamicProfilePage({
           )}
         </p>
         {!isOwnProfile && followState.followsViewer && (
-          <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-brand-green">
+          <span className="mt-2 inline-flex rounded-full border border-brand-green/25 bg-brand-green/10 px-2.5 py-1 text-[11px] font-bold text-primary-text">
             Follows you
           </span>
         )}
@@ -863,11 +863,11 @@ export default function DynamicProfilePage({
             <span className="font-bold text-[16px]">{ownLikesCount}</span>
             <span className="text-muted-foreground text-[13px]">Likes</span>
           </div>
-          <button type="button" onClick={() => setFollowListType("followers")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+          <button type="button" onClick={() => setFollowListType("followers")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
             <span className="font-bold text-[16px]">{followState.followersCount}</span>
             <span className="text-muted-foreground text-[13px]">Followers</span>
           </button>
-          <button type="button" onClick={() => setFollowListType("following")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
+          <button type="button" onClick={() => setFollowListType("following")} className="flex items-center gap-1.5 rounded-lg transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40">
             <span className="font-bold text-[16px]">{followState.followingCount}</span>
             <span className="text-muted-foreground text-[13px]">Following</span>
           </button>
@@ -909,14 +909,14 @@ export default function DynamicProfilePage({
           ))}
         </div>
         <div className="flex gap-1 ml-4 pl-3 border-l border-border/40">
-          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><List className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
-          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-brand-green bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><Grid3X3 className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
+          <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "text-primary-text bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><List className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
+          <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "text-primary-text bg-brand-green/10" : "text-muted-foreground hover:bg-secondary/50"}`}><Grid3X3 className="w-[18px] h-[18px] md:w-4 md:h-4" /></button>
         </div>
       </div>
 
       <div className="flex-1">
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
+          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary-text" /></div>
         ) : posts.length > 0 ? (
           <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 p-3" : "flex flex-col"}>
             {posts.map((post, i) => (
@@ -959,7 +959,7 @@ export default function DynamicProfilePage({
             ))}
             
             <div ref={loadMoreRef} className="col-span-full flex min-h-20 items-center justify-center py-6" aria-live="polite">
-              {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-brand-green" aria-label="Loading more posts" />}
+              {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-primary-text" aria-label="Loading more posts" />}
             </div>
             {!hasMorePosts && (
               <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-40">
@@ -1025,7 +1025,7 @@ export default function DynamicProfilePage({
                       }}
                       className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
-                      <UserIcon className="w-4 h-4 text-brand-green" />
+                      <UserIcon className="w-4 h-4 text-primary-text" />
                       Edit Profile
                     </button>
                     <Link
@@ -1033,7 +1033,7 @@ export default function DynamicProfilePage({
                       onClick={() => setIsMobileSettingsOpen(false)}
                       className="w-full h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-3 text-foreground text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
-                      <Bell className="w-4 h-4 text-brand-green" />
+                      <Bell className="w-4 h-4 text-primary-text" />
                       Notification settings
                     </Link>
                   </div>
@@ -1053,7 +1053,7 @@ export default function DynamicProfilePage({
                         setWhatsNewOpen(true);
                       }}
                     >
-                      <Sparkles className="w-4 h-4 text-brand-green" />
+                      <Sparkles className="w-4 h-4 text-primary-text" />
                       What&apos;s new
                       {whatsNew.unseen ? <UnseenDot className="ml-auto" /> : null}
                     </button>
@@ -1062,7 +1062,7 @@ export default function DynamicProfilePage({
                       className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <Info className="w-4 h-4 text-brand-green" />
+                      <Info className="w-4 h-4 text-primary-text" />
                       About
                     </Link>
                     <Link
@@ -1070,7 +1070,7 @@ export default function DynamicProfilePage({
                       className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <Shield className="w-4 h-4 text-brand-green" />
+                      <Shield className="w-4 h-4 text-primary-text" />
                       Privacy
                     </Link>
                     <Link
@@ -1078,7 +1078,7 @@ export default function DynamicProfilePage({
                       className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <FileText className="w-4 h-4 text-brand-green" />
+                      <FileText className="w-4 h-4 text-primary-text" />
                       Terms
                     </Link>
                     <Link
@@ -1086,11 +1086,11 @@ export default function DynamicProfilePage({
                       className="h-12 px-4 rounded-2xl bg-foreground/[0.03] border border-foreground/5 flex items-center gap-2.5 text-foreground/80 text-[13px] font-bold active:scale-[0.98] transition-all"
                       onClick={() => setIsMobileSettingsOpen(false)}
                     >
-                      <HelpCircle className="w-4 h-4 text-brand-green" />
+                      <HelpCircle className="w-4 h-4 text-primary-text" />
                       Cookies
                     </Link>
                   </div>
-                  <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-brand-green transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
+                  <InstallAppButton className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-brand-green/15 bg-brand-green/10 px-4 text-[13px] font-bold text-primary-text transition-all active:scale-[0.98]" installedLabel="MindFuel is installed" />
                 </div>
 
                 {!isOwnProfile && currentUser && (

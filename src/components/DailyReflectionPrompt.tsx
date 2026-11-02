@@ -95,7 +95,7 @@ export default function DailyReflectionPrompt({
         {/* Header row */}
         <div className="flex items-center justify-between mb-5">
           <div className="inline-flex items-center gap-2 bg-brand-green/10 border border-brand-green/20 px-3.5 py-1.5 rounded-full">
-            <p className="text-[11px] font-black text-brand-green">
+            <p className="text-[11px] font-black text-primary-text">
               Today&apos;s prompt
             </p>
           </div>

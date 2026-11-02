@@ -50,7 +50,7 @@ export default function HashtagSuggestions({
         >
           <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Hash className="w-4 h-4 text-brand-green shrink-0" />
+              <Hash className="w-4 h-4 text-primary-text shrink-0" />
               <div className="min-w-0">
                 <p className="text-[13px] font-bold truncate">
                   {query ? `Suggestions for #${query}` : "Trending hashtags"}
@@ -61,7 +61,7 @@ export default function HashtagSuggestions({
               </div>
             </div>
             {recentTags.length > 0 && (
-              <span className="text-[11px] font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-full shrink-0">
+              <span className="text-[11px] font-semibold text-primary-text bg-brand-green/10 px-2 py-0.5 rounded-full shrink-0">
                 Recent
               </span>
             )}
@@ -92,7 +92,7 @@ export default function HashtagSuggestions({
                     }`}
                   >
                     <div className="w-9 h-9 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
-                      <Hash className="w-4 h-4 text-brand-green" />
+                      <Hash className="w-4 h-4 text-primary-text" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">

@@ -129,7 +129,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   By signing in, you agree to our{" "}
                   <Link
                     href="/terms"
-                    className="hover:text-brand-green underline transition-colors"
+                    className="hover:text-primary-text underline transition-colors"
                     onClick={onClose}
                   >
                     Terms of Service
@@ -137,7 +137,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   and{" "}
                   <Link
                     href="/privacy"
-                    className="hover:text-brand-green underline transition-colors"
+                    className="hover:text-primary-text underline transition-colors"
                     onClick={onClose}
                   >
                     Privacy Policy

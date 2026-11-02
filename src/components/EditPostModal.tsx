@@ -240,7 +240,7 @@ export default function EditPostModal({ post, isOpen, onClose, onSave }: EditPos
                   onClick={() => setShowEmojiPicker((p) => !p)}
                   className={`p-2 rounded-xl transition-colors shrink-0 ${
                     showEmojiPicker
-                      ? "text-brand-green bg-brand-green/10"
+                      ? "text-primary-text bg-brand-green/10"
                       : "text-muted-foreground hover:bg-secondary"
                   }`}
                   title="Add emoji"

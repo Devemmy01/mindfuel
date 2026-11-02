@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 const pageSpinner = (
   <div className="flex h-screen w-full items-center justify-center">
-    <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
+    <Loader2 className="h-6 w-6 animate-spin text-primary-text" />
   </div>
 );
 

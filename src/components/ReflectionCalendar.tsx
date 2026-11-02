@@ -95,7 +95,7 @@ export default function ReflectionCalendar({ posts, className = "" }: Reflection
                 exit={{ opacity: 0, y: 5 }}
                 className="bg-brand-green/10 border border-brand-green/20 px-3 py-1 rounded-full flex items-center gap-2"
               >
-                <span className="text-[11px] font-bold text-brand-green">
+                <span className="text-[11px] font-bold text-primary-text">
                   {hoveredDay.count} {hoveredDay.count === 1 ? "reflection" : "reflections"}
                 </span>
                 <span className="text-[11px] text-foreground/40">•</span>

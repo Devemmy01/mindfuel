@@ -74,7 +74,7 @@ export default function GuidesPage() {
       </header>
       <main>
         <section className="mx-auto max-w-6xl px-5 pb-16 pt-20 sm:px-8 sm:pt-28">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-brand-green">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-green/20 bg-brand-green/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary-text">
             <BookOpen className="h-3.5 w-3.5" /> MindFuel Guides
           </div>
           <h1 className="max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-7xl">Reflection that changes how you live.</h1>
@@ -83,7 +83,7 @@ export default function GuidesPage() {
         <section className="mx-auto grid max-w-6xl gap-4 px-5 pb-24 sm:px-8 md:grid-cols-2">
           {guides.map((guide, index) => (
             <article key={guide.slug} className={`group rounded-[2rem] border border-line-subtle bg-foreground/[0.025] p-7 transition hover:-translate-y-1 hover:border-brand-green/25 hover:bg-brand-green/[0.035] sm:p-9 ${index === 0 ? "md:col-span-2" : ""}`}>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-green">{guide.eyebrow} · {guide.readTime}</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary-text">{guide.eyebrow} · {guide.readTime}</p>
               <h2 className="mt-5 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] sm:text-4xl">{guide.title}</h2>
               <p className="mt-4 max-w-2xl leading-7 text-foreground/50">{guide.description}</p>
               <Link href={`/guides/${guide.slug}`} className="mt-8 inline-flex items-center gap-2 text-sm font-black text-foreground">Read the guide <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></Link>

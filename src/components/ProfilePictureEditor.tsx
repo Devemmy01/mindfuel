@@ -151,7 +151,7 @@ export default function ProfilePictureEditor({
       <button
         type="button"
         onClick={() => setShowAvatarGrid(!showAvatarGrid)}
-        className="w-full frosted-input px-4 py-3 flex items-center justify-center gap-2 text-[14px] font-medium hover:bg-secondary/40 transition-colors rounded-2xl border border-brand-green/30 text-brand-green"
+        className="w-full frosted-input px-4 py-3 flex items-center justify-center gap-2 text-[14px] font-medium hover:bg-secondary/40 transition-colors rounded-2xl border border-brand-green/30 text-primary-text"
       >
         {showAvatarGrid ? "Hide Avatars" : "Choose Avatar"}
       </button>

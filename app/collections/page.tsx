@@ -88,7 +88,7 @@ export default function CollectionsPage() {
   if (authLoading)
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
       </div>
     );
 
@@ -96,7 +96,7 @@ export default function CollectionsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center space-y-6">
         <div className="w-20 h-20 bg-brand-green/10 border border-brand-green/20 rounded-full flex items-center justify-center">
-          <Bookmark className="w-9 h-9 text-brand-green" />
+          <Bookmark className="w-9 h-9 text-primary-text" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Your Bookmarks</h1>
@@ -127,7 +127,7 @@ export default function CollectionsPage() {
           >
             <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 shadow-card flex items-center gap-2">
               <RefreshCw
-                className={`w-3.5 h-3.5 text-brand-green ${
+                className={`w-3.5 h-3.5 text-primary-text ${
                   isPullRefreshing ? "animate-spin" : ""
                 }`}
                 style={{
@@ -181,7 +181,7 @@ export default function CollectionsPage() {
 
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-brand-green" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary-text" />
         </div>
       ) : saves.length > 0 ? (
         <div className={`${viewMode === "grid" ? "px-3 py-4" : "py-0"}`}>

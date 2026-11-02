@@ -47,11 +47,11 @@ const DailyFuel: React.FC = () => {
       <div className="flex items-center justify-between mb-5 relative z-10">
         <div className="inline-flex items-center gap-2.5 bg-brand-green/20 px-3.5 py-1.5 rounded-full">
           <div className="w-3 h-3 rounded-full bg-brand-green/50" />
-          <p className="text-[10px] font-black text-brand-green tracking-[0.18em] uppercase">Daily Fuel</p>
+          <p className="text-[10px] font-black text-primary-text tracking-[0.18em] uppercase">Daily Fuel</p>
         </div>
         <button 
           onClick={handleRefresh}
-          className={`p-2 rounded-full hover:bg-brand-green/10 text-brand-green/60 hover:text-brand-green transition-all ${isRotating ? "animate-spin" : ""}`}
+          className={`p-2 rounded-full hover:bg-brand-green/10 text-primary-text/60 hover:text-primary-text transition-all ${isRotating ? "animate-spin" : ""}`}
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
@@ -64,7 +64,7 @@ const DailyFuel: React.FC = () => {
         transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
         className="relative z-10"
       >
-        <Quote className="absolute -top-2 -left-2 w-8 h-8 text-brand-green/10 pointer-events-none" />
+        <Quote className="absolute -top-2 -left-2 w-8 h-8 text-primary-text/10 pointer-events-none" />
         <p className="text-[19px] font-bold leading-[1.4] text-foreground mb-5 tracking-tight italic relative">
           &quot;{quote.text}&quot;
         </p>

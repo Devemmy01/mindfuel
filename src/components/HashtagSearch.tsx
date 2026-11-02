@@ -77,7 +77,7 @@ export default function HashtagSearch() {
           aria-label="Search hashtags"
           className="bg-transparent border-none outline-none text-[14px] placeholder:text-muted-foreground w-full"
         />
-        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-green" aria-hidden="true" /> : <Search className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
+        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-text" aria-hidden="true" /> : <Search className="w-4 h-4 text-muted-foreground" aria-hidden="true" />}
       </div>
 
       <HashtagSuggestions

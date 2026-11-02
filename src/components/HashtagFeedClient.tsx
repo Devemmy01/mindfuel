@@ -161,7 +161,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
             className="px-4 py-20 flex flex-col items-center justify-center text-center space-y-4"
           >
             <div className="w-20 h-20 rounded-full bg-brand-green/10 flex items-center justify-center border border-brand-green/20">
-              <Hash className="w-8 h-8 text-brand-green" />
+              <Hash className="w-8 h-8 text-primary-text" />
             </div>
             <div className="space-y-2 max-w-sm">
               <h2 className="text-xl font-bold">Nothing here yet</h2>
@@ -171,7 +171,7 @@ export default function HashtagFeedClient({ tag, initialData }: HashtagFeedClien
             </div>
             <Link
               href="/create"
-              className="px-6 py-3 rounded-full bg-brand-green text-foreground font-bold shadow-brand-sm"
+              className="px-6 py-3 rounded-full bg-brand-green text-primary-foreground font-bold shadow-brand-sm"
             >
               Create a post
             </Link>

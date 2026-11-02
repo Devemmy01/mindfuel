@@ -58,7 +58,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
           </span>
         </span>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-subtle bg-foreground/[0.025] transition-colors group-hover:border-brand-green/20 group-hover:bg-brand-green/[0.06]">
-          {isOpen ? <ChevronUp className="h-4 w-4 text-brand-green" /> : <ChevronDown className="h-4 w-4 text-foreground/35" />}
+          {isOpen ? <ChevronUp className="h-4 w-4 text-primary-text" /> : <ChevronDown className="h-4 w-4 text-foreground/35" />}
         </span>
       </button>
 
@@ -103,7 +103,7 @@ export default function MilestonesGrid({ earnedMilestones }: MilestonesGridProps
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-green/70 mb-0.5">Growth Milestone Unlocked</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary-text/70 mb-0.5">Growth Milestone Unlocked</p>
                     <h4 className="text-[18px] font-black text-foreground mb-1">Zen Master 🌿</h4>
                     <p className="text-[12px] text-foreground/50 leading-relaxed">
                       You&apos;ve built a complete record of personal growth. Your glowing aura is now visible across all your reflections.

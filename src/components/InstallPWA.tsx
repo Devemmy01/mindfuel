@@ -203,7 +203,7 @@ export default function InstallPWA() {
               ) : (
                 <button
                   onClick={handleInstallClick}
-                  className="w-full bg-brand-green hover:bg-brand-green/90 text-foreground font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full bg-brand-green hover:bg-brand-green/90 text-primary-foreground font-bold h-12 rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" /> Download MindFuel App
                 </button>

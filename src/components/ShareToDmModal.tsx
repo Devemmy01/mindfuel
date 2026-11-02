@@ -112,7 +112,7 @@ export default function ShareToDmModal({
               placeholder="Search people"
               className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
-            {loading && <Loader2 className="h-4 w-4 animate-spin text-brand-green" />}
+            {loading && <Loader2 className="h-4 w-4 animate-spin text-primary-text" />}
           </label>
         </div>
         <div className="thin-scrollbar min-h-48 overflow-y-auto border-t border-border">
@@ -131,7 +131,7 @@ export default function ShareToDmModal({
                 {recipient.image && !recipient.image.startsWith("#") ? (
                   <Image src={recipient.image} alt="" width={44} height={44} className="h-11 w-11 rounded-full object-cover" />
                 ) : (
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-green/10 text-primary-text">
                     <UserRound className="h-5 w-5" />
                   </span>
                 )}
@@ -143,7 +143,7 @@ export default function ShareToDmModal({
                   @{getUserHandle(recipient)} · {isOnline(recipient.firebaseId) ? "Online" : "Offline"}
                 </span>
               </span>
-              <Send className="h-4 w-4 text-brand-green" />
+              <Send className="h-4 w-4 text-primary-text" />
             </button>
           ))}
         </div>
