@@ -57,7 +57,12 @@ Messages never depend on the socket: REST is the durable path, the thread still 
 
 ## Not done in this phase (and why)
 
-- **Message requests, block and mute, swipe actions, image sending, delete-for-me and link previews:** these need new models and permissions; they're product work beyond reliability. Report reuses `app/api/reports` for posts only.
+- **Block and mute (done in Phase 15):**
+  - `Block` model, enforced in both directions on new conversations, messages, follows and notifications. Blocking removes follows both ways and the blocked person isn't told.
+  - `Conversation.mutedBy` stops message pushes for one conversation; messages still arrive in the app.
+  - Controls are in the thread menu and the profile options sheet.
+- **Image sending:** needs a crypto change. See `docs/proposals/chat-image-attachments.md` (awaiting sign-off).
+- **Message requests, swipe actions, delete-for-me, link previews:** not done. Message requests need a decision on who may message whom (followers only? anyone with a request inbox?) before a data model. Report reuses `app/api/reports` for posts only.
 - **Read-receipt and presence privacy settings:** need a reciprocity design and socket changes. 
 - **Restyling the Messages screens:** `MessagesClient.tsx` (about 2,000 lines) should first be split into list, thread and composer components. That's a refactor best reviewed on its own.
 - **No change** to `chat-crypto.ts`, key storage, device linking or recovery.
