@@ -21,6 +21,10 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
+    // Tests mock APIs with page.route; requests a service worker makes can't
+    // be intercepted (WebKit sends them straight to the server). Real offline
+    // and service-worker behaviour is on the device checklist.
+    serviceWorkers: "block",
   },
   webServer: {
     // PW_PROD=1 serves an existing `npm run build` (faster, and what users get).
