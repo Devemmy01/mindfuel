@@ -18,12 +18,15 @@ interface UpdateEmailProps {
   userName: string;
   updateTitle: string;
   updateDetails: string;
+  /** Signed one-tap link that turns off product emails only. */
+  unsubscribeUrl?: string;
 }
 
 export const UpdateEmail = ({
   userName,
   updateTitle,
   updateDetails,
+  unsubscribeUrl,
 }: UpdateEmailProps) => {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app";
   const detailParagraphs = updateDetails
@@ -101,7 +104,9 @@ export const UpdateEmail = ({
             <Text style={footerSubtext}>
               MindFuel by Lumyn. High-performance reflection for high-performance humans.
               <br />
-              <Link href={`${baseUrl}/settings`} style={link}>Update Email Preferences</Link>
+              <Link href={unsubscribeUrl || `${baseUrl}/settings/notifications`} style={link}>Turn off update emails</Link>
+              {" · "}
+              <Link href={`${baseUrl}/settings/notifications`} style={link}>Manage notifications</Link>
             </Text>
           </Section>
         </Container>

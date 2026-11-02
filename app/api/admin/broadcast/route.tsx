@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
                   userName={user.name || "there"}
                   updateTitle={updateTitle}
                   updateDetails={updateDetails}
+                  unsubscribeUrl={user._id ? unsubscribeFor(String(user._id), "product").url : undefined}
                 />
               ) as React.ReactElement,
             })),
