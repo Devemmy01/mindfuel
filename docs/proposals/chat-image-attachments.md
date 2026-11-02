@@ -1,6 +1,10 @@
 # Proposal: encrypted image attachments in chat
 
-Status: **proposal, not implemented.** The brief requires a written proposal and tests before any change to crypto, key storage or recovery. This needs your sign-off.
+Status: **approved 2026-11-02 and implemented** (`ux/phase-16-chat-images`). Decisions:
+- **Storage:** Cloudinary, already configured, raw files of type `authenticated`. Verified against the live account: unsigned URLs return 401, expired signed links return 401, and a signed download returns the exact bytes.
+- **Limits:** 2048 px on the long side; JPEG re-encode at no more than 3 MB; 4 MB upload cap; 20 photos per 10 minutes per person.
+- **Push text:** unchanged ("New message from X"). The server can't tell a photo from text, so it can't reveal the type.
+- **Not yet:** the orphan sweep (an upload never sent within 24 hours) and deleting the object when a message is deleted. Chat has no message deletion today.
 
 ## Today
 - Each conversation has an AES-GCM-256 key, wrapped per participant with RSA-OAEP-2048 (`src/lib/chat-crypto.ts`).

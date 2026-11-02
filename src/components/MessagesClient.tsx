@@ -21,6 +21,7 @@ import {
   BellOff,
   BellRing,
   Copy,
+  ImagePlus,
   Info,
   KeyRound,
   Link2,
@@ -42,7 +43,9 @@ import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
 import { addToOutbox, readOutbox, removeFromOutbox, type OutboxEntry } from "@/lib/chat-outbox";
-import { createConversationKey, decryptChatText, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
+import { createConversationKey, decryptChatText, encryptChatBytes, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
+import { ENVELOPE_ENCRYPTION_VERSION, messagePreviewText, parseEnvelope, prepareImage, serializeEnvelope } from "@/lib/chat-attachments";
+import EncryptedImage from "@/components/chat/EncryptedImage";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
 import IconButton from "@/components/ui/IconButton";
 import ChatDeviceLinkModal from "@/components/chat/ChatDeviceLinkModal";
@@ -245,6 +248,16 @@ export default function MessagesClient() {
   const [active, setActive] = useState<Conversation | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draft = active ? drafts[active._id] || "" : "";
+  const [pendingPhoto, setPendingPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [sendingPhoto, setSendingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const clearPendingPhoto = useCallback(() => {
+    setPendingPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+  }, []);
+  useEffect(() => clearPendingPhoto, [active?._id, clearPendingPhoto]);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [typingName, setTypingName] = useState("");
   const [query, setQuery] = useState("");
@@ -1193,7 +1206,11 @@ export default function MessagesClient() {
 
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !active || !draft.trim()) return;
+    if (!user || !active || (!draft.trim() && !pendingPhoto)) return;
+    if (pendingPhoto) {
+      await sendPhoto(pendingPhoto.file, draft.trim());
+      return;
+    }
     const text = draft.trim();
     const conversationId = active._id;
     const temporaryId = `pending-${crypto.randomUUID()}`;
@@ -1245,6 +1262,89 @@ export default function MessagesClient() {
       );
     }
   };
+
+  /**
+   * Photo: re-encode (drops EXIF), encrypt with the conversation key, upload
+   * ciphertext, then send an encrypted envelope as an ordinary message.
+   */
+  const sendPhoto = async (file: File, caption: string) => {
+    if (!user || !active || sendingPhoto) return;
+    if (!navigator.onLine) {
+      showToast("You're offline. Photos need a connection to send.", "info");
+      return;
+    }
+    const conversationId = active._id;
+    setSendingPhoto(true);
+    try {
+      const key = await prepareConversationKey(active);
+      const image = await prepareImage(file);
+      const encrypted = await encryptChatBytes(key, await image.blob.arrayBuffer());
+      const upload = await chatFetch(user, `/api/chat/attachments?conversationId=${encodeURIComponent(conversationId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: encrypted.data,
+      });
+      const uploaded = await upload.json().catch(() => ({}));
+      if (!upload.ok) throw new Error(uploaded.error || "Couldn't send that photo.");
+      const text = serializeEnvelope({
+        t: "image",
+        id: uploaded.id,
+        iv: encrypted.iv,
+        w: image.width,
+        h: image.height,
+        mime: image.mime,
+        caption: caption || undefined,
+      });
+      const payload = { ...(await encryptChatText(key, text)), encryptionVersion: ENVELOPE_ENCRYPTION_VERSION };
+      const replyToId = replyingTo?._id;
+      setReplyingTo(null);
+      clearPendingPhoto();
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[conversationId];
+        return next;
+      });
+      const entry: OutboxEntry = {
+        clientMessageId: crypto.randomUUID(),
+        conversationId,
+        payload,
+        replyTo: replyToId,
+        text,
+        createdAt: new Date().toISOString(),
+      };
+      addToOutbox(user.uid, entry);
+      setOutboxVersion((version) => version + 1);
+      if (!(await deliver(entry))) showToast("Photo not sent. Tap Retry to try again.", "error");
+    } catch (error) {
+      if (isChatKeyMismatchError(error)) {
+        setHasChatKeyConflict(true);
+        setDeviceLinkMode("target");
+        showToast("Link this browser to a trusted device before sending encrypted messages.", "error", 8000);
+      } else {
+        showToast(error instanceof Error ? error.message : "Couldn't send that photo.", "error", 6000);
+      }
+    } finally {
+      setSendingPhoto(false);
+    }
+  };
+
+  const pickPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Choose a photo to send.", "error");
+      return;
+    }
+    clearPendingPhoto();
+    setPendingPhoto({ file, previewUrl: URL.createObjectURL(file) });
+    composerRef.current?.focus();
+  };
+
+  const getActiveKey = useCallback(
+    () => (active ? prepareConversationKey(active) : Promise.reject(new Error("No conversation"))),
+    [active, prepareConversationKey],
+  );
 
   const reactToMessage = async (messageId: string, emoji: string) => {
     if (!user || !active) return;
@@ -1971,7 +2071,8 @@ export default function MessagesClient() {
               <div className="relative z-[1] mx-auto flex max-w-3xl flex-col gap-0.5">
                 {messages.map((message, index) => {
                   const own = message.sender.firebaseId === user.uid;
-                  const emojiOnly = isEmojiOnlyMessage(message.text);
+                  const photo = parseEnvelope(message.text);
+                  const emojiOnly = !photo && isEmojiOnlyMessage(message.text);
                   const hasBeenRead = own && (message.readBy?.length || 0) > 1;
                   const showDate =
                     index === 0 ||
@@ -2024,12 +2125,19 @@ export default function MessagesClient() {
                                 {message.replyTo.sender.firebaseId === user.uid ? "You" : message.replyTo.sender.name}
                               </strong>
                               <span className="block max-w-sm truncate text-[12px] text-[#d1d7db]/75">
-                                {message.replyTo.text || (message.replyTo.ciphertext ? "Encrypted message" : "")}
+                                {messagePreviewText(message.replyTo.text) || (message.replyTo.ciphertext ? "Encrypted message" : "")}
                               </span>
                             </button>
                           )}
                           <p className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${emojiOnly ? "text-[30px] leading-none" : ""}`}>
-                            {renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)}
+                            {photo ? (
+                              <span className="flex flex-col gap-1.5">
+                                <EncryptedImage user={user} envelope={photo} getKey={getActiveKey} />
+                                {photo.caption ? renderMessageText(photo.caption, false) : null}
+                              </span>
+                            ) : (
+                              renderMessageText(message.text || (message.ciphertext ? "Decrypting…" : ""), emojiOnly)
+                            )}
                           </p>
                           <span className={`mt-1.5 ml-3 flex items-center justify-end gap-0.5 text-[10px] leading-none ${own ? "text-foreground/65" : "text-foreground/45"}`}>
                             <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
@@ -2134,7 +2242,7 @@ export default function MessagesClient() {
                     >
                       Replying to {replyingTo.sender.firebaseId === user.uid ? "yourself" : replyingTo.sender.name}
                     </strong>
-                    <p className="truncate text-xs text-foreground/50">{replyingTo.text}</p>
+                    <p className="truncate text-xs text-foreground/50">{messagePreviewText(replyingTo.text)}</p>
                   </div>
                   <button
                     type="button"
@@ -2145,6 +2253,19 @@ export default function MessagesClient() {
                     <Smile className="h-4 w-4" />
                   </button>
                   <button type="button" onClick={() => setReplyingTo(null)} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Cancel reply">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              {pendingPhoto && (
+                <div className="mx-auto mb-2 flex max-w-3xl items-center gap-3 rounded-xl border border-line bg-surface-elevated p-2">
+                  {/* A local preview of the picked file; it's encrypted before upload. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pendingPhoto.previewUrl} alt="Photo to send" className="h-14 w-14 rounded-lg object-cover" />
+                  <p className="min-w-0 flex-1 text-caption text-muted-foreground">
+                    {sendingPhoto ? "Encrypting and sending…" : "Add a caption, or send as is. Location data is removed."}
+                  </p>
+                  <button type="button" onClick={clearPendingPhoto} disabled={sendingPhoto} className="rounded-full p-1.5 text-foreground/45 hover:bg-foreground/[0.07] hover:text-foreground" aria-label="Remove photo">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -2169,6 +2290,16 @@ export default function MessagesClient() {
                     </div>
                   )}
                 </div>
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} tabIndex={-1} aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={sendingPhoto}
+                  className="mb-0.5 flex h-11 w-11 shrink-0 self-end items-center justify-center rounded-full text-foreground/55 transition-colors hover:bg-foreground/[0.07] hover:text-foreground disabled:opacity-40"
+                  aria-label="Send a photo"
+                >
+                  <ImagePlus className="h-5 w-5" />
+                </button>
                 <textarea
                   ref={composerRef}
                   value={draft}
@@ -2186,7 +2317,7 @@ export default function MessagesClient() {
                 />
                 <button
                   type="submit"
-                  disabled={!draft.trim()}
+                  disabled={(!draft.trim() && !pendingPhoto) || sendingPhoto}
                   className="mb-0.5 flex h-10 w-10 shrink-0 self-end items-center justify-center rounded-full text-white transition-opacity hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: "var(--brand-green, #00bf63)" }}
                   aria-label="Send message"
