@@ -37,7 +37,13 @@ export async function recordStat(category: string, channel: Channel, field: "sen
 export async function unreadBadgeCount(userId: Types.ObjectId | string) {
   const [notifications, conversations] = await Promise.all([
     Notification.countDocuments({ recipient: userId, isRead: false }),
-    Conversation.find({ participants: userId }).select("_id").lean(),
+    // Pending, declined and muted conversations don't badge the app icon.
+    Conversation.find({
+      participants: userId,
+      requestFor: { $ne: userId },
+      declinedBy: { $ne: userId },
+      mutedBy: { $ne: userId },
+    }).select("_id").lean(),
   ]);
   const messages = conversations.length
     ? await Message.countDocuments({

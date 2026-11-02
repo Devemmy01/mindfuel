@@ -19,6 +19,8 @@ type NavMessage = {
 type NavConversation = {
   _id: string;
   unreadCount?: number;
+  request?: boolean;
+  muted?: boolean;
   lastMessage?: NavMessage;
   lastMessageAt?: string;
 };
@@ -52,7 +54,7 @@ function useShellDataSource() {
   );
   const conversations = chatConversationData || [];
   const unreadMessageCount = conversations.reduce(
-    (total, conversation) => total + (conversation.unreadCount || 0),
+    (total, conversation) => total + (conversation.request || conversation.muted ? 0 : conversation.unreadCount || 0),
     0,
   );
 
