@@ -20,7 +20,6 @@ import { PostType, ProfileUser } from "@/types";
 import { useAuth } from "@/providers/AuthProvider";
 import { useToast } from "@/providers/ToastProvider";
 import { usePullToRefresh } from "@/lib/usePullToRefresh";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import InstallAppButton from "@/components/InstallAppButton";
 import { getUserHandle } from "@/lib/userHandle";
 import useSWR from "swr";
@@ -104,7 +103,6 @@ export default function DynamicProfilePage({
   const { id: profileId } = useParams() as { id: string };
   const { user: currentUser, loading: authLoading, logout, openSignInModal } = useAuth();
   const { showToast } = useToast();
-  const { subscribeUser, isSubscribing } = usePushNotifications();
   const router = useRouter();
   const isOnline = usePresence([profileId]);
 
@@ -685,18 +683,13 @@ export default function DynamicProfilePage({
           
           <div className="absolute top-4 right-4 flex items-center gap-2">
             {isOwnProfile && (
-              <button
-                onClick={subscribeUser}
-                disabled={isSubscribing}
-                className={`p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95 ${isSubscribing ? "opacity-50 cursor-not-allowed" : ""}`}
-                title="Enable Daily Notifications"
+              <Link
+                href="/settings/notifications"
+                aria-label="Notification settings"
+                className="flex size-11 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all active:scale-95"
               >
-                {isSubscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Bell className="w-4 h-4" />
-                )}
-              </button>
+                <Bell className="w-4 h-4" />
+              </Link>
             )}
             <button
               onClick={() => {
@@ -1002,17 +995,14 @@ export default function DynamicProfilePage({
                       <UserIcon className="w-4 h-4 text-brand-green" />
                       Edit Profile
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsMobileSettingsOpen(false);
-                        subscribeUser();
-                      }}
-                      disabled={isSubscribing}
+                    <Link
+                      href="/settings/notifications"
+                      onClick={() => setIsMobileSettingsOpen(false)}
                       className="w-full h-12 px-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3 text-white text-[14px] font-bold active:scale-[0.98] transition-all"
                     >
                       <Bell className="w-4 h-4 text-brand-green" />
-                      Enable Daily Notifications
-                    </button>
+                      Notification settings
+                    </Link>
                   </div>
                 )}
 

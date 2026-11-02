@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Bell } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import { useAuth } from "@/providers/AuthProvider";
 import { useShellData } from "@/components/shell/useShellData";
 import MessagesShortcut from "@/components/shell/MessagesShortcut";
@@ -12,22 +13,31 @@ import { copy } from "@/lib/copy";
 
 export default function NotificationsPage() {
   const { user, loading, openSignInModal } = useAuth();
-  const { notifications, unreadCount, notificationsLoading, markAllAsRead } = useShellData();
+  const { notifications, unreadCount, notificationsLoading, markAllAsRead, refreshNotifications } = useShellData();
 
-  // Opening the list counts as reading it, matching the previous popover.
-  const markedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (markedRef.current || notificationsLoading || unreadCount === 0) return;
-    markedRef.current = true;
-    const timer = window.setTimeout(() => void markAllAsRead(), 1200);
-    return () => window.clearTimeout(timer);
-  }, [markAllAsRead, notificationsLoading, unreadCount]);
+  const { containerRef, pullDistance, isRefreshing } = usePullToRefresh({
+    onRefresh: async () => {
+      await refreshNotifications();
+    },
+  });
 
   return (
-    <div className="mobile-content-offset">
+    <div ref={containerRef} className="mobile-content-offset">
+      {pullDistance > 8 || isRefreshing ? (
+        <p className="py-2 text-center text-caption text-muted-foreground" aria-live="polite">
+          {isRefreshing ? "Refreshing…" : "Release to refresh"}
+        </p>
+      ) : null}
       <header className="sticky top-0 z-sticky flex h-14 items-center justify-between border-b border-line bg-background/90 px-4 backdrop-blur-md">
         <h1 className="text-h3">{copy.nav.notifications}</h1>
-        <MessagesShortcut className="-mr-2" />
+        <div className="-mr-2 flex items-center">
+          {unreadCount > 0 ? (
+            <Button variant="ghost" size="sm" onClick={() => void markAllAsRead()}>
+              <CheckCheck aria-hidden /> Mark all read
+            </Button>
+          ) : null}
+          <MessagesShortcut />
+        </div>
       </header>
       {!loading && !user ? (
         <EmptyState

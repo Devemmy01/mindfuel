@@ -6,6 +6,8 @@ Disallow: /create
 Disallow: /collections
 Disallow: /messages
 Disallow: /notifications
+Disallow: /settings
+Disallow: /unsubscribe
 Disallow: /offline
 Disallow: /tip/download
 Disallow: /dev/
