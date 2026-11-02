@@ -37,7 +37,7 @@ export const ReminderEmail: React.FC<Readonly<ReminderEmailProps>> = ({
         table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
         
         @media (prefers-color-scheme: dark) {
-          .main { background-color: #000000 !important; }
+          .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
           .reminderCard { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
           .h1 { color: #ffffff !important; }
           .subtext { color: #a1a1aa !important; }

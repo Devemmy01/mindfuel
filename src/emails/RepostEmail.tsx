@@ -29,7 +29,7 @@ export const RepostEmail: React.FC<Readonly<RepostEmailProps>> = ({
     <Head>
       <style>{`
         @media (prefers-color-scheme: dark) {
-          .main { background-color: #000000 !important; }
+          .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
           .text { color: #a1a1aa !important; }
         }
       `}</style>

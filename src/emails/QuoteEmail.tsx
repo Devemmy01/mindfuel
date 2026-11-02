@@ -31,7 +31,7 @@ export const QuoteEmail: React.FC<Readonly<QuoteEmailProps>> = ({
     <Head>
       <style>{`
         @media (prefers-color-scheme: dark) {
-          .main { background-color: #000000 !important; }
+          .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
           .text { color: #a1a1aa !important; }
           .quoteBox { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
           .quoteContent { color: #ffffff !important; }

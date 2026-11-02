@@ -36,7 +36,7 @@ export const UpdateEmail = ({
       <Head>
         <style>{`
           @media (prefers-color-scheme: dark) {
-            .main { background-color: #000000 !important; }
+            .main, .main > table > tbody > tr > td { background-color: #000000 !important; }
             .container { background-color: #0a0a0a !important; border-color: #1a1a1a !important; }
             .h1 { color: #ffffff !important; }
             .text { color: #a1a1aa !important; }
