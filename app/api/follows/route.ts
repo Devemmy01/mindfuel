@@ -4,7 +4,7 @@ import { connectToDB } from "@/utils/database";
 import Follow from "@/models/follow";
 import User from "@/models/user";
 import Notification from "@/models/notification";
-import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
+import { sendCategoryPush } from "@/lib/notify";
 
 const APP_URL =
   process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
@@ -89,31 +89,18 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
-    if (
-      following.preferences?.notifications !== false &&
-      following.pushSubscriptions?.length
-    ) {
-      const followerImage = String(follower.image || "");
-      const icon = followerImage.startsWith("http")
-        ? followerImage
-        : followerImage.startsWith("/")
-          ? `${APP_URL}${followerImage}`
-          : `${APP_URL}/icon-192.png`;
-      const payload = JSON.stringify({
+    const followerImage = String(follower.image || "");
+    await sendCategoryPush({
+      userId: following._id,
+      category: "follows",
+      payload: {
         title: "New follower",
         body: `${follower.name || "Someone"} followed you`,
-        icon,
-        badge: `${APP_URL}/icon-192.png`,
+        icon: followerImage.startsWith("http") ? followerImage : undefined,
         url: `${APP_URL}/profile/${encodeURIComponent(follower.firebaseId)}`,
         tag: `follow-${follower.firebaseId}`,
-      });
-
-      await sendPushNotifications({
-        recipientId: following._id,
-        subscriptions: following.pushSubscriptions as unknown as StoredPushSubscription[],
-        payload,
-      });
-    }
+      },
+    });
 
     return NextResponse.json({ isFollowing: true }, { status: 201 });
   } catch (error) {

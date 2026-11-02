@@ -3,7 +3,7 @@ import { connectToDB } from "@/utils/database";
 import Conversation from "@/models/conversation";
 import Message from "@/models/message";
 import User from "@/models/user";
-import { sendPushNotifications, StoredPushSubscription } from "@/lib/sendPushNotifications";
+import { sendCategoryPush } from "@/lib/notify";
 import { isValidObjectId } from "mongoose";
 import { requireFirebaseUser } from "@/lib/firebase-admin";
 
@@ -108,34 +108,26 @@ export async function POST(req: NextRequest) {
     // Push is tied to the durable HTTP write, not the best-effort socket event.
     // The service worker suppresses this notification while a visible app tab
     // is open, leaving the in-app toast as the foreground experience.
-    const recipients = await User.find({
-      _id: { $in: access.conversation.participants, $ne: access.user._id },
-      "preferences.notifications": { $ne: false },
-      pushSubscriptions: { $exists: true, $ne: [] },
-    }).select("pushSubscriptions");
+    // Push never carries message text: only who wrote, and a link to the
+    // exact conversation.
     const senderName = String(access.user.name || "Someone");
     const firstName = senderName.trim().split(/\s+/)[0] || "Someone";
     const senderImage = String(access.user.image || "");
-    const pushIcon = senderImage.startsWith("http")
-      ? senderImage
-      : senderImage.startsWith("/")
-        ? `${APP_URL}${senderImage}`
-        : `${APP_URL}/icon-192.png`;
-    const payload = JSON.stringify({
-      title: `New message from ${firstName}`,
-      body: "Open MindFuel to read it",
-      icon: pushIcon,
-      badge: `${APP_URL}/icon-192.png`,
-      tag: `conversation-${conversationId}`,
-      url: `${APP_URL}/messages?with=${encodeURIComponent(access.user.firebaseId)}`,
-      data: { url: `${APP_URL}/messages?with=${encodeURIComponent(access.user.firebaseId)}`, type: "message" },
-    });
+    const recipientIds = access.conversation.participants.filter(
+      (id: { toString(): string }) => id.toString() !== access.user._id.toString(),
+    );
     await Promise.allSettled(
-      recipients.map((recipient) =>
-        sendPushNotifications({
-          recipientId: recipient._id,
-          subscriptions: recipient.pushSubscriptions as unknown as StoredPushSubscription[],
-          payload,
+      recipientIds.map((recipientId: unknown) =>
+        sendCategoryPush({
+          userId: recipientId as string,
+          category: "messages",
+          payload: {
+            title: `New message from ${firstName}`,
+            body: "Open MindFuel to read it",
+            icon: senderImage.startsWith("http") ? senderImage : undefined,
+            tag: `conversation-${conversationId}`,
+            url: `${APP_URL}/messages?with=${encodeURIComponent(access.user.firebaseId)}`,
+          },
         }),
       ),
     );

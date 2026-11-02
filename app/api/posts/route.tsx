@@ -1,4 +1,6 @@
 import React from "react";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
@@ -372,7 +374,7 @@ export async function POST(req: NextRequest) {
 
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
-      { $set: { ...streakUpdate, lastInactivityReminderAt: null } },
+      { $set: { ...streakUpdate, lastInactivityReminderAt: null, winbackCount: 0 } },
       { new: true }
     );
 
@@ -398,11 +400,12 @@ export async function POST(req: NextRequest) {
                 message: `${user.name} quoted your thought: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
                 url: `/post/${newPost._id}`
               }),
-              author.email && author.preferences?.notifications !== false
+              author.email && emailAllowed(author, "reposts")
                 ? resend.emails.send({
                     from: "MindFuel <hello@mind-fuel.app>",
                     to: author.email,
-                    subject: `${user.name} quoted your thought`,
+                    headers: unsubscribeFor(String(author._id), "reposts").headers,
+                    subject: `${user.name} quoted your reflection`,
                     react: (
                       <QuoteEmail
                         authorName={author.name}

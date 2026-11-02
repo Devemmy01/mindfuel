@@ -1,4 +1,6 @@
 import React from "react";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { postNotFound } from "@/lib/post-access";
 import { canViewPost, isPrivatePost } from "@/lib/post-visibility";
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const [user, originalPost] = await Promise.all([
       User.findOne({ firebaseId }).select("_id name username"),
-      Post.findById(postId).populate("userId", "name email"),
+      Post.findById(postId).populate("userId", "name email preferences notificationSettings"),
     ]);
 
     if (!user || !originalPost) {
@@ -78,14 +80,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       }
 
       // Send email notification if reposter is not the author
-      if (originalPost.userId._id.toString() !== user._id.toString() && originalPost.userId.email) {
+      if (
+        originalPost.userId._id.toString() !== user._id.toString() &&
+        originalPost.userId.email &&
+        emailAllowed(originalPost.userId, "reposts")
+      ) {
         try {
           const postLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://mind-fuel.app"}/post/${postId}`;
           
           await resend.emails.send({
             from: "MindFuel <notifications@mind-fuel.app>",
             to: originalPost.userId.email,
-            subject: `${user.name} reposted your thought`,
+            subject: `${user.name} reposted your reflection`,
+            headers: unsubscribeFor(String(originalPost.userId._id), "reposts").headers,
             react: RepostEmail({
               authorName: originalPost.userId.name,
               reposterName: user.name,

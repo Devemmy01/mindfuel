@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unsubscribeFor } from "@/lib/unsubscribe";
+import { emailAllowed } from "@/lib/notify";
 import { postNotFound, viewablePost } from "@/lib/post-access";
 import { getViewerUid, unauthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
@@ -194,13 +196,16 @@ export async function POST(
           });
 
           const parentAuthor = (await User.findById(parentAuthorId)) as IUser | null;
-          if (parentAuthor?.email && parentAuthor.preferences?.notifications !== false) {
+          if (parentAuthor?.email && emailAllowed(parentAuthor, "replies")) {
             try {
               await resend.emails.send({
                 from: "MindFuel <hello@mind-fuel.app>",
                 to: parentAuthor.email,
                 subject: `${user.name} replied to your reflection`,
-                headers: { "X-Entity-Ref-ID": `${postId}-reply-${comment._id}` },
+                headers: {
+                  "X-Entity-Ref-ID": `${postId}-reply-${comment._id}`,
+                  ...unsubscribeFor(String(parentAuthor._id), "replies").headers,
+                },
                 react: (
                   <CommentEmail
                     authorName={parentAuthor.name}
@@ -234,15 +239,15 @@ export async function POST(
             console.error("In-app/Push notification failed:", notifErr);
           }
 
-          if (author.email && author.preferences?.notifications !== false) {
+          if (author.email && emailAllowed(author, "replies")) {
             try {
               const { error } = await resend.emails.send({
                 from: "MindFuel <hello@mind-fuel.app>",
                 to: author.email,
-                subject: `${user.name} commented on your thought`,
+                subject: `${user.name} replied to your reflection`,
                 headers: {
                   "X-Entity-Ref-ID": `${postId}-${comment._id}`,
-                  "importance": "high",
+                  ...unsubscribeFor(String(author._id), "replies").headers,
                 },
                 react: (
                   <CommentEmail
