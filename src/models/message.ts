@@ -10,6 +10,8 @@ export interface IMessage extends Document {
   encryptionVersion?: number;
   reactions?: Array<{ emoji: string; users: Types.ObjectId[] }>;
   readBy: Types.ObjectId[];
+  /** Sender-generated id that makes retries idempotent. */
+  clientMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +31,7 @@ const MessageSchema = new Schema(
       _id: false,
     }],
     readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    clientMessageId: { type: String, maxlength: 64 },
   },
   { timestamps: true }
 );
@@ -36,5 +39,13 @@ const MessageSchema = new Schema(
 MessageSchema.index({ conversation: 1, createdAt: -1 });
 MessageSchema.index({ conversation: 1, sender: 1, readBy: 1 });
 MessageSchema.index({ replyTo: 1 });
+// One stored message per sender-generated id: a retried send returns the
+// original instead of creating a duplicate.
+MessageSchema.index(
+  { sender: 1, clientMessageId: 1 },
+  { unique: true, partialFilterExpression: { clientMessageId: { $type: "string" } } },
+);
+// Per-sender rate limiting.
+MessageSchema.index({ sender: 1, createdAt: -1 });
 
 export default models.Message || model<IMessage>("Message", MessageSchema);

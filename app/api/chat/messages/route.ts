@@ -26,7 +26,14 @@ export async function GET(req: NextRequest) {
     const conversationId = req.nextUrl.searchParams.get("conversationId") || "";
     const access = await participant(auth.uid, conversationId);
     if (!access) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-    const messages = await Message.find({ conversation: conversationId }).sort({ createdAt: -1 }).limit(200)
+    // `after` (ISO time of the newest message the client has) returns only
+    // newer messages, for cheap resync after a reconnect.
+    const afterParam = req.nextUrl.searchParams.get("after");
+    const after = afterParam ? new Date(afterParam) : null;
+    const filter = after && !Number.isNaN(after.getTime())
+      ? { conversation: conversationId, createdAt: { $gt: after } }
+      : { conversation: conversationId };
+    const messages = await Message.find(filter).sort({ createdAt: -1 }).limit(200)
       .populate("sender", "name username image firebaseId")
       .populate("reactions.users", "firebaseId")
       .populate({
@@ -70,7 +77,7 @@ export async function POST(req: NextRequest) {
     const auth = await requireFirebaseUser(req);
     if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await connectToDB();
-    const { conversationId, ciphertext, iv, encryptionVersion, replyTo } = await req.json();
+    const { conversationId, ciphertext, iv, encryptionVersion, replyTo, clientMessageId } = await req.json();
     const access = await participant(auth.uid, conversationId);
     const encrypted = encryptionVersion === 1 && typeof ciphertext === "string" && typeof iv === "string";
     if (!access || !encrypted || !access.conversation.encryptionVersion) return NextResponse.json({ error: "Invalid encrypted message" }, { status: 400 });
@@ -78,32 +85,62 @@ export async function POST(req: NextRequest) {
     if (replyTo && !isValidObjectId(replyTo)) {
       return NextResponse.json({ error: "Invalid reply message" }, { status: 400 });
     }
-    const replyMessage = replyTo
-      ? await Message.findOne({ _id: replyTo, conversation: conversationId }).select("_id")
-      : null;
-    if (replyTo && !replyMessage) {
-      return NextResponse.json({ error: "Reply message not found" }, { status: 400 });
-    }
-    const message = await Message.create({
-      conversation: conversationId,
-      sender: access.user._id,
-      ciphertext,
-      iv,
-      encryptionVersion: 1,
-      readBy: [access.user._id],
-      replyTo: replyMessage?._id,
-    });
-    access.conversation.lastMessage = message._id;
-    access.conversation.lastMessageAt = message.createdAt;
-    await access.conversation.save();
-    await message.populate([
+    const idempotencyKey = typeof clientMessageId === "string" && /^[\w-]{8,64}$/.test(clientMessageId)
+      ? clientMessageId
+      : undefined;
+    const populateMessage = [
       { path: "sender", select: "name username image firebaseId" },
       {
         path: "replyTo",
         select: "text ciphertext iv encryptionVersion sender createdAt",
         populate: { path: "sender", select: "name username image firebaseId" },
       },
-    ]);
+    ];
+    // A retry of a message that already reached us returns the original.
+    if (idempotencyKey) {
+      const existing = await Message.findOne({ sender: access.user._id, clientMessageId: idempotencyKey })
+        .populate(populateMessage);
+      if (existing) return NextResponse.json({ message: existing, duplicate: true }, { status: 200 });
+    }
+    // Abuse guard: at most 30 messages a minute per sender.
+    const recentCount = await Message.countDocuments({
+      sender: access.user._id,
+      createdAt: { $gt: new Date(Date.now() - 60_000) },
+    });
+    if (recentCount >= 30) {
+      return NextResponse.json({ error: "You're sending messages too quickly. Wait a moment and try again." }, { status: 429 });
+    }
+    const replyMessage = replyTo
+      ? await Message.findOne({ _id: replyTo, conversation: conversationId }).select("_id")
+      : null;
+    if (replyTo && !replyMessage) {
+      return NextResponse.json({ error: "Reply message not found" }, { status: 400 });
+    }
+    let message;
+    try {
+      message = await Message.create({
+        conversation: conversationId,
+        sender: access.user._id,
+        ciphertext,
+        iv,
+        encryptionVersion: 1,
+        readBy: [access.user._id],
+        replyTo: replyMessage?._id,
+        ...(idempotencyKey ? { clientMessageId: idempotencyKey } : {}),
+      });
+    } catch (error) {
+      // Two concurrent retries: the unique index lets one win; return it.
+      if ((error as { code?: number })?.code === 11000 && idempotencyKey) {
+        const existing = await Message.findOne({ sender: access.user._id, clientMessageId: idempotencyKey })
+          .populate(populateMessage);
+        if (existing) return NextResponse.json({ message: existing, duplicate: true }, { status: 200 });
+      }
+      throw error;
+    }
+    access.conversation.lastMessage = message._id;
+    access.conversation.lastMessageAt = message.createdAt;
+    await access.conversation.save();
+    await message.populate(populateMessage);
 
     // Push is tied to the durable HTTP write, not the best-effort socket event.
     // The service worker suppresses this notification while a visible app tab
