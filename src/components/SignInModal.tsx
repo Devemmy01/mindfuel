@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Lock, Flame, Bookmark } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/providers/AuthProvider";
@@ -71,30 +71,27 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     Start your reflection practice
                   </h2>
                   <p className="text-muted-foreground text-sm px-4">
-                    Turn daily lessons into lasting growth—with a thoughtful
-                    community beside you.
+                    Write one honest reflection a day. Read what others learned.
                   </p>
                 </div>
 
-                {/* Features List */}
-                <div className="w-full space-y-4 mb-10 text-left px-2">
-                  <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80 text-center">
-                      <span className="font-bold text-foreground">
-                        Thoughtful prompts.
-                      </span>{" "}
-                      Begin without staring at a blank page.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <p className="text-[13px] text-foreground/80 text-center">
-                      <span className="font-bold text-foreground">
-                        Your growth archive.
-                      </span>{" "}
-                      Keep the insights you want to live by.
-                    </p>
-                  </div>
-                </div>
+                {/* What signing in adds */}
+                <ul className="mb-8 w-full space-y-3 text-left">
+                  {[
+                    { icon: Lock, title: "Private by default.", body: "Reflections are just for you unless you choose to share." },
+                    { icon: Flame, title: "A streak that keeps you going.", body: "One sentence a day is enough." },
+                    { icon: Bookmark, title: "Your growth archive.", body: "Save the reflections you want to come back to." },
+                  ].map(({ icon: Icon, title, body }) => (
+                    <li key={title} className="flex items-start gap-3">
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-primary-text">
+                        <Icon className="size-4" aria-hidden />
+                      </span>
+                      <p className="text-body-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{title}</span> {body}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
 
                 {/* Google Sign In Button */}
                 <button
