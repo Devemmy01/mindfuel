@@ -5,6 +5,9 @@ export interface ITip extends Document {
   author?: string;
   source: string;
   category: "mindfulness" | "wisdom" | "advice" | "affirmation";
+  /** Only approved tips are shown. Legacy tips (no status) are screened on read. */
+  status?: "approved" | "pending" | "rejected";
+  screenReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,12 +34,18 @@ const TipSchema = new Schema(
       required: true,
       enum: ["mindfulness", "wisdom", "advice", "affirmation"],
     },
+    status: {
+      type: String,
+      enum: ["approved", "pending", "rejected"],
+    },
+    screenReason: String,
   },
   { timestamps: true }
 );
 
 // Index for random sampling
 TipSchema.index({ category: 1 });
+TipSchema.index({ status: 1 });
 
 const Tip = models.Tip || model<ITip>("Tip", TipSchema);
 

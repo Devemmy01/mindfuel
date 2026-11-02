@@ -4,9 +4,9 @@ import { emailAllowed, sendCategoryPush } from "@/lib/notify";
 import { isCronAuthorized } from "@/lib/api-auth";
 import { connectToDB } from "@/utils/database";
 import User from "@/models/user";
-import Tip from "@/models/tip";
 import { resend } from "@/lib/resend";
 import { DailyTipEmail } from "@/emails/DailyTipEmail";
+import { showableTipTexts } from "@/lib/tips";
 import { absoluteComposeUrl } from "@/lib/links";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
 import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     // not reflection questions — those belong to the in-app prompt, not this
     // email. Selection happens per user so every person gets a fresh tip
     // until they have exhausted the entire pool.
-    let tipPool = [...DAILY_TIPS];
+    let tipPool: string[] = [...DAILY_TIPS];
     try {
-      const storedTips = await Tip.find({}).select("text -_id").limit(1000).lean();
-      tipPool = [...new Set([...DAILY_TIPS, ...storedTips.map((tip) => tip.text).filter(Boolean)])];
+      // Only reviewed or screened tips reach inboxes.
+      tipPool = [...new Set([...DAILY_TIPS, ...(await showableTipTexts())])];
     } catch (tipError) {
       console.error("Failed to fetch local tip for cron:", tipError);
     }

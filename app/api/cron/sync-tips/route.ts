@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/api-auth";
+import { initialTipStatus, screenTip } from "@/lib/tip-screen";
 import { connectToDB } from "@/utils/database";
 import Tip from "@/models/tip";
 
@@ -106,9 +107,18 @@ export async function GET(req: NextRequest) {
 
         for (const tipData of tips) {
           try {
+            // Screen on the way in: off-tone tips are rejected, joke-advice
+            // sources wait for a person (scripts/review-tips.ts).
+            const screened = screenTip(tipData.text);
             const result = await Tip.findOneAndUpdate(
               { text: tipData.text },
-              { $setOnInsert: tipData },
+              {
+                $setOnInsert: {
+                  ...tipData,
+                  status: initialTipStatus(tipData.text, tipData.source),
+                  ...(screened.ok ? {} : { screenReason: screened.reason }),
+                },
+              },
               { upsert: true, new: true, rawResult: true }
             );
             if (!result.lastErrorObject.updatedExisting) {
