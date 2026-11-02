@@ -12,7 +12,7 @@ import Switch from "@/components/ui/Switch";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import ReminderPrimer from "@/components/reflect/ReminderPrimer";
-import { CATEGORIES, CATEGORY_LABELS, type NotificationSettings } from "@/lib/notification-policy";
+import { CATEGORIES, CATEGORY_LABELS, categoryHasChannel, type NotificationSettings } from "@/lib/notification-policy";
 import { notificationPermission, pushSupport } from "@/lib/push-priming";
 
 type Device = { id: string; userAgent: string | null; platform: string | null; createdAt: string | null; lastSeen: string | null };
@@ -253,14 +253,18 @@ export default function NotificationSettingsClient({ testPush }: { testPush: boo
                 <p id={`cat-${category}`} className="text-body-sm font-medium">{CATEGORY_LABELS[category].title}</p>
                 <p className="text-caption text-muted-foreground">{CATEGORY_LABELS[category].description}</p>
               </div>
-              <div role="cell">
-                <Switch
-                  label={`${CATEGORY_LABELS[category].title}: push`}
-                  checked={settings.push[category]}
-                  onChange={(value) => void save({ push: { [category]: value } as NotificationSettings["push"] })}
-                />
+              <div role="cell" className="flex w-14 justify-center">
+                {categoryHasChannel(category, "push") ? (
+                  <Switch
+                    label={`${CATEGORY_LABELS[category].title}: push`}
+                    checked={settings.push[category]}
+                    onChange={(value) => void save({ push: { [category]: value } as NotificationSettings["push"] })}
+                  />
+                ) : (
+                  <span className="text-caption text-subtle-foreground" aria-label="Email only">–</span>
+                )}
               </div>
-              <div role="cell">
+              <div role="cell" className="flex w-14 justify-center">
                 <Switch
                   label={`${CATEGORY_LABELS[category].title}: email`}
                   checked={settings.email[category]}

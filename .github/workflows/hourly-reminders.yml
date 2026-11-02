@@ -1,6 +1,7 @@
 name: Hourly reflection reminders
 
-# Sends each member's daily reminder at the local hour they chose.
+# Sends each member's daily reminder at the local hour they chose, and the
+# 8am "from people you follow" digest email.
 # Runs on GitHub Actions so it works on any Vercel plan (Vercel Hobby
 # crons are limited to once a day).
 #
@@ -30,3 +31,15 @@ jobs:
           curl --fail-with-body --silent --show-error --max-time 60 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$APP_URL/api/cron/daily-prompt-notify"
+      - name: Trigger following digest cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "CRON_SECRET secret or APP_URL variable is not configured; skipping."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/following-digest"

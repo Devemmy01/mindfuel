@@ -3,7 +3,7 @@
  * through `canNotify` so preferences, quiet hours and caps are enforced on the
  * server, in one place. See docs/notifications.md.
  */
-export const CATEGORIES = ["daily", "replies", "likes", "follows", "messages", "reposts", "product"] as const;
+export const CATEGORIES = ["daily", "replies", "likes", "follows", "following", "messages", "reposts", "product"] as const;
 export type NotificationCategory = (typeof CATEGORIES)[number];
 export type Channel = "push" | "email";
 
@@ -24,14 +24,28 @@ export type NotificationSettings = {
 
 /** Defaults favour a few useful notifications; likes stay quiet. */
 export const DEFAULT_SETTINGS: NotificationSettings = {
-  push: { daily: true, replies: true, likes: false, follows: true, messages: true, reposts: true, product: false },
-  email: { daily: true, replies: true, likes: false, follows: false, messages: false, reposts: true, product: true },
+  push: { daily: true, replies: true, likes: false, follows: true, following: false, messages: true, reposts: true, product: false },
+  email: { daily: true, replies: true, likes: false, follows: false, following: true, messages: false, reposts: true, product: true },
   reminderHour: 20,
   timezone: "UTC",
   skipWeekends: false,
   quietStart: 22,
   quietEnd: 7,
 };
+
+/** Categories that only exist on one channel (the digest is an email). */
+export const CATEGORY_CHANNELS: Partial<Record<NotificationCategory, Channel[]>> = {
+  following: ["email"],
+};
+
+export function categoryHasChannel(category: NotificationCategory, channel: Channel) {
+  return (CATEGORY_CHANNELS[category] || ["push", "email"]).includes(channel);
+}
+
+/** Local hour the "from people you follow" digest goes out. */
+export const DIGEST_HOUR = 8;
+/** Never reach further back than this, however long since the last digest. */
+export const DIGEST_MAX_LOOKBACK_DAYS = 7;
 
 /** Non-message pushes per user per local day. Messages are rate-limited separately. */
 export const DAILY_PUSH_CAP = 6;
@@ -43,6 +57,7 @@ export const CATEGORY_LABELS: Record<NotificationCategory, { title: string; desc
   replies: { title: "Replies and comments", description: "When someone replies to your reflections." },
   likes: { title: "Likes", description: "Grouped, so a popular reflection is one notification." },
   follows: { title: "New followers", description: "When someone follows you." },
+  following: { title: "From people you follow", description: "A morning email when people you follow share reflections. At most once a day." },
   messages: { title: "Messages", description: "New messages. Never includes the message text." },
   reposts: { title: "Reposts and quotes", description: "When someone shares or quotes your reflection." },
   product: { title: "Product updates and tips", description: "Occasional news and a daily mindful tip." },
@@ -136,7 +151,7 @@ export function canNotify(
   now = new Date(),
 ): { ok: true } | { ok: false; reason: "preference" | "quiet-hours" | "daily-cap" } {
   const settings = resolveSettings(user);
-  if (!settings[channel][category]) return { ok: false, reason: "preference" };
+  if (!categoryHasChannel(category, channel) || !settings[channel][category]) return { ok: false, reason: "preference" };
   if (channel === "email") return { ok: true };
   if (category !== "messages" && inQuietHours(settings, now)) return { ok: false, reason: "quiet-hours" };
   if (category !== "messages") {
@@ -163,4 +178,12 @@ export function reminderDue(
     return false;
   }
   return true;
+}
+
+/** Whether the "from people you follow" digest is due for this user at `now` (hourly cron). */
+export function digestDue(user: StoredUser & { lastDigestSentOn?: string | null }, now = new Date()) {
+  const settings = resolveSettings(user);
+  if (!settings.email.following) return false;
+  const local = localParts(now, settings.timezone);
+  return local.hour === DIGEST_HOUR && user.lastDigestSentOn !== local.date;
 }

@@ -51,6 +51,8 @@ export interface IUser extends Document {
   pushSentToday?: number;
   /** Local date the daily reminder was last sent. */
   lastReminderSentOn?: string;
+  lastDigestSentOn?: string;
+  lastDigestAt?: Date | null;
   /** Inactivity win-back emails sent since the last reflection. */
   winbackCount?: number;
   /** First-run coachmark finished or skipped; prevents replays on new devices. */
@@ -170,6 +172,8 @@ const UserSchema = new Schema(
     pushDay: String,
     pushSentToday: { type: Number, default: 0 },
     lastReminderSentOn: String,
+    lastDigestSentOn: String,
+    lastDigestAt: { type: Date, default: null },
     winbackCount: { type: Number, default: 0 },
     chatRecoveryReminderSentAt: {
       type: Date,

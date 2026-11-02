@@ -1,5 +1,8 @@
 {
   "functions": {
+    "app/api/cron/following-digest/route.tsx": {
+      "maxDuration": 60
+    },
     "app/api/socket/route.ts": {
       "maxDuration": 300
     },

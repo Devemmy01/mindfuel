@@ -12,6 +12,7 @@ and every email trigger checks `emailAllowed`.
 | `replies` | Comments on your reflections, replies to your comments | on | on |
 | `likes` | Likes and saves (grouped) | **off** | off |
 | `follows` | New followers | on | off |
+| `following` | "From people you follow" digest email (email only) | n/a | on |
 | `messages` | New messages (never includes text) | on | off |
 | `reposts` | Reposts and quotes | on | on |
 | `product` | Product updates and the daily mindful tip | **off** | on |
@@ -31,6 +32,11 @@ and every email trigger checks `emailAllowed`.
 - **Trigger:** `.github/workflows/hourly-reminders.yml` calls `/api/cron/daily-prompt-notify` at minute 5 of every hour. It needs the repository secret `CRON_SECRET` and the variable `APP_URL`.
   - This works on any Vercel plan; Hobby crons run once a day at most.
   - The route loads every user with a device each run. Past roughly 50k devices, store the reminder's UTC hour on the user and query by it.
+- **"From people you follow" digest:** `/api/cron/following-digest`, called by the same hourly workflow.
+  - At 8:00 local time (`DIGEST_HOUR`), at most once per local day (`lastDigestSentOn`, claimed atomically before sending so overlapping runs can't double-send).
+  - Covers public, non-repost reflections by people you follow since the last digest (`lastDigestAt`), first time 24 hours, never more than 7 days back. Private reflections never appear. Shows up to 5, then "And N more".
+  - No email when there's nothing new. Sent through Resend batch (100 per call) with an idempotency key; a failed batch releases the claim and leaves `lastDigestAt` alone, so those posts appear in the next digest.
+  - Signed one-click unsubscribe turns off only this category.
 - **Quiet hours:** `quietStart` to `quietEnd`, local time, default 22:00 to 07:00. They may cross midnight. Messages ignore quiet hours if message pushes are on.
 - **Daily cap:** 6 non-message pushes per local day (`DAILY_PUSH_CAP`; counters `pushDay` and `pushSentToday`). Further pushes are skipped and counted as `skipped`.
 - **Win-back email:** weekly at most, and never more than 3 (`MAX_WINBACKS`) until the person reflects again. `winbackCount` resets on each new reflection.
