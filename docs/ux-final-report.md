@@ -1,6 +1,6 @@
 # MindFuel UX overhaul: final report
 
-Fifteen stacked pull requests, each based on the one before. Merge them in order, or merge #15 into `dev` once all are reviewed.
+Seventeen stacked pull requests, each based on the one before. Merge them in order, or merge #17 into `dev` once all are reviewed.
 
 | PR | Phase | Branch |
 |---|---|---|
@@ -19,8 +19,10 @@ Fifteen stacked pull requests, each based on the one before. Merge them in order
 | #13 | 13. "From people you follow" digest email, email dark mode, reload fix | `ux/phase-13-digest` |
 | #14 | 14. Light theme (System / Light / Dark) | `ux/phase-14-light-theme` |
 | #15 | 15. Block and mute; encrypted-images proposal | `ux/phase-15-chat-safety` |
+| #16 | 16. End-to-end encrypted photos in chat | `ux/phase-16-chat-images` |
+| #17 | 17. Delete messages, message requests, swipe to reply, link previews; WebKit and Lighthouse CI | `ux/phase-17-chat-complete` |
 
-**Final state:** 136 unit tests pass, lint passes, and the build passes. E2E runs in Playwright **emulation** (desktop Chromium and Pixel 7): guest home, first-run flow with mocked auth, notifications, and an axe scan of 8 public screens plus 2 signed-in screens with zero serious or critical violations.
+**Final state:** 160 unit tests pass, lint passes, and the build passes. E2E runs in Playwright **emulation** (desktop Chromium and Pixel 7): guest home, first-run flow with mocked auth, notifications, and an axe scan of 8 public screens plus 2 signed-in screens with zero serious or critical violations.
 
 ## Before you merge
 
@@ -63,12 +65,9 @@ Fifteen stacked pull requests, each based on the one before. Merge them in order
 
 | Item | Why |
 |---|---|
-| **Lighthouse ≥ 90 mobile** | **Not met, or not provable here.** First-load JS is down 40–48% (#12), but local scores swing 42–63 on the same build. Remaining costs: React render work on the feed, and Firebase's Google iframe, which is kept on purpose because Safari blocks the sign-in popup without it. Measure with PageSpeed Insights on production. |
-| **Restyle of the large legacy screens** (PostCard, PostDetail, Profile, Messages internals) | They're now themed (#14) but not redesigned. Split the big components first (Messages about 2,100 lines, Profile about 1,100). |
-| **Encrypted image sending** | Needs a crypto change; the proposal is `docs/proposals/chat-image-attachments.md` and needs your sign-off. |
-| **Message requests, swipe actions, delete-for-me, link previews** | Message requests need a product decision on who may message whom. |
-| **iPhone and iPad WebKit runs** | WebKit can't start on Ubuntu 26.04 without `sudo` packages; they're configured for CI. |
-| **Timed real-account first reflection; real push and install** | Needs Google sign-in and real devices; they're in the checklist. |
+| **Lighthouse ≥ 90 mobile, proven** | First-load JS is down 40–48%, but this machine's scores swing ±20. `lighthouse.yml` now measures production weekly and on demand (median of 3). Run it after the deploy and read the real number there. |
+| **Light-theme review of Profile and Collections pages** | They're tokenised, but they render from the database, which refused this machine (Atlas IP allowlist) during review. Check them on a preview. |
+| **Real-device checks** | Push, install, keyboard, and the new chat features need phones; see `docs/mobile-qa-checklist.md` §6b. |
 
 ## Verified only in emulation; needs your real-device confirmation
 - Keyboard behaviour (the iOS visual viewport, Android `interactive-widget`), safe areas, zoom-on-focus.

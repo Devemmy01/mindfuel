@@ -83,6 +83,19 @@ Mark each cell ✅ / ❌ / n/a, and add a note for every ❌.
 | 6.3 | Background the installed app for 5 minutes, then return: no duplicate or missing messages | | | | | | |
 | 6.4 | A failed message shows "Not sent · Retry"; Retry sends it once | | | | | | |
 
+## 6b. New chat features (two real accounts)
+
+| # | Check | A | B | C | D | E | Notes |
+|---|---|---|---|---|---|---|---|
+| 6.5 | Send a photo: it arrives and opens full size on the other phone; a photo with GPS data has no location after download | | | | | | |
+| 6.6 | Delete for everyone: the other phone shows "This message was deleted" without refreshing | | | | | | |
+| 6.7 | Delete for me: gone on this phone, still there on the other | | | | | | |
+| 6.8 | Message someone who doesn't follow you: it lands in their Requests (one push), and your side shows no "read" until they accept | | | | | | |
+| 6.9 | Swipe a bubble right: the reply bar opens; scrolling vertically never triggers it | | | | | | |
+| 6.10 | Paste a link, tap "Add link preview": the card shows on both phones | | | | | | |
+| 6.11 | Block from a profile: neither side can message or follow; Unblock restores messaging | | | | | | |
+| 6.12 | Mute a chat: no push for new messages there, but they still appear in the app | | | | | | |
+
 ## 7. Offline
 
 | # | Check | A | B | C | D | E | Notes |
