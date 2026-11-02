@@ -3,7 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { PenLine } from "lucide-react";
-import { getTodayPrompt, type DailyPrompt } from "@/lib/dailyPrompts";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
+import { useTodayPrompt } from "@/hooks/useTodayPrompt";
 import { copy } from "@/lib/copy";
 
 export function composeHref(prompt: Pick<DailyPrompt, "id" | "question">) {
@@ -12,9 +13,7 @@ export function composeHref(prompt: Pick<DailyPrompt, "id" | "question">) {
 
 /** Compact "today's prompt" summary for the right rail. */
 export default function TodayPromptCard() {
-  // Resolved after mount: "today" depends on the viewer's clock, not the server's.
-  const [prompt, setPrompt] = React.useState<DailyPrompt | null>(null);
-  React.useEffect(() => setPrompt(getTodayPrompt()), []);
+  const prompt = useTodayPrompt();
 
   return (
     <section aria-labelledby="rail-prompt-title" className="rounded-card border border-line bg-surface p-4">

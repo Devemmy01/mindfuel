@@ -3,7 +3,8 @@
 import React from "react";
 import { Shuffle } from "lucide-react";
 import Link from "next/link";
-import { getRandomPrompt, getTodayPrompt, type DailyPrompt } from "@/lib/dailyPrompts";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
+import { fetchRandomPrompt } from "@/hooks/useTodayPrompt";
 import { loadDraft, saveDraft } from "@/lib/draft";
 import { copy } from "@/lib/copy";
 import { Button } from "@/components/ui/button";
@@ -51,15 +52,11 @@ export default function QuickComposer({
   }, []);
 
   React.useEffect(() => {
-    // The server picked the prompt by its own date; match the viewer's day.
-    const today = getTodayPrompt();
     const draft = loadDraft();
     if (draft?.text && draft.promptId && !textareaRef.current?.value) {
-      setPrompt({ id: draft.promptId, question: draft.prompt || today.question });
+      setPrompt({ id: draft.promptId, question: draft.prompt || initialPrompt.question });
       setText(draft.text);
       if (draft.visibility) setVisibility(draft.visibility);
-    } else {
-      setPrompt({ id: today.id, question: today.question });
     }
     // Focus straight into writing on desktop. On phones, opening the keyboard
     // on load would hide the value line, so the box waits for a tap.
@@ -68,17 +65,30 @@ export default function QuickComposer({
     if (variant === "home") track("landing_view");
   }, []);
 
+  // A cached page can carry yesterday's prompt across UTC midnight; follow the
+  // parent's fresher one unless the person has started writing.
+  const firstPrompt = React.useRef(initialPrompt.id);
+  React.useEffect(() => {
+    if (initialPrompt.id === firstPrompt.current || textareaRef.current?.value) return;
+    firstPrompt.current = initialPrompt.id;
+    setPrompt(initialPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt.id]);
+
   const update = (value: string) => {
     if (!text && value) trackOnce("composer_first_keystroke");
     setText(value);
     saveDraft({ text: value, prompt: prompt.question, promptId: prompt.id, visibility });
   };
 
-  const shuffle = () => {
-    let next = getRandomPrompt();
-    if (next.id === prompt.id) next = getRandomPrompt();
-    setPrompt({ id: next.id, question: next.question });
-    if (text) saveDraft({ text, prompt: next.question, promptId: next.id, visibility });
+  const shuffle = async () => {
+    try {
+      const next = await fetchRandomPrompt(prompt.id);
+      setPrompt({ id: next.id, question: next.question });
+      if (text) saveDraft({ text, prompt: next.question, promptId: next.id, visibility });
+    } catch {
+      // Keep the current prompt.
+    }
   };
 
   const save = (event: React.FormEvent) => {

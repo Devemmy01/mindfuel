@@ -1,11 +1,12 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { getTodayPrompt } from "@/lib/dailyPrompts";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
+import { useTodayPrompt } from "@/hooks/useTodayPrompt";
 import { copy } from "@/lib/copy";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ export interface ActiveReflector {
 
 interface DailyReflectionPromptProps {
   reflectors?: ActiveReflector[];
+  initialPrompt?: DailyPrompt;
 }
 
 function ReflectorAvatar({
@@ -56,8 +58,9 @@ function ReflectorAvatar({
 
 export default function DailyReflectionPrompt({
   reflectors = [],
+  initialPrompt,
 }: DailyReflectionPromptProps) {
-  const prompt = getTodayPrompt();
+  const prompt = useTodayPrompt(initialPrompt);
 
   if (!prompt) return null;
 
@@ -82,7 +85,7 @@ export default function DailyReflectionPrompt({
     categoryColors.default;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
@@ -172,6 +175,6 @@ export default function DailyReflectionPrompt({
           <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5" />
         </Link>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

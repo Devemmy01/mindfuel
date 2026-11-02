@@ -4,8 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import PostCard from "@/components/PostCard";
 import DailyReflectionPrompt from "@/components/DailyReflectionPrompt";
 import TodayCard from "@/components/reflect/TodayCard";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
 import MindfulTip from "@/components/MindfulTip";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ArrowUp, Loader2, RefreshCw } from "lucide-react";
 import IconButton from "@/components/ui/IconButton";
 import { buttonVariants } from "@/components/ui/button";
@@ -128,7 +129,13 @@ function SkeletonCard() {
   );
 }
 
-export default function FeedClient({ initialReflectionPosts = [] }: { initialReflectionPosts?: PostType[] }) {
+export default function FeedClient({
+  initialReflectionPosts = [],
+  todayPrompt,
+}: {
+  initialReflectionPosts?: PostType[];
+  todayPrompt?: DailyPrompt;
+}) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"feed" | "reflections">("reflections");
   // Explain what each tab contains on the first few visits only.
@@ -390,7 +397,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
       {/* Pull-to-refresh indicator — fixed so it doesn't affect layout */}
       <AnimatePresence>
         {(pullDistance > 8 || isPullRefreshing) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -40 }}
@@ -410,14 +417,14 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
                 <span className="text-[12px] text-muted-foreground font-medium">Refreshing…</span>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showScrollTop && (
           <div className="sticky top-24 z-50 flex justify-center pointer-events-none md:top-20">
-            <motion.button
+            <m.button
               type="button"
               initial={{ opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -429,7 +436,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             >
               <ArrowUp className="size-4" strokeWidth={2.4} aria-hidden />
               <span className="whitespace-nowrap">Back to top</span>
-            </motion.button>
+            </m.button>
           </div>
         )}
       </AnimatePresence>
@@ -471,7 +478,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
       <div {...tabPanelProps(activeTab, "feed")} className="outline-none">
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div
+          <m.div
             key="skeleton"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -480,12 +487,12 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             {[1, 2, 3, 4].map((i) => (
               <SkeletonCard key={i} />
             ))}
-          </motion.div>
+          </m.div>
         ) : activeTab === "reflections" ? (
           <div key={`${activeTab}-content`} className="relative">
               <div className="pt-4">
                 {/* Members start at today's reflection; guests see the prompt card. */}
-                {user ? <TodayCard /> : <DailyReflectionPrompt reflectors={activeReflectors} />}
+                {user ? <TodayCard initialPrompt={todayPrompt} /> : <DailyReflectionPrompt reflectors={activeReflectors} initialPrompt={todayPrompt} />}
                 {/* The tip lives in the right rail from xl; below that it follows
                     today's prompt so the prompt stays the first thing people see. */}
                 <div className="px-4 pt-4 xl:hidden">
@@ -529,7 +536,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             <div className="h-6 w-full" />
           </div>
         ) : (
-          <motion.div
+          <m.div
             key={`${activeTab}-empty`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -550,7 +557,7 @@ export default function FeedClient({ initialReflectionPosts = [] }: { initialRef
             >
               {copy.nav.writeLong}
             </Link>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
       </div>

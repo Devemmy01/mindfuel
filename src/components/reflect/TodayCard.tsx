@@ -10,7 +10,8 @@ import QuickComposer from "@/components/home/QuickComposer";
 import WeekStrip from "@/components/reflect/WeekStrip";
 import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/button";
-import { getTodayPrompt } from "@/lib/dailyPrompts";
+import type { DailyPrompt } from "@/lib/dailyPrompts";
+import { useTodayPrompt } from "@/hooks/useTodayPrompt";
 import { composeHref } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import type { ReflectionSaved } from "@/hooks/useSubmitReflection";
@@ -23,9 +24,9 @@ type RecentPosts = { posts: Array<{ createdAt: string; isRepost?: boolean }> };
  * The top of Home for members: today's prompt ready to answer, or, once they
  * have reflected today, their streak and week at a glance.
  */
-export default function TodayCard() {
+export default function TodayCard({ initialPrompt }: { initialPrompt?: DailyPrompt }) {
   const { user, profile, refreshProfile } = useAuth();
-  const [prompt] = React.useState(() => getTodayPrompt());
+  const prompt = useTodayPrompt(initialPrompt);
   const [justSaved, setJustSaved] = React.useState<ReflectionSaved | null>(null);
 
   const { data: recent, mutate } = useSWR<RecentPosts>(
@@ -35,6 +36,7 @@ export default function TodayCard() {
   );
 
   if (!user) return null;
+  if (!prompt) return <div className="px-4 pt-4"><div className="skeleton h-48 w-full rounded-card" aria-hidden /></div>;
 
   const reflectionDates = (recent?.posts || []).filter((post) => !post.isRepost).map((post) => post.createdAt);
   if (justSaved) reflectionDates.push(new Date().toISOString());
