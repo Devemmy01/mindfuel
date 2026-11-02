@@ -17,13 +17,23 @@ interface UserProfile {
   image: string;
   bio?: string;
   streakDays?: number;
+  onboardedAt?: string | null;
 }
+
+export type SignInResult =
+  | { ok: true; user: FirebaseUser }
+  | { ok: false; reason: "popup-blocked" | "cancelled" | "network" | "unknown" };
 
 interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
   login: () => Promise<void>;
+  /**
+   * Google sign-in that reports why it failed and resolves only once the
+   * MindFuel account exists, so a first post right after sign-in succeeds.
+   */
+  signInWithGoogle: () => Promise<SignInResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   showSignInModal: boolean;
@@ -32,6 +42,23 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * End-to-end test seam. Only when a build sets NEXT_PUBLIC_E2E_AUTH=1 (never in
+ * production) can a Playwright test decide what Google sign-in returns via
+ * `window.__mindfuelE2E.signIn` ("ok" | "popup-blocked" | "cancelled").
+ */
+const E2E_AUTH = process.env.NEXT_PUBLIC_E2E_AUTH === "1";
+
+function e2eUser(): FirebaseUser {
+  return {
+    uid: "e2e-user",
+    displayName: "E2E Tester",
+    email: "e2e@example.com",
+    photoURL: null,
+    getIdToken: async () => "e2e-token",
+  } as unknown as FirebaseUser;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -42,6 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   const openSignInModal = useCallback(() => setShowSignInModal(true), []);
+  // Resolves when the signed-in user's database record has been synced.
+  const accountReady = React.useRef<{ uid: string; promise: Promise<void> } | null>(null);
   const closeSignInModal = useCallback(() => setShowSignInModal(false), []);
 
   // Function to fetch user profile from MongoDB
@@ -56,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           image: data.user.image || "",
           bio: data.user.bio,
           streakDays: data.user.streakDays,
+          onboardedAt: data.user.onboardedAt ?? null,
         });
       }
     } catch (error) {
@@ -75,6 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (firebaseUser) {
         // Sync user with MongoDB asynchronously
+        let markAccountReady: () => void = () => undefined;
+        accountReady.current = {
+          uid: firebaseUser.uid,
+          promise: new Promise<void>((resolve) => {
+            markAccountReady = resolve;
+          }),
+        };
         const syncUser = async () => {
           try {
             const hasSyncedThisSession = sessionStorage.getItem(`synced_${firebaseUser.uid}`);
@@ -101,6 +138,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                     username: data.user.username,
                     image: data.user.image || "",
                     bio: data.user.bio,
+                    streakDays: data.user.streakDays,
+                    onboardedAt: data.user.onboardedAt ?? null,
                   });
                 }
                 sessionStorage.setItem(`synced_${firebaseUser.uid}`, "true");
@@ -109,6 +148,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               // Only fetch the profile if already synced this session
               await fetchUserProfile(firebaseUser.uid);
             }
+
+            // The database record exists now; writes may proceed while the
+            // slower chat-key work below continues.
+            markAccountReady();
 
             // Publish this device's public chat key during the normal app
             // session. Recipients can then start an encrypted conversation
@@ -127,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         };
 
-        syncUser();
+        void syncUser().finally(() => markAccountReady());
       }
     });
 
@@ -155,6 +198,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
+    if (E2E_AUTH) {
+      const outcome = (window as Window & { __mindfuelE2E?: { signIn?: string } }).__mindfuelE2E?.signIn || "ok";
+      if (outcome === "popup-blocked" || outcome === "cancelled") return { ok: false, reason: outcome };
+      const fake = e2eUser();
+      setUser(fake);
+      setProfile({ name: "E2E Tester", image: "", streakDays: 0, onboardedAt: null });
+      return { ok: true, user: fake };
+    }
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      // onAuthStateChanged starts the account sync; wait for it (bounded) so
+      // the caller can write immediately.
+      for (let waited = 0; waited < 3_000 && accountReady.current?.uid !== credential.user.uid; waited += 50) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      if (accountReady.current?.uid === credential.user.uid) {
+        await Promise.race([accountReady.current.promise, new Promise((resolve) => setTimeout(resolve, 8_000))]);
+      }
+      return { ok: true, user: credential.user };
+    } catch (error) {
+      const code = (error as { code?: string })?.code || "";
+      if (code === "auth/popup-blocked") return { ok: false, reason: "popup-blocked" };
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || code === "auth/user-cancelled") {
+        return { ok: false, reason: "cancelled" };
+      }
+      if (code === "auth/network-request-failed") return { ok: false, reason: "network" };
+      console.error("Sign-in failed:", error);
+      return { ok: false, reason: "unknown" };
+    }
+  }, []);
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -177,6 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         profile, 
         loading, 
         login, 
+        signInWithGoogle,
         logout, 
         refreshProfile,
         showSignInModal,

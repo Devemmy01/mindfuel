@@ -38,6 +38,8 @@ export interface IUser extends Document {
   chatRecoveryReminderSentAt?: Date;
   longestStreak: number;
   earnedMilestones: Array<{ id: string; earnedAt: Date }>;
+  /** First-run coachmark finished or skipped; prevents replays on new devices. */
+  onboardedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -134,6 +136,9 @@ const UserSchema = new Schema(
     lastInactivityReminderAt: {
       type: Date,
       default: null,
+    },
+    onboardedAt: {
+      type: Date,
     },
     chatRecoveryReminderSentAt: {
       type: Date,
