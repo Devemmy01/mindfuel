@@ -9,7 +9,10 @@ import { DailyTipEmail } from "@/emails/DailyTipEmail";
 import { showableTipTexts } from "@/lib/tips";
 import { absoluteComposeUrl } from "@/lib/links";
 import { getTodayPrompt } from "@/lib/dailyPrompts";
-import { DAILY_TIPS, stableTipIndex } from "@/lib/dailyTips";
+import { DAILY_TIPS } from "@/lib/dailyTips";
+import { pickItem, poolFor, streakLine, subjectFor, themeFor, type FuelItem } from "@/lib/daily-fuel";
+import Post from "@/models/post";
+import { PUBLIC_POSTS } from "@/lib/post-visibility";
 import React from "react";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +46,25 @@ export async function GET(req: NextRequest) {
 
     // 2. Fetch users (Unlocked for all users)
     // Preferences are checked per user below (email and push separately).
+    const theme = themeFor(startOfToday);
+    const pool = poolFor(theme, tipPool.filter((tip) => !(DAILY_TIPS as readonly string[]).includes(tip)));
+    const prompt = getTodayPrompt();
+    const writeUrl = absoluteComposeUrl(prompt, "email-tip");
+
+    // Social proof, only when it's real and not tiny.
+    let communityLine: string | null = null;
+    try {
+      const yesterday = new Date(startOfToday.getTime() - 86_400_000);
+      const authors = await Post.distinct("userId", {
+        ...PUBLIC_POSTS,
+        isRepost: { $ne: true },
+        createdAt: { $gte: yesterday, $lt: startOfToday },
+      });
+      if (authors.length >= 3) communityLine = `${authors.length} people shared a reflection yesterday. Yours could be next.`;
+    } catch (countError) {
+      console.error("Daily Fuel community count failed:", countError);
+    }
+
     const users = await User.find({
       email: { $exists: true, $ne: "" },
       $or: [
@@ -50,7 +72,7 @@ export async function GET(req: NextRequest) {
         { lastDailyTipEmailAt: null },
         { lastDailyTipEmailAt: { $exists: false } },
       ],
-    }).select("name email preferences notificationSettings pushSubscriptions dailyTipHistory lastDailyTipEmailAt");
+    }).select("name email preferences notificationSettings pushSubscriptions dailyTipHistory lastDailyTipEmailAt streakDays lastReflectionDate");
 
     if (users.length === 0) {
       return NextResponse.json(
@@ -70,16 +92,40 @@ export async function GET(req: NextRequest) {
 
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const sendDailyTipEmail = async (userId: string, userEmail: string, userName: string, tip: string) => {
+    const sendDailyTipEmail = async (
+      userId: string,
+      userEmail: string,
+      userName: string,
+      item: FuelItem,
+      personalLine: string | null,
+    ) => {
       const unsubscribe = unsubscribeFor(userId, "product");
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
           const response = (await resend.emails.send({
             from: "MindFuel <daily@mind-fuel.app>",
             to: userEmail,
-            subject: "Your Daily Fuel is here",
+            // A different subject every day: identical ones get threaded and read as repeats.
+            subject: subjectFor(theme, item),
             headers: unsubscribe.headers,
-            react: <DailyTipEmail name={userName || "Friend"} tip={tip} writeUrl={absoluteComposeUrl(getTodayPrompt(), "email-tip")} unsubscribeUrl={unsubscribe.url} /> as React.ReactElement,
+            react: (
+              <DailyTipEmail
+                name={userName || "Friend"}
+                themeLabel={theme.label}
+                kicker={theme.kicker}
+                title={item.title}
+                body={item.body}
+                extra={item.extra}
+                wordStyle={theme.key === "word"}
+                promptQuestion={prompt.question}
+                ctaLabel={theme.cta}
+                writeUrl={writeUrl}
+                streakLine={personalLine}
+                communityLine={communityLine}
+                downloadUrl={theme.key === "mindset" ? `${process.env.NEXT_PUBLIC_BASE_URL || "https://mind-fuel.app"}/tip/download?text=${encodeURIComponent(item.body)}` : undefined}
+                unsubscribeUrl={unsubscribe.url}
+              />
+            ) as React.ReactElement,
           })) as unknown;
 
           // Resend's response typing can be ambiguous; guard access safely.
@@ -111,26 +157,32 @@ export async function GET(req: NextRequest) {
 
     // 3. Process Notifications
     for (const user of users) {
-      const history = new Set((user.dailyTipHistory || []).map(String));
-      let availableTips = tipPool.filter((tip) => !history.has(tip));
-      const exhaustedPool = availableTips.length === 0;
-      if (exhaustedPool) availableTips = tipPool;
-      const tip = availableTips[stableTipIndex(`${user.email}:${dateKey}`, availableTips.length)];
+      // History holds item ids (older entries are plain tip texts, which map to "tip:<text>").
+      const history = new Set<string>((user.dailyTipHistory || []).map((entry: unknown) => {
+        const value = String(entry);
+        return /^(tip:|try|word|thanks|fg|slow|reset)/.test(value) ? value : `tip:${value}`;
+      }));
+      const { item, exhausted } = pickItem(pool, history, `${user.email}:${dateKey}`);
+      const personalLine = streakLine(user.streakDays, user.lastReflectionDate);
 
       // EMAIL (the "Product updates and tips" category)
       try {
         const sent = emailAllowed(user, "product")
-          ? await sendDailyTipEmail(String(user._id), user.email, user.name || "Friend", tip)
+          ? await sendDailyTipEmail(String(user._id), user.email, (user.name || "Friend").split(" ")[0], item, personalLine)
           : false;
         if (sent) {
           results.emailsSent++;
           await User.updateOne(
             { _id: user._id },
-            exhaustedPool
-              ? { $set: { dailyTipHistory: [tip], lastDailyTipEmailAt: new Date() } }
+            exhausted
+              ? {
+                  // Restart only this theme's pool; keep what was seen in the others.
+                  $set: { lastDailyTipEmailAt: new Date() },
+                  $pull: { dailyTipHistory: { $in: pool.map((entry) => entry.id) } },
+                }
               : {
                   $set: { lastDailyTipEmailAt: new Date() },
-                  $push: { dailyTipHistory: { $each: [tip], $slice: -1000 } },
+                  $push: { dailyTipHistory: { $each: [item.id], $slice: -1000 } },
                 },
           );
         }
@@ -147,8 +199,8 @@ export async function GET(req: NextRequest) {
           userId: user._id,
           category: "product",
           payload: {
-            title: "Daily Fuel",
-            body: tip,
+            title: theme.label,
+            body: theme.key === "word" ? `${item.title}: ${item.body}` : item.title,
             tag: "daily-fuel",
             url: absoluteComposeUrl(getTodayPrompt(), "push-tip"),
           },
