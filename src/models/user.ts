@@ -21,6 +21,8 @@ export interface IUser extends Document {
   preferences: {
     dailyEmail: boolean;
     notifications: boolean;
+    /** Show the Mindful Tip card. */
+    showTips?: boolean;
   };
   pushSubscriptions: Array<{
     endpoint: string;
@@ -113,6 +115,10 @@ const UserSchema = new Schema(
         default: true,
       },
       notifications: {
+        type: Boolean,
+        default: true,
+      },
+      showTips: {
         type: Boolean,
         default: true,
       },

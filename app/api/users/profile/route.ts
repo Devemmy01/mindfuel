@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     await connectToDB();
     const firebaseId = await getViewerUid(req);
     if (!firebaseId) return unauthorized();
-    const { name, username, bio, uploadedImage, onboarded } = await req.json();
+    const { name, username, bio, uploadedImage, onboarded, showTips } = await req.json();
 
     // Validate image size if provided
     if (uploadedImage && uploadedImage.length > MAX_IMAGE_SIZE) {
@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
         updateData.uploadedImage = uploadedImage;
       }
     }
+
+    if (typeof showTips === "boolean") updateData["preferences.showTips"] = showTips;
 
     // First-run guidance is recorded once per account, not per device.
     if (onboarded === true) {

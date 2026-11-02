@@ -1,12 +1,16 @@
 "use client";
 
 import React from "react";
-import { PencilLine, ArrowRight, RefreshCw, Download } from "lucide-react";
+import { ArrowRight, Download, RefreshCw, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/AuthProvider";
+import { useToast } from "@/providers/ToastProvider";
+import IconButton from "@/components/ui/IconButton";
 
 const fallbackTip = "Breathe deeply. You are exactly where you need to be.";
+const GUEST_HIDDEN_KEY = "mindfuel:tips-hidden";
 
 async function fetchTip(url: string): Promise<{ text: string }> {
   const response = await fetch(url);
@@ -14,52 +18,90 @@ async function fetchTip(url: string): Promise<{ text: string }> {
   return response.json();
 }
 
+/** A screened, optional tip card. Members can hide it; the choice is saved to their profile. */
 export default function MindfulTip({ className }: { className?: string }) {
+  const { user, profile, refreshProfile } = useAuth();
+  const { showToast } = useToast();
+  const [guestHidden, setGuestHidden] = React.useState(false);
+  const [hiddenNow, setHiddenNow] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      setGuestHidden(localStorage.getItem(GUEST_HIDDEN_KEY) === "1");
+    } catch {
+      setGuestHidden(false);
+    }
+  }, []);
+
+  const hidden = hiddenNow || (user ? profile?.showTips === false : guestHidden);
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    "/api/tips/random",
+    hidden ? null : "/api/tips/random",
     fetchTip,
     {
       dedupingInterval: 60_000,
       revalidateOnFocus: false,
       shouldRetryOnError: false,
-      onError: (tipError) => console.error("Failed to fetch tip:", tipError),
     },
   );
+
+  if (hidden) return null;
+
   const loading = isLoading || isValidating;
-  const tip = data?.text || (error ? fallbackTip : "Loading your mindful tip...");
+  const tip = data?.text || (error ? fallbackTip : "");
+
+  const hide = async () => {
+    setHiddenNow(true);
+    if (user) {
+      await fetch("/api/users/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showTips: false }),
+      }).catch(() => undefined);
+      void refreshProfile();
+      showToast("Tips hidden. Turn them back on in Settings → Notifications.", "info", 5000);
+    } else {
+      try {
+        localStorage.setItem(GUEST_HIDDEN_KEY, "1");
+      } catch {
+        // Hidden for this visit only.
+      }
+      showToast("Tips hidden.", "info");
+    }
+  };
 
   return (
-    <div className={cn(
-      "bg-brand-green/5 rounded-3xl p-5 border border-brand-green/10 mt-6 group hover:bg-brand-green/10 transition-all cursor-default",
-      className,
-    )}>
-      <div className="flex items-center gap-2 mb-3">
-        <PencilLine className="w-4 h-4 text-brand-green" />
-        <h3 className="font-extrabold text-[12px] uppercase tracking-[0.1em] text-brand-green/80">Mindful Tip</h3>
+    <section aria-labelledby="mindful-tip-title" className={cn("rounded-card border border-line bg-surface p-4", className)}>
+      <div className="flex items-start justify-between gap-2">
+        <h2 id="mindful-tip-title" className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-wider text-primary-text">
+          <Sparkles className="size-3.5" aria-hidden /> Mindful tip
+        </h2>
+        <IconButton aria-label="Hide tips" size="sm" onClick={() => void hide()} className="-mr-2 -mt-2">
+          <X className="size-4" />
+        </IconButton>
       </div>
-      <p className="text-[14px] font-medium leading-relaxed text-foreground/90 italic">
-        &quot;{tip}&quot;
+      <p className="mt-2 min-h-11 text-body-sm italic text-foreground/90" aria-live="polite">
+        {tip ? <>&ldquo;{tip}&rdquo;</> : <span className="skeleton inline-block h-4 w-4/5" aria-hidden />}
       </p>
-      <div className="mt-6 flex items-center justify-between">
-        <button 
+      <div className="mt-3 flex items-center justify-between">
+        <button
+          type="button"
           onClick={() => void mutate()}
           disabled={loading}
-          aria-label="Get a new mindful tip"
-          className="flex items-center gap-2 text-[12px] font-bold text-brand-green hover:underline decoration-2 underline-offset-4 tracking-tight disabled:opacity-50"
+          aria-label="Show another tip"
+          className="inline-flex h-9 items-center gap-1.5 rounded-control text-caption font-semibold text-primary-text hover:underline disabled:opacity-50"
         >
-          Stay intentional {loading ? <RefreshCw className="w-3 h-3 animate-spin" aria-hidden="true" /> : <ArrowRight className="w-3 h-3" aria-hidden="true" />}
+          Another tip {loading ? <RefreshCw className="size-3 animate-spin" aria-hidden /> : <ArrowRight className="size-3" aria-hidden />}
         </button>
-
-        {!loading && (
-          <Link 
+        {tip ? (
+          <Link
             href={`/tip/download?text=${encodeURIComponent(tip)}`}
-            className="p-2 px-2.5 rounded-full bg-brand-green/20 text-brand-green hover:bg-brand-green/20 transition-colors"
-            title="Download as image"
+            aria-label="Download this tip as an image"
+            className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <Download className="w-4 h-4" />
+            <Download className="size-4" aria-hidden />
           </Link>
-        )}
+        ) : null}
       </div>
-    </div>
+    </section>
   );
 }

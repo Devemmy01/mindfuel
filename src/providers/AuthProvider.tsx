@@ -19,6 +19,7 @@ interface UserProfile {
   streakDays?: number;
   onboardedAt?: string | null;
   lastReflectionDate?: string | null;
+  showTips?: boolean;
 }
 
 export type SignInResult =
@@ -88,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           streakDays: data.user.streakDays,
           onboardedAt: data.user.onboardedAt ?? null,
           lastReflectionDate: data.user.lastReflectionDate ?? null,
+          showTips: data.user.preferences?.showTips !== false,
         });
       }
     } catch (error) {

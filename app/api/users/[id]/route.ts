@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const userDoc = await User.findOne({ firebaseId }).select(
-      "name username image firebaseId bio streakDays lastReflectionDate longestStreak earnedMilestones onboardedAt createdAt updatedAt"
+      "name username image firebaseId bio streakDays lastReflectionDate longestStreak earnedMilestones onboardedAt preferences.showTips createdAt updatedAt"
     );
     if (!userDoc) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

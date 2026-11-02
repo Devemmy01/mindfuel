@@ -52,7 +52,7 @@ function Section({ title, description, children }: { title: string; description?
 }
 
 export default function NotificationSettingsClient({ testPush }: { testPush: boolean }) {
-  const { user, loading, openSignInModal } = useAuth();
+  const { user, loading, openSignInModal, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [primerOpen, setPrimerOpen] = React.useState(false);
   const [permission, setPermission] = React.useState<string>("default");
@@ -269,6 +269,24 @@ export default function NotificationSettingsClient({ testPush }: { testPush: boo
               </div>
             </div>
           ))}
+        </div>
+      </Section>
+
+      <Section title="Home">
+        <div className="flex items-center justify-between gap-3">
+          <span id="show-tips" className="text-body-sm">Show the Mindful tip card</span>
+          <Switch
+            labelledBy="show-tips"
+            checked={profile?.showTips !== false}
+            onChange={async (showTips) => {
+              await fetch("/api/users/profile", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ showTips }),
+              }).catch(() => undefined);
+              void refreshProfile();
+            }}
+          />
         </div>
       </Section>
 
