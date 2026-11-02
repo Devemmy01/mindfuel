@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
  */
 export default function UpdateBanner() {
   const [waiting, setWaiting] = React.useState<ServiceWorker | null>(null);
+  // A worker also takes control the first time it installs (clients.claim);
+  // only reload when the person asked for the new version.
+  const refreshRequested = React.useRef(false);
 
   React.useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
@@ -35,7 +38,7 @@ export default function UpdateBanner() {
     };
 
     const onControllerChange = () => {
-      if (reloading) return;
+      if (reloading || !refreshRequested.current) return;
       reloading = true;
       window.location.reload();
     };
@@ -64,7 +67,15 @@ export default function UpdateBanner() {
     >
       <RefreshCw className="size-4 shrink-0 text-primary-text" aria-hidden />
       <p className="flex-1 text-body-sm">A new version of MindFuel is ready.</p>
-      <Button size="sm" onClick={() => waiting.postMessage({ type: "SKIP_WAITING" })}>Refresh</Button>
+      <Button
+        size="sm"
+        onClick={() => {
+          refreshRequested.current = true;
+          waiting.postMessage({ type: "SKIP_WAITING" });
+        }}
+      >
+        Refresh
+      </Button>
     </div>
   );
 }
