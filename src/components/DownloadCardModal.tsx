@@ -38,6 +38,26 @@ const noteCanvasOptions: BackgroundStyle[] = [
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
+// html-to-image re-fetches every <img> to inline it, and the CSP's
+// connect-src blocks Cloudinary/Google hosts, so remote avatars come out
+// blank (and iOS Safari often drops even same-origin images). Inline them
+// ourselves as data URLs, routing remote ones through the same-origin
+// Next image optimizer.
+async function toDataUrl(src: string): Promise<string> {
+  const url = /^https?:/.test(src)
+    ? `/_next/image?url=${encodeURIComponent(src)}&w=128&q=90`
+    : src;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 interface DownloadCardModalProps {
   post: PostType;
   isOpen: boolean;
@@ -65,6 +85,9 @@ export default function DownloadCardModal({
   const [selectedBg, setSelectedBg] = useState(getInitialBg);
   const [noteCanvas, setNoteCanvas] = useState<BackgroundStyle>(noteCanvasOptions[0]);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [avatarData, setAvatarData] = useState<string | null>(null);
+  const [logoData, setLogoData] = useState<string | null>(null);
+  const imagesReady = useRef<Promise<unknown>>(Promise.resolve());
 
   // Re-sync when modal opens
   useEffect(() => {
@@ -75,19 +98,45 @@ export default function DownloadCardModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, post._id]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const avatarSrc = post.userId?.image;
+    imagesReady.current = Promise.all([
+      avatarSrc
+        ? toDataUrl(avatarSrc)
+            .then((data) => !cancelled && setAvatarData(data))
+            .catch(() => !cancelled && setAvatarFailed(true))
+        : null,
+      toDataUrl("/icon-192.png")
+        .then((data) => !cancelled && setLogoData(data))
+        .catch(() => {}),
+    ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, post.userId?.image]);
+
   const handleDownload = async () => {
     if (!cardRef.current || isDownloading) return;
     setIsDownloading(true);
     try {
       const { toBlob } = await import("html-to-image");
+      await imagesReady.current;
       await new Promise((r) => setTimeout(r, 350));
-      const blob = await toBlob(cardRef.current, {
-        cacheBust: true,
+      const options = {
         quality: 1,
         pixelRatio: 3,
-        skipFonts: true,
+        // The note card embeds the app's Inter so the capture wraps exactly
+        // like the preview; without it the image falls back to another font
+        // and keeps the preview's box heights, leaving gaps.
+        skipFonts: layout !== "note",
         imagePlaceholder: TRANSPARENT_PIXEL,
-      });
+      };
+      // Safari can paint the first capture before inlined images decode;
+      // a cheap warm-up pass makes the real one include them.
+      await toBlob(cardRef.current, { ...options, pixelRatio: 1 });
+      const blob = await toBlob(cardRef.current, options);
       if (!blob) throw new Error("Failed to render card image");
 
       const fileName = `mindfuel-${Date.now()}.png`;
@@ -212,17 +261,19 @@ export default function DownloadCardModal({
                 {layout === "note" ? (
                 <div
                   ref={cardRef}
-                  // No overflow-hidden: with visible overflow, aspect-square is
-                  // only a minimum, so long notes stretch the canvas instead of
-                  // being cropped.
-                  className="relative w-full max-w-[400px] aspect-square flex flex-col justify-center items-center gap-4 px-6 py-10"
+                  className="relative w-full max-w-[400px] grid"
                   style={{ background: noteCanvas.value }}
                 >
+                  {/* Square spacer sharing the grid cell with the content:
+                      the canvas is at least square and grows with long notes.
+                      (aspect-ratio doesn't grow with content on older iOS
+                      Safari, which pushed long cards out of the canvas.) */}
+                  <div aria-hidden className="col-start-1 row-start-1 pt-[100%]" />
+                  <div className="col-start-1 row-start-1 self-center flex flex-col items-center gap-4 px-6 py-10">
                   <div
-                    className="w-full bg-white rounded-[22px] p-6 text-left"
+                    className="w-full bg-white rounded-[22px] p-6 text-left font-sans"
                     style={{
                       color: "#1f1f1f",
-                      fontFamily: "'Inter', sans-serif",
                       boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)",
                     }}
                   >
@@ -235,9 +286,8 @@ export default function DownloadCardModal({
                         {author?.image && !avatarFailed ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={author.image}
+                            src={avatarData ?? author.image}
                             alt=""
-                            crossOrigin="anonymous"
                             onError={() => setAvatarFailed(true)}
                             className="w-full h-full rounded-full object-cover border-2 border-white"
                           />
@@ -248,7 +298,7 @@ export default function DownloadCardModal({
                         )}
                       </div>
                       <div className="flex-1 min-w-0 leading-tight">
-                        <p className="text-[15px] font-bold truncate" style={{ color: "#111111" }}>
+                        <p className="text-[15px] font-bold break-words" style={{ color: "#111111" }}>
                           {author?.name}
                         </p>
                         {handle ? (
@@ -287,10 +337,11 @@ export default function DownloadCardModal({
                   </div>
 
                   {/* Brand mark sits on the canvas, not the card */}
-                  <div className="flex items-center gap-2" style={{ color: noteCanvas.text, fontFamily: "'Inter', sans-serif" }}>
+                  <div className="flex items-center gap-2 font-sans" style={{ color: noteCanvas.text }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/icon-192.png" alt="" className="w-5 h-5 rounded-md" />
+                    <img src={logoData ?? "/icon-192.png"} alt="" className="w-5 h-5 rounded-md" />
                     <span className="text-[12px] font-bold tracking-wide lowercase">mind-fuel.app</span>
+                  </div>
                   </div>
                 </div>
                 ) : (
