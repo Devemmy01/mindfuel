@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { m, AnimatePresence } from "framer-motion";
 import { X, Download, Loader2, Plus } from "lucide-react";
-import { backgroundOptions } from "@/lib/backgrounds";
+import { format } from "date-fns";
+import { backgroundOptions, type BackgroundStyle } from "@/lib/backgrounds";
 import { useToast } from "@/providers/ToastProvider";
 import { PostType } from "@/types";
 
@@ -17,6 +18,25 @@ const isColorLight = (hex: string) => {
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luma > 160;
 };
+
+type CardLayout = "note" | "quote";
+
+// Solid canvases for the note layout: the white note card sits on top, so
+// these stay flat and bold rather than patterned.
+const noteCanvasOptions: BackgroundStyle[] = [
+  { id: "note-green", name: "MindFuel", type: "color", value: "#00a855", text: "#ffffff" },
+  { id: "note-ink", name: "Ink", type: "color", value: "#111827", text: "#ffffff" },
+  { id: "note-violet", name: "Violet", type: "color", value: "#7c3aed", text: "#ffffff" },
+  { id: "note-ocean", name: "Ocean", type: "color", value: "#0ea5e9", text: "#ffffff" },
+  { id: "note-rose", name: "Rose", type: "color", value: "#f43f5e", text: "#ffffff" },
+  { id: "note-sun", name: "Sun", type: "color", value: "#facc15", text: "#171717" },
+  { id: "note-sand", name: "Sand", type: "color", value: "#efe6d8", text: "#171717" },
+  { id: "note-ember", name: "Ember", type: "color", value: "#ff6719", text: "#ffffff" },
+];
+
+// A failed avatar fetch (CORS, expired URL) must not abort the whole render.
+const TRANSPARENT_PIXEL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 interface DownloadCardModalProps {
   post: PostType;
@@ -41,11 +61,17 @@ export default function DownloadCardModal({
     return found ?? backgroundOptions[0];
   };
 
+  const [layout, setLayout] = useState<CardLayout>("note");
   const [selectedBg, setSelectedBg] = useState(getInitialBg);
+  const [noteCanvas, setNoteCanvas] = useState<BackgroundStyle>(noteCanvasOptions[0]);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Re-sync when modal opens
   useEffect(() => {
-    if (isOpen) setSelectedBg(getInitialBg());
+    if (isOpen) {
+      setSelectedBg(getInitialBg());
+      setAvatarFailed(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, post._id]);
 
@@ -60,6 +86,7 @@ export default function DownloadCardModal({
         quality: 1,
         pixelRatio: 3,
         skipFonts: true,
+        imagePlaceholder: TRANSPARENT_PIXEL,
       });
       if (!blob) throw new Error("Failed to render card image");
 
@@ -105,13 +132,23 @@ export default function DownloadCardModal({
   };
 
   // Strip prompt prefix for cleaner card display
-  const getCardText = () => {
-    const match = post.text.match(/^Reflecting on: "[^"]+"\s*([\s\S]*)$/);
-    return match ? match[1].trimStart() : post.text;
-  };
-
-  const cardText = getCardText();
+  const promptMatch = post.text.match(/^Reflecting on: "([^"]+)"\s*([\s\S]*)$/);
+  const cardText = promptMatch ? promptMatch[2].trimStart() : post.text;
+  const promptQuestion = promptMatch?.[1] ?? null;
   const textColor = selectedBg.text;
+
+  const author = post.userId;
+  const handle = author?.username || author?.name?.replace(/\s+/g, "").toLowerCase() || "";
+  const postedOn = post.createdAt ? format(new Date(post.createdAt), "MMM d, yyyy") : "";
+  const paragraphs = cardText.split(/\n+/).filter((line) => line.trim());
+
+  // Accent for the avatar ring and prompt chip; light canvases fall back to
+  // brand green so the chip stays readable on the white card.
+  const noteAccent = isColorLight(noteCanvas.value) ? "#00a855" : noteCanvas.value;
+
+  const activeBg = layout === "note" ? noteCanvas : selectedBg;
+  const setActiveBg = layout === "note" ? setNoteCanvas : setSelectedBg;
+  const swatches = layout === "note" ? noteCanvasOptions : backgroundOptions.slice(0, 12);
 
   return (
     <AnimatePresence>
@@ -139,7 +176,7 @@ export default function DownloadCardModal({
                   Download as Card
                 </h3>
                 <p className="text-xs text-white/40 font-medium">
-                  Choose a style, then save your thought
+                  Pick a layout and colour, then save it to share anywhere
                 </p>
               </div>
               <button
@@ -151,8 +188,112 @@ export default function DownloadCardModal({
             </div>
 
             <div className="p-5 space-y-6 max-h-[85vh] overflow-y-auto scrollbar-dark">
+              {/* Layout switch */}
+              <div role="tablist" aria-label="Card layout" className="grid grid-cols-2 gap-1 p-1 rounded-full bg-secondary/40 border border-border/50">
+                {(["note", "quote"] as const).map((option) => (
+                  <button
+                    key={option}
+                    role="tab"
+                    aria-selected={layout === option}
+                    onClick={() => setLayout(option)}
+                    className={`py-2 rounded-full text-[13px] font-bold capitalize transition-colors ${
+                      layout === option
+                        ? "bg-surface-raised text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+
               {/* Premium Card Preview */}
               <div className="relative group/preview flex justify-center">
+                {layout === "note" ? (
+                <div
+                  ref={cardRef}
+                  // No overflow-hidden: with visible overflow, aspect-square is
+                  // only a minimum, so long notes stretch the canvas instead of
+                  // being cropped.
+                  className="relative w-full max-w-[400px] aspect-square flex flex-col justify-center items-center gap-4 px-6 py-10"
+                  style={{ background: noteCanvas.value }}
+                >
+                  <div
+                    className="w-full bg-white rounded-[22px] p-6 text-left"
+                    style={{
+                      color: "#1f1f1f",
+                      fontFamily: "'Inter', sans-serif",
+                      boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {/* Author row */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-11 h-11 rounded-full p-[2px] flex-shrink-0"
+                        style={{ background: noteAccent }}
+                      >
+                        {author?.image && !avatarFailed ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={author.image}
+                            alt=""
+                            crossOrigin="anonymous"
+                            onError={() => setAvatarFailed(true)}
+                            className="w-full h-full rounded-full object-cover border-2 border-white"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full border-2 border-white flex items-center justify-center text-white font-bold text-[15px]">
+                            {author?.name?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <p className="text-[15px] font-bold truncate" style={{ color: "#111111" }}>
+                          {author?.name}
+                        </p>
+                        {handle ? (
+                          <p className="text-[13px] truncate mt-0.5" style={{ color: "#737373" }}>
+                            @{handle}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="text-[11px] font-medium flex-shrink-0" style={{ color: "#9a9a9a" }}>
+                        {postedOn}
+                      </span>
+                    </div>
+
+                    {/* Prompt chip */}
+                    {promptQuestion ? (
+                      <div
+                        className="mt-4 inline-flex max-w-full rounded-xl px-3 py-1.5 text-[12px] font-semibold leading-snug"
+                        style={{ background: `${noteAccent}14`, color: noteAccent }}
+                      >
+                        {promptQuestion}
+                      </div>
+                    ) : null}
+
+                    {/* Body */}
+                    <div
+                      className="mt-4 space-y-2.5 break-words font-medium"
+                      style={{
+                        fontSize: cardText.length > 320 ? "14px" : cardText.length > 160 ? "15px" : "17px",
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      {paragraphs.map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Brand mark sits on the canvas, not the card */}
+                  <div className="flex items-center gap-2" style={{ color: noteCanvas.text, fontFamily: "'Inter', sans-serif" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/icon-192.png" alt="" className="w-5 h-5 rounded-md" />
+                    <span className="text-[12px] font-bold tracking-wide lowercase">mind-fuel.app</span>
+                  </div>
+                </div>
+                ) : (
                 <div
                   ref={cardRef}
                   className="relative w-full max-w-[400px] min-h-[500px] h-auto overflow-hidden shadow-2xl transition-all duration-500 flex flex-col"
@@ -203,6 +344,7 @@ export default function DownloadCardModal({
                     </div>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Background Style Picker */}
@@ -222,13 +364,13 @@ export default function DownloadCardModal({
                     <input
                       type="color"
                       value={
-                        selectedBg.id === "custom"
-                          ? selectedBg.value
+                        activeBg.id === "custom"
+                          ? activeBg.value
                           : "#00bf63"
                       }
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSelectedBg({
+                        setActiveBg({
                           id: "custom",
                           name: "Custom",
                           type: "color",
@@ -238,10 +380,10 @@ export default function DownloadCardModal({
                       }}
                       className="absolute inset-[-10px] w-20 h-20 cursor-pointer opacity-0 z-10"
                     />
-                    {selectedBg.id === "custom" ? (
+                    {activeBg.id === "custom" ? (
                       <div
                         className="w-full h-full"
-                        style={{ backgroundColor: selectedBg.value }}
+                        style={{ backgroundColor: activeBg.value }}
                       />
                     ) : (
                       <div className="w-full h-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)] opacity-90" />
@@ -253,13 +395,14 @@ export default function DownloadCardModal({
 
                   <div className="w-px h-8 bg-border/50 flex-shrink-0 mx-1" />
 
-                  {backgroundOptions.slice(0, 12).map((opt) => (
+                  {swatches.map((opt) => (
                     <button
                       key={opt.id}
-                      onClick={() => setSelectedBg(opt)}
+                      onClick={() => setActiveBg(opt)}
                       title={opt.name}
+                      aria-label={opt.name}
                       className={`w-10 h-10 rounded-full transition-all flex-shrink-0 ${
-                        selectedBg.id === opt.id && selectedBg.id !== "custom"
+                        activeBg.id === opt.id && activeBg.id !== "custom"
                           ? "scale-110 border-brand-green shadow-lg ring-2 ring-brand-green/10"
                           : "border-transparent opacity-80 hover:opacity-100 hover:scale-105"
                       }`}

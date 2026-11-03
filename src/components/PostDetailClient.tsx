@@ -37,6 +37,7 @@ import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import useSWR from "swr";
 import EditPostModal from "@/components/EditPostModal";
 import ShareToDmModal from "@/components/ShareToDmModal";
+import DownloadCardModal from "@/components/DownloadCardModal";
 import { usePresence } from "@/providers/PresenceProvider";
 import ImageLightbox from "@/components/ImageLightbox";
 
@@ -73,6 +74,7 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
   const [showShareMenu, setShowShareMenu] = useState(false);
   const shareMenuRef = React.useRef<HTMLDivElement>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
@@ -280,27 +282,10 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
     setShowShareMenu(false);
   };
 
-  const downloadCard = async () => {
-    if (!cardRef.current || !post) return;
-    try {
-      await new Promise((r) => setTimeout(r, 150));
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        quality: 1,
-        pixelRatio: 3,
-        skipFonts: true,
-      });
-      const link = document.createElement("a");
-      link.download = `mindfuel-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-      showToast("Downloading the card...");
-      setShowShareMenu(false);
-      setShowMenu(false);
-    } catch (err) {
-      console.error("Download failed", err);
-    }
+  const downloadCard = () => {
+    setIsDownloadOpen(true);
+    setShowShareMenu(false);
+    setShowMenu(false);
   };
 
   if (isHidden) return null;
@@ -703,6 +688,12 @@ export default function PostDetailPage({ initialPost }: { initialPost: PostType 
         onSave={() => {
           // Mutate is handled inside EditPostModal
         }}
+      />
+
+      <DownloadCardModal
+        post={post}
+        isOpen={isDownloadOpen}
+        onClose={() => setIsDownloadOpen(false)}
       />
 
       <ShareToDmModal
