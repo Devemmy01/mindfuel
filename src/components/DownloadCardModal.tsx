@@ -6,6 +6,7 @@ import { X, Download, Loader2, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { backgroundOptions, type BackgroundStyle } from "@/lib/backgrounds";
 import { useToast } from "@/providers/ToastProvider";
+import { drawNoteCard, loadCardFonts, loadCardImage } from "@/lib/note-card";
 import { PostType } from "@/types";
 
 const isColorLight = (hex: string) => {
@@ -38,26 +39,6 @@ const noteCanvasOptions: BackgroundStyle[] = [
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
-// html-to-image re-fetches every <img> to inline it, and the CSP's
-// connect-src blocks Cloudinary/Google hosts, so remote avatars come out
-// blank (and iOS Safari often drops even same-origin images). Inline them
-// ourselves as data URLs, routing remote ones through the same-origin
-// Next image optimizer.
-async function toDataUrl(src: string): Promise<string> {
-  const url = /^https?:/.test(src)
-    ? `/_next/image?url=${encodeURIComponent(src)}&w=128&q=90`
-    : src;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
 interface DownloadCardModalProps {
   post: PostType;
   isOpen: boolean;
@@ -71,6 +52,7 @@ export default function DownloadCardModal({
 }: DownloadCardModalProps) {
   const { showToast } = useToast();
   const cardRef = useRef<HTMLDivElement>(null);
+  const noteRef = useRef<HTMLCanvasElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Pick initial background from post's saved style (or first option)
@@ -84,59 +66,62 @@ export default function DownloadCardModal({
   const [layout, setLayout] = useState<CardLayout>("note");
   const [selectedBg, setSelectedBg] = useState(getInitialBg);
   const [noteCanvas, setNoteCanvas] = useState<BackgroundStyle>(noteCanvasOptions[0]);
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const [avatarData, setAvatarData] = useState<string | null>(null);
-  const [logoData, setLogoData] = useState<string | null>(null);
-  const imagesReady = useRef<Promise<unknown>>(Promise.resolve());
+  const [avatarImg, setAvatarImg] = useState<HTMLImageElement | null>(null);
+  const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
+  const [fontFamily, setFontFamily] = useState<string | null>(null);
 
   // Re-sync when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setSelectedBg(getInitialBg());
-      setAvatarFailed(false);
-    }
+    if (isOpen) setSelectedBg(getInitialBg());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, post._id]);
 
+  // Everything the note canvas draws must be loaded before it draws.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     const avatarSrc = post.userId?.image;
-    imagesReady.current = Promise.all([
-      avatarSrc
-        ? toDataUrl(avatarSrc)
-            .then((data) => !cancelled && setAvatarData(data))
-            .catch(() => !cancelled && setAvatarFailed(true))
-        : null,
-      toDataUrl("/icon-192.png")
-        .then((data) => !cancelled && setLogoData(data))
-        .catch(() => {}),
-    ]);
+    setAvatarImg(null);
+    if (avatarSrc) {
+      loadCardImage(avatarSrc)
+        .then((img) => !cancelled && setAvatarImg(img))
+        .catch(() => {});
+    }
+    loadCardImage("/icon-192.png")
+      .then((img) => !cancelled && setLogoImg(img))
+      .catch(() => {});
+    // The app's Inter comes from next/font under a generated family name.
+    const family = getComputedStyle(document.body).fontFamily || "Inter, sans-serif";
+    loadCardFonts(family).finally(() => !cancelled && setFontFamily(family));
     return () => {
       cancelled = true;
     };
   }, [isOpen, post.userId?.image]);
 
+  const renderBlob = async (): Promise<Blob | null> => {
+    if (layout === "note") {
+      // The preview canvas is the image.
+      const canvas = noteRef.current;
+      if (!canvas) return null;
+      return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    }
+    if (!cardRef.current) return null;
+    const { toBlob } = await import("html-to-image");
+    await new Promise((r) => setTimeout(r, 350));
+    return toBlob(cardRef.current, {
+      cacheBust: true,
+      quality: 1,
+      pixelRatio: 3,
+      skipFonts: true,
+      imagePlaceholder: TRANSPARENT_PIXEL,
+    });
+  };
+
   const handleDownload = async () => {
-    if (!cardRef.current || isDownloading) return;
+    if (isDownloading) return;
     setIsDownloading(true);
     try {
-      const { toBlob } = await import("html-to-image");
-      await imagesReady.current;
-      await new Promise((r) => setTimeout(r, 350));
-      const options = {
-        quality: 1,
-        pixelRatio: 3,
-        // The note card embeds the app's Inter so the capture wraps exactly
-        // like the preview; without it the image falls back to another font
-        // and keeps the preview's box heights, leaving gaps.
-        skipFonts: layout !== "note",
-        imagePlaceholder: TRANSPARENT_PIXEL,
-      };
-      // Safari can paint the first capture before inlined images decode;
-      // a cheap warm-up pass makes the real one include them.
-      await toBlob(cardRef.current, { ...options, pixelRatio: 1 });
-      const blob = await toBlob(cardRef.current, options);
+      const blob = await renderBlob();
       if (!blob) throw new Error("Failed to render card image");
 
       const fileName = `mindfuel-${Date.now()}.png`;
@@ -187,13 +172,32 @@ export default function DownloadCardModal({
   const textColor = selectedBg.text;
 
   const author = post.userId;
-  const handle = author?.username || author?.name?.replace(/\s+/g, "").toLowerCase() || "";
-  const postedOn = post.createdAt ? format(new Date(post.createdAt), "MMM d, yyyy") : "";
-  const paragraphs = cardText.split(/\n+/).filter((line) => line.trim());
+  const authorName = author?.name ?? "";
+  const handle = author?.username || authorName.replace(/\s+/g, "").toLowerCase();
+  const createdAt = post.createdAt ? new Date(post.createdAt) : null;
+  const postedOn = createdAt && !Number.isNaN(createdAt.getTime()) ? format(createdAt, "MMM d, yyyy") : "";
 
   // Accent for the avatar ring and prompt chip; light canvases fall back to
   // brand green so the chip stays readable on the white card.
-  const noteAccent = isColorLight(noteCanvas.value) ? "#00a855" : noteCanvas.value;
+  const lightCanvas = isColorLight(noteCanvas.value);
+  const noteAccent = lightCanvas ? "#00a855" : noteCanvas.value;
+
+  useEffect(() => {
+    if (!isOpen || layout !== "note" || !fontFamily || !noteRef.current) return;
+    drawNoteCard(noteRef.current, {
+      name: authorName,
+      handle,
+      date: postedOn,
+      prompt: promptQuestion,
+      text: cardText,
+      canvasColor: noteCanvas.value,
+      canvasText: noteCanvas.text,
+      accent: noteAccent,
+      avatar: avatarImg,
+      logo: logoImg,
+      fontFamily,
+    });
+  }, [isOpen, layout, fontFamily, authorName, handle, postedOn, promptQuestion, cardText, noteCanvas, noteAccent, avatarImg, logoImg]);
 
   const activeBg = layout === "note" ? noteCanvas : selectedBg;
   const setActiveBg = layout === "note" ? setNoteCanvas : setSelectedBg;
@@ -259,91 +263,14 @@ export default function DownloadCardModal({
               {/* Premium Card Preview */}
               <div className="relative group/preview flex justify-center">
                 {layout === "note" ? (
-                <div
-                  ref={cardRef}
-                  className="relative w-full max-w-[400px] grid"
-                  style={{ background: noteCanvas.value }}
-                >
-                  {/* Square spacer sharing the grid cell with the content:
-                      the canvas is at least square and grows with long notes.
-                      (aspect-ratio doesn't grow with content on older iOS
-                      Safari, which pushed long cards out of the canvas.) */}
-                  <div aria-hidden className="col-start-1 row-start-1 pt-[100%]" />
-                  <div className="col-start-1 row-start-1 self-center flex flex-col items-center gap-4 px-6 py-10">
-                  <div
-                    className="w-full bg-white rounded-[22px] p-6 text-left font-sans"
-                    style={{
-                      color: "#1f1f1f",
-                      boxShadow: "0 24px 48px -16px rgba(0,0,0,0.4)",
-                    }}
-                  >
-                    {/* Author row */}
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-11 h-11 rounded-full p-[2px] flex-shrink-0"
-                        style={{ background: noteAccent }}
-                      >
-                        {author?.image && !avatarFailed ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={avatarData ?? author.image}
-                            alt=""
-                            onError={() => setAvatarFailed(true)}
-                            className="w-full h-full rounded-full object-cover border-2 border-white"
-                          />
-                        ) : (
-                          <div className="w-full h-full rounded-full border-2 border-white flex items-center justify-center text-white font-bold text-[15px]">
-                            {author?.name?.[0]?.toUpperCase() ?? "?"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0 leading-tight">
-                        <p className="text-[15px] font-bold break-words" style={{ color: "#111111" }}>
-                          {author?.name}
-                        </p>
-                        {handle ? (
-                          <p className="text-[13px] truncate mt-0.5" style={{ color: "#737373" }}>
-                            @{handle}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="text-[11px] font-medium flex-shrink-0" style={{ color: "#9a9a9a" }}>
-                        {postedOn}
-                      </span>
-                    </div>
-
-                    {/* Prompt chip */}
-                    {promptQuestion ? (
-                      <div
-                        className="mt-4 inline-flex max-w-full rounded-xl px-3 py-1.5 text-[12px] font-semibold leading-snug"
-                        style={{ background: `${noteAccent}14`, color: noteAccent }}
-                      >
-                        {promptQuestion}
-                      </div>
-                    ) : null}
-
-                    {/* Body */}
-                    <div
-                      className="mt-4 space-y-2.5 break-words font-medium"
-                      style={{
-                        fontSize: cardText.length > 320 ? "14px" : cardText.length > 160 ? "15px" : "17px",
-                        lineHeight: 1.55,
-                      }}
-                    >
-                      {paragraphs.map((line, i) => (
-                        <p key={i}>{line}</p>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Brand mark sits on the canvas, not the card */}
-                  <div className="flex items-center gap-2 font-sans" style={{ color: noteCanvas.text }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoData ?? "/icon-192.png"} alt="" className="w-5 h-5 rounded-md" />
-                    <span className="text-[12px] font-bold tracking-wide lowercase">mind-fuel.app</span>
-                  </div>
-                  </div>
-                </div>
+                <canvas
+                  ref={noteRef}
+                  role="img"
+                  aria-label="Card preview"
+                  width={1080}
+                  height={1080}
+                  className="w-full max-w-[400px] h-auto rounded-md shadow-2xl"
+                />
                 ) : (
                 <div
                   ref={cardRef}
