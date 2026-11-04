@@ -44,7 +44,7 @@ import { getSocket } from "@/lib/socket";
 import { getUserHandle } from "@/lib/userHandle";
 import { chatFetch } from "@/lib/chat-api";
 import { addToOutbox, readOutbox, removeFromOutbox, type OutboxEntry } from "@/lib/chat-outbox";
-import { createConversationKey, decryptChatText, encryptChatBytes, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
+import { ChatKeyMismatchError, createConversationKey, decryptChatText, encryptChatBytes, encryptChatText, ensureChatIdentity, isChatKeyMismatchError, unwrapConversationKey } from "@/lib/chat-crypto";
 import { ENVELOPE_ENCRYPTION_VERSION, messagePreviewText, parseEnvelope, prepareImage, serializeEnvelope, type LinkPreviewData } from "@/lib/chat-attachments";
 import EncryptedImage from "@/components/chat/EncryptedImage";
 import NativeEmojiPicker from "@/components/ui/NativeEmojiPicker";
@@ -176,6 +176,7 @@ type Conversation = {
   request?: boolean;
   encryptionVersion?: number;
   encryptedKeys?: Array<{ user: Person; wrappedKey: string }>;
+  previousKeys?: Array<{ encryptedKeys: Array<{ user: Person; wrappedKey: string }> }>;
 };
 
 const CHAT_CACHE_PREFIX = "mindfuel:chat:v1:";
@@ -306,7 +307,10 @@ export default function MessagesClient() {
   const conversationSnapshotReadyRef = useRef(false);
   const lastMarkedReadIdRef = useRef("");
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keyed by conversation id + this user's current wrapped key, so a key
+  // that the conversation has since replaced is never reused for sending.
   const conversationKeysRef = useRef<Map<string, CryptoKey>>(new Map());
+  const previousKeysRef = useRef<Map<string, CryptoKey | null>>(new Map());
   const sharedDraftAppliedRef = useRef("");
   const lastTypingStateRef = useRef<{
     conversationId: string;
@@ -478,23 +482,21 @@ export default function MessagesClient() {
 
   const prepareConversationKey = useCallback(async (conversation: Conversation) => {
     if (!user) throw new Error("Sign in required");
-    const cached = conversationKeysRef.current.get(conversation._id);
+    const currentWrapped = conversation.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
+    const cached = conversationKeysRef.current.get(`${conversation._id}:${currentWrapped || ""}`);
     if (cached) return cached;
-    if (conversation.encryptionVersion) {
-      const wrapped = conversation.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
-      if (wrapped) {
-        try {
-          const key = await unwrapConversationKey(user.uid, wrapped);
-          conversationKeysRef.current.set(conversation._id, key);
-          return key;
-        } catch (error) {
-          if (!isChatKeyMismatchError(error)) throw error;
-          // This device's identity can no longer unwrap the conversation's
-          // existing shared key (e.g. after "start fresh" gave up the old
-          // one). Fall through and establish a fresh key wrapped for
-          // everyone's *current* identity instead of leaving the
-          // conversation permanently unable to send new messages.
-        }
+    if (conversation.encryptionVersion && currentWrapped) {
+      try {
+        const key = await unwrapConversationKey(user.uid, currentWrapped);
+        conversationKeysRef.current.set(`${conversation._id}:${currentWrapped}`, key);
+        return key;
+      } catch (error) {
+        if (!isChatKeyMismatchError(error)) throw error;
+        // This device's identity can't unwrap the current key. The server
+        // only accepts a replacement if this device holds the account's
+        // registered identity (i.e. the user reset it with "start fresh");
+        // an unlinked browser gets a 409 below and is asked to link instead
+        // of wiping the conversation for everyone.
       }
     }
 
@@ -531,6 +533,11 @@ export default function MessagesClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ conversationId: conversation._id, wrappedKeys: created.wrappedKeys }),
     });
+    if (response.status === 409) {
+      const data = await response.json().catch(() => ({}));
+      if (data.code === "device_not_linked") throw new ChatKeyMismatchError();
+      throw new Error(data.error || "Unable to establish encrypted conversation");
+    }
     if (!response.ok) throw new Error("Unable to establish encrypted conversation");
     const encryption = await response.json();
     const secured = { ...conversation, ...encryption };
@@ -539,14 +546,38 @@ export default function MessagesClient() {
     const establishedKey = await unwrapConversationKey(user.uid, ownWrapped);
     setActive((current) => current?._id === secured._id ? secured : current);
     setConversations((rows) => rows.map((row) => row._id === secured._id ? { ...row, ...encryption } : row));
-    conversationKeysRef.current.set(conversation._id, establishedKey);
+    conversationKeysRef.current.set(`${conversation._id}:${ownWrapped}`, establishedKey);
     return establishedKey;
   }, [user, setConversations]);
+
+  /** Every key this device can open for the conversation, current first. */
+  const prepareConversationKeyring = useCallback(async (conversation: Conversation) => {
+    if (!user) throw new Error("Sign in required");
+    const older: CryptoKey[] = [];
+    for (const set of conversation.previousKeys || []) {
+      const wrapped = set.encryptedKeys?.find((row) => row.user?.firebaseId === user.uid)?.wrappedKey;
+      if (!wrapped) continue;
+      if (!previousKeysRef.current.has(wrapped)) {
+        // A key wrapped for an identity this device never held stays
+        // unreadable; remember that so it isn't retried on every render.
+        previousKeysRef.current.set(wrapped, await unwrapConversationKey(user.uid, wrapped).catch(() => null));
+      }
+      const key = previousKeysRef.current.get(wrapped);
+      if (key) older.push(key);
+    }
+    try {
+      return [await prepareConversationKey(conversation), ...older];
+    } catch (error) {
+      // An unlinked device can still read whatever older keys it holds.
+      if (older.length && isChatKeyMismatchError(error)) return older;
+      throw error;
+    }
+  }, [user, prepareConversationKey]);
 
   useEffect(() => {
     if (!active || !messageData?.some((message) => message.ciphertext && !message.decrypted)) return;
     let cancelled = false;
-    void prepareConversationKey(active).then(async (key) => {
+    void prepareConversationKeyring(active).then(async (key) => {
       const decrypted = await Promise.all(messageData.map(async (message) => {
         if (!message.ciphertext || !message.iv || message.decrypted) return message;
         try {
@@ -574,7 +605,7 @@ export default function MessagesClient() {
       ));
     });
     return () => { cancelled = true; };
-  }, [active, messageData, prepareConversationKey, setMessages, showToast]);
+  }, [active, messageData, prepareConversationKeyring, setMessages, showToast]);
   const updateTypingState = useCallback(
     (conversationId: string, isTyping: boolean, force = false) => {
       if (!user) return;
@@ -1455,8 +1486,8 @@ export default function MessagesClient() {
   };
 
   const getActiveKey = useCallback(
-    () => (active ? prepareConversationKey(active) : Promise.reject(new Error("No conversation"))),
-    [active, prepareConversationKey],
+    () => (active ? prepareConversationKeyring(active) : Promise.reject(new Error("No conversation"))),
+    [active, prepareConversationKeyring],
   );
 
   const reactToMessage = async (messageId: string, emoji: string) => {

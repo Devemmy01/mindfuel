@@ -8,6 +8,12 @@ export interface IConversation extends Document {
   lastMessageAt: Date;
   encryptionVersion: number;
   encryptedKeys: Array<{ user: Types.ObjectId; wrappedKey: string }>;
+  /**
+   * Key sets this conversation used before its current one, newest first.
+   * Messages are never re-encrypted, so a message sent under an older key
+   * can only be read while that key is kept here.
+   */
+  previousKeys: Array<{ encryptedKeys: Array<{ user: Types.ObjectId; wrappedKey: string }>; retiredAt: Date }>;
   /** Recipients who haven't accepted this conversation yet (message requests). */
   requestFor: Types.ObjectId[];
   /** Recipients who deleted the request; the sender isn't told. */
@@ -34,6 +40,15 @@ const ConversationSchema = new Schema(
     encryptedKeys: [{
       user: { type: Schema.Types.ObjectId, ref: "User", required: true },
       wrappedKey: { type: String, required: true },
+      _id: false,
+    }],
+    previousKeys: [{
+      encryptedKeys: [{
+        user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        wrappedKey: { type: String, required: true },
+        _id: false,
+      }],
+      retiredAt: { type: Date, default: Date.now },
       _id: false,
     }],
   },

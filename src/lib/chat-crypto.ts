@@ -57,6 +57,8 @@ export async function createConversationKey(publicKeys: Array<{ userId: string; 
   const raw = await crypto.subtle.exportKey("raw", key);
   const wrappedKeys = await Promise.all(publicKeys.map(async ({ userId, publicKey }) => ({
     userId,
+    // Sent so the server can check it matches the key the account registered.
+    publicKey,
     wrappedKey: bytesToBase64(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, await importPublicKey(publicKey), raw)),
   })));
   return { key, wrappedKeys };
@@ -80,9 +82,29 @@ export async function encryptChatText(key: CryptoKey, text: string) {
   return { ciphertext: bytesToBase64(ciphertext), iv: bytesToBase64(iv), encryptionVersion: 1 };
 }
 
-export async function decryptChatText(key: CryptoKey, ciphertext: string, iv: string) {
-  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(iv) }, key, base64ToBytes(ciphertext));
+export async function decryptChatText(key: CryptoKey | CryptoKey[], ciphertext: string, iv: string) {
+  const data = base64ToBytes(ciphertext);
+  const plaintext = await firstKeyThatWorks(key, (candidate) =>
+    crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(iv) }, candidate, data));
   return new TextDecoder().decode(plaintext);
+}
+
+/**
+ * A conversation can have several keys over its life (one per identity
+ * reset), and a message carries no key id. AES-GCM authenticates, so a wrong
+ * key fails cleanly; try each key, newest first, until one opens it.
+ */
+async function firstKeyThatWorks<T>(keys: CryptoKey | CryptoKey[], attempt: (key: CryptoKey) => Promise<T>) {
+  const list = Array.isArray(keys) ? keys : [keys];
+  let lastError: unknown = new Error("No conversation key");
+  for (const key of list) {
+    try {
+      return await attempt(key);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -96,8 +118,9 @@ export async function encryptChatBytes(key: CryptoKey, bytes: ArrayBuffer | Uint
   return { data, iv: bytesToBase64(iv) };
 }
 
-export async function decryptChatBytes(key: CryptoKey, data: ArrayBuffer, iv: string) {
-  return crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(iv) }, key, data);
+export async function decryptChatBytes(key: CryptoKey | CryptoKey[], data: ArrayBuffer, iv: string) {
+  return firstKeyThatWorks(key, (candidate) =>
+    crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(iv) }, candidate, data));
 }
 
 export type EncryptedChatIdentity = {

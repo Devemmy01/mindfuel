@@ -10,7 +10,7 @@ import type { ImageEnvelope } from "@/lib/chat-attachments";
 // Decrypted photos live in memory only (never localStorage), for this tab's lifetime.
 const decryptedUrls = new Map<string, Promise<string>>();
 
-function loadPhoto(user: User, envelope: ImageEnvelope, getKey: () => Promise<CryptoKey>) {
+function loadPhoto(user: User, envelope: ImageEnvelope, getKey: () => Promise<CryptoKey | CryptoKey[]>) {
   let pending = decryptedUrls.get(envelope.id);
   if (!pending) {
     pending = (async () => {
@@ -33,7 +33,7 @@ export default function EncryptedImage({
 }: {
   user: User;
   envelope: ImageEnvelope;
-  getKey: () => Promise<CryptoKey>;
+  getKey: () => Promise<CryptoKey | CryptoKey[]>;
 }) {
   const [url, setUrl] = React.useState<string | null>(null);
   const [failed, setFailed] = React.useState(false);
