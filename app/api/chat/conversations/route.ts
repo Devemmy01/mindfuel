@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       .limit(50)
       .populate("participants", "+chatPublicKey name username image firebaseId")
       .populate("encryptedKeys.user", "firebaseId")
+      .populate("previousKeys.encryptedKeys.user", "firebaseId")
       .populate({
         path: "lastMessage",
         select: "text ciphertext iv encryptionVersion createdAt sender readBy reactions",
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     )
       .populate("participants", "+chatPublicKey name username image firebaseId")
       .populate("encryptedKeys.user", "firebaseId")
+      .populate("previousKeys.encryptedKeys.user", "firebaseId")
       .populate({
         path: "lastMessage",
         select: "text ciphertext iv encryptionVersion createdAt sender readBy reactions",
@@ -114,24 +116,57 @@ export async function PATCH(req: NextRequest) {
     if (!user || !Array.isArray(wrappedKeys)) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     const conversation = await Conversation.findOne({ _id: conversationId, participants: user._id });
     if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-    const participants = await User.find({ _id: { $in: conversation.participants } }).select("firebaseId");
-    const byFirebaseId = new Map(participants.map((row) => [row.firebaseId, row._id]));
-    if (wrappedKeys.length !== participants.length || wrappedKeys.some((row: { userId?: string; wrappedKey?: string }) =>
+    const participants = await User.find({ _id: { $in: conversation.participants } }).select("+chatPublicKey firebaseId");
+    const byFirebaseId = new Map(participants.map((row) => [row.firebaseId, row]));
+    type WrappedKeyRow = { userId?: string; wrappedKey?: string; publicKey?: string };
+    if (wrappedKeys.length !== participants.length || wrappedKeys.some((row: WrappedKeyRow) =>
       !byFirebaseId.has(String(row.userId || "")) || typeof row.wrappedKey !== "string" || row.wrappedKey.length > 1000)) {
       return NextResponse.json({ error: "Invalid wrapped keys" }, { status: 400 });
     }
-    // Also reached when a participant's device can no longer unwrap the
-    // existing shared key (e.g. after resetting a lost identity) — in that
-    // case the client re-submits a brand-new key wrapped for everyone's
-    // *current* public key, so this always applies what's sent rather than
-    // only on the conversation's first-ever PATCH.
+    // Each key must be wrapped for the identity that person's account has
+    // registered. A browser that isn't linked to the account wraps its own
+    // copy for a throwaway identity; accepting that would replace the
+    // conversation key and leave every linked device (and the other person)
+    // unable to read anything sent afterwards.
+    for (const row of wrappedKeys as WrappedKeyRow[]) {
+      const participant = byFirebaseId.get(String(row.userId));
+      if (!participant?.chatPublicKey || row.publicKey !== participant.chatPublicKey) {
+        const self = row.userId === auth.uid;
+        return NextResponse.json(
+          {
+            error: self
+              ? "This device is not linked to your encrypted chats"
+              : "This person's encryption key changed. Reload and try again.",
+            code: self ? "device_not_linked" : "stale_recipient_key",
+          },
+          { status: 409 },
+        );
+      }
+    }
+    // Reached on first setup, and again when a participant reset their
+    // identity and can no longer unwrap the current key. Messages are never
+    // re-encrypted, so the old key set is kept: dropping it would make every
+    // earlier message unreadable for everyone.
+    if (conversation.encryptedKeys?.length) {
+      conversation.previousKeys = [
+        { encryptedKeys: conversation.encryptedKeys, retiredAt: new Date() },
+        ...(conversation.previousKeys || []),
+      ].slice(0, 20);
+    }
     conversation.encryptionVersion = conversation.encryptionVersion || 1;
-    conversation.encryptedKeys = wrappedKeys.map((row: { userId: string; wrappedKey: string }) => ({
-      user: byFirebaseId.get(row.userId), wrappedKey: row.wrappedKey,
+    conversation.encryptedKeys = (wrappedKeys as WrappedKeyRow[]).map((row) => ({
+      user: byFirebaseId.get(String(row.userId))!._id, wrappedKey: String(row.wrappedKey),
     }));
     await conversation.save();
-    await conversation.populate("encryptedKeys.user", "firebaseId");
-    return NextResponse.json({ encryptionVersion: conversation.encryptionVersion, encryptedKeys: conversation.encryptedKeys });
+    await conversation.populate([
+      { path: "encryptedKeys.user", select: "firebaseId" },
+      { path: "previousKeys.encryptedKeys.user", select: "firebaseId" },
+    ]);
+    return NextResponse.json({
+      encryptionVersion: conversation.encryptionVersion,
+      encryptedKeys: conversation.encryptedKeys,
+      previousKeys: conversation.previousKeys,
+    });
   } catch (error) {
     console.error("Conversation encryption setup failed", error);
     return NextResponse.json({ error: "Failed to enable encryption" }, { status: 500 });
